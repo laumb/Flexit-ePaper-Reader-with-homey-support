@@ -1,158 +1,175 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v3.6.0)
+# VentReader – Flexit Modbus Reader with ePaper UI (v3.7.0)
 
-VentReader is an ESP32-based local gateway for Flexit ventilation systems
-(Nordic S3 / S4 + selected experimental variants), featuring:
+VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
+It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
 
-- Local ePaper display
-- Web-based admin & setup wizard
-- Modbus RTU (RS-485) integration
-- Optional Homey and Home Assistant integration
-- Optional experimental control writes (mode + setpoint)
-- OTA firmware updates
-- Commercial-friendly provisioning flow
+Default behavior is read-only monitoring. Modbus write control is optional and disabled by default.
 
-⚠️ This product is NOT affiliated with Flexit.  
-The name “Flexit” is used only to describe supported equipment.
+## Changelog (short)
 
----
+### v3.7.0
+- Setup wizard step 3 now requires explicit enable/disable selection for `Homey/API` and `Home Assistant/API`.
+- Homey export added in admin: ready-to-use setup file with script/mapping/endpoints.
+- Admin layout improved and public front page now shows clearer runtime/module status.
 
-## Features
-
-- ESP32-S3 based
-- Waveshare / WeAct 4.2" ePaper display (SSD1683)
-- Modbus RTU via MAX3485
-- Setup wizard (3-step):
-  1. Admin password
-  2. WiFi credentials
-  3. Feature & model selection
-- Language selector in admin/setup (`NO`, `DA`, `SV`, `FI`, `EN`, `UKR`)
-- Flexit model selector:
-  - `S3`
-  - `S4`
-  - `S2 (Experimental)`
-  - `S7 (Experimental)`
-  - `CL3 (Experimental)`
-  - `CL4 (Experimental)`
-- Factory reset via BOOT button
-- OTA firmware updates (after setup), including web upload in admin
-- Web API for Homey / Home Assistant / integrations
-
-### v3.6.0 highlights
-
-- Language selection now applies to admin sub-pages and ePaper texts
-- Dashboard mode values are now translated per selected language
-- Status JSON now includes machine-friendly timestamps (`ts_epoch_ms`, `ts_iso`) for logging/graph pipelines
-- New local history API for graphing (`/status/history`, `/ha/history`)
-- New diagnostics API (`/status/diag`) with Modbus quality counters
-- New quick-control panel in admin (mode + setpoint) when control writes are enabled
-- Quick-control panel is now language-aware
-- New admin graphs page (`/admin/graphs`) showing local history trends
-- Graph page includes per-series toggles + CSV export
-- Storage safety endpoint added (`/status/storage`) to verify bounded RAM usage
-- New admin manual/changelog page (`/admin/manual`)
-- More consistent admin response pages (save/restart/OTA)
+### v3.6.0
+- New history/diagnostics endpoints (`/status/history`, `/status/diag`, `/status/storage`).
+- New quick-control panel and graphs page in admin.
+- Improved language coverage in admin and ePaper UI.
 
 ---
 
-## Device lifecycle
+## First boot
 
-### Manufacturing / Factory state
-- All configuration erased (NVS empty)
-- `setup_completed = false`
-- Setup wizard shown on display
-- Device starts WiFi AP
-- Default admin credentials active
+On first start:
+1. Device enters setup mode.
+2. Device starts provisioning AP.
+3. Setup must be completed in browser before normal operation.
 
-### End-user configured state
-- Setup completed
-- Admin password changed
-- STA WiFi connected
-- Dashboard shown on display
-- OTA + API enabled
+## Connect to device
 
----
+1. Join the WiFi network shown on the display.
+2. Use password shown on the display.
+3. Open the displayed IP in browser (auto-redirects to setup).
 
-## Default credentials (factory only)
+## Factory login
 
-- Username: `admin`
+- User: `admin`
 - Password: `ventreader`
-- WiFi AP password: `ventreader`
 
-User is forced to change admin password during setup.
+Admin password must be changed during setup.
 
----
+## Setup wizard
 
-## WiFi behaviour
+Wizard has 3 steps:
+1. Admin password
+2. WiFi
+3. Model + modules
 
-- If setup not completed:
-  - Device ALWAYS starts AP
-  - Onboarding screen is shown on ePaper
-- If setup completed:
-  - Device connects to STA
-  - AP is only enabled as fallback
+Step 3 now requires explicit selection for both:
+- `Homey/API`: Enable or Disable
+- `Home Assistant/API`: Enable or Disable
 
----
+Press **Complete & restart** to persist settings and reboot.
 
-## OTA updates
+## Normal operation
 
-Arduino OTA (IDE network upload) is enabled **only when**:
-- Setup is completed
-- STA WiFi is connected
+After setup is complete:
+- ePaper shows live values.
+- Admin is available on device IP (`/admin`).
+- API availability follows your module selections.
 
-Web OTA upload from admin (`/admin/ota`) is available when setup is completed and admin page is reachable.
+## Quick start: Homey
 
-OTA does not erase configuration.
+1. In `/admin`, verify `Homey/API` is enabled.
+2. Click **Export Homey setup**.
+3. Mobile: use **Share file (mobile)** and send to your own email.
+4. Desktop: download file directly.
+5. In Homey, create virtual devices from mapping in export file.
+6. Copy `homey_script_js` from export file into HomeyScript.
+7. Create polling flow every 1-2 minutes.
 
----
+## Quick start: Home Assistant
+
+1. In `/admin`, verify `Home Assistant/API` is enabled.
+2. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
+3. Add REST sensor in `configuration.yaml`.
+4. Add template sensors for temperatures/percentages.
+5. Restart Home Assistant.
+6. Verify values in Entities + History.
+
+## Mode/setpoint writes (optional)
+
+Requires both enabled in admin:
+1. `Modbus`
+2. `Enable remote control writes (experimental)`
+
+When enabled:
+- Admin quick control becomes available.
+- API write endpoints are active:
+  - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+  - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+
+## Required vs optional
+
+### Required
+1. Change default admin password.
+2. Explicitly choose API modules in wizard.
+3. Keep token secure.
+4. Verify status endpoint before enabling automation.
+
+### Optional
+1. Modbus writes.
+2. Alarm/notification flows.
+3. Local history graphs and CSV exports.
+
+## Troubleshooting (quick)
+
+- `401 missing/invalid token`: wrong or missing token.
+- `403 api disabled`: selected API module is disabled.
+- `403 control disabled`: write control disabled.
+- `409 modbus disabled`: Modbus is disabled for write operations.
+- `500 write ... failed`: Modbus transport/settings or physical bus issue.
+- Empty/stale values: check Modbus status, wiring, slave ID, baud.
 
 ## Homey setup
 
-Step-by-step Homey guides:
+Detailed guides:
 - English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP.md`
 - Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP_NO.md`
 
 ## Home Assistant setup
 
-Step-by-step Home Assistant guides:
+Detailed guides:
 - English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP.md`
 - Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP_NO.md`
 
 ## API endpoints
 
-- Health:
-  - `GET /health`
-- Status:
-  - `GET /status?token=<TOKEN>`
-  - `GET /ha/status?token=<TOKEN>` (requires `Home Assistant/API` enabled)
-  - Includes `ts_epoch_ms` and `ts_iso` in each payload for time-series use
-  - Includes `stale` flag per sample
-- History:
-  - `GET /status/history?token=<TOKEN>&limit=120`
-  - `GET /ha/history?token=<TOKEN>&limit=120`
-  - `GET /status/history.csv?token=<TOKEN>&limit=120`
-  - `GET /ha/history.csv?token=<TOKEN>&limit=120`
-- Diagnostics:
-  - `GET /status/diag?token=<TOKEN>`
-  - `GET /status/storage?token=<TOKEN>`
-- Control (experimental, requires both `Modbus` + `Control writes` enabled):
-  - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-  - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+### Health
+- `GET /health`
 
----
+### Status
+- `GET /status?token=<TOKEN>`
+- `GET /ha/status?token=<TOKEN>` (requires `Home Assistant/API` enabled)
+
+Status payload includes:
+- Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
+- Aggregates: `fan`, `heat`, `efficiency`
+- Metadata: `mode`, `modbus`, `model`, `time`, `ts_epoch_ms`, `ts_iso`, `stale`
+
+### History
+- `GET /status/history?token=<TOKEN>&limit=120`
+- `GET /ha/history?token=<TOKEN>&limit=120`
+- `GET /status/history.csv?token=<TOKEN>&limit=120`
+- `GET /ha/history.csv?token=<TOKEN>&limit=120`
+
+### Diagnostics
+- `GET /status/diag?token=<TOKEN>`
+- `GET /status/storage?token=<TOKEN>`
+
+### Control (experimental)
+Requires both `Modbus` and `Enable remote control writes`:
+- `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+- `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+
+## OTA updates
+
+1. Web upload in admin: `/admin/ota` with `.bin`.
+2. Arduino OTA over network (STA WiFi required).
+
+Configuration in NVS is preserved during normal OTA updates.
 
 ## Factory reset
 
-Hold the **BOOT (GPIO0)** button during power-on for ~6 seconds:
+Hold `BOOT` while powering on for ~6 seconds.
 
-- All NVS config erased
-- Device reboots
-- Returns to factory / manufacturing state
+## Security
+
+- Change default password on first boot.
+- Share API token only with trusted local integrations.
+- Keep write control disabled unless required.
 
 ---
 
-## Disclaimer
-
-Default behavior is monitoring/read-only.
-Modbus writes are optional and disabled by default.
-
-Use at your own risk.
+VentReader is not affiliated with Flexit.

@@ -1,25 +1,46 @@
 # Home Assistant Setup Guide (Step by Step)
 
-This guide shows how to integrate VentReader with Home Assistant using local REST APIs.
+This guide explains how to integrate VentReader with Home Assistant via local REST APIs.
 
 You get:
 - live values
-- historical graphs
-- optional write controls (mode + setpoint)
+- history graphs
+- optional write control (mode + setpoint)
+
+## Quick start (recommended)
+
+1. Verify `Home Assistant/API` is enabled in VentReader admin.
+2. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
+3. Add REST sensor in `configuration.yaml`.
+4. Add template sensors.
+5. Restart Home Assistant.
+6. Verify values in Entities/History.
+
+## Required vs optional
+
+### Required
+1. `Home Assistant/API` enabled.
+2. Correct token in REST resource URL.
+3. At least one REST sensor and relevant template sensors.
+
+### Optional
+1. REST commands for write control.
+2. Automations for mode/setpoint.
+3. Custom alert/notification logic.
 
 ## 1) Prepare VentReader
 
 In VentReader admin (`/admin`):
 1. Enable `Home Assistant/API`.
 2. Keep a strong API token.
-3. Note VentReader local IP.
+3. Note local IP address.
 
 Test in browser:
 - `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`
 
-## 2) Add REST sensors in Home Assistant
+## 2) Add REST sensor in Home Assistant
 
-In `configuration.yaml`, add sensors:
+In `configuration.yaml`, add:
 
 ```yaml
 sensor:
@@ -42,7 +63,7 @@ sensor:
       - time
 ```
 
-Then create template sensors for graph-friendly entities:
+Template sensors:
 
 ```yaml
 template:
@@ -91,15 +112,15 @@ Restart Home Assistant.
 
 ## 3) Dashboard (Lovelace)
 
-Add entities card and history graph card using sensors above.
+Add entities and history graph cards for the created sensors.
 
-## 4) Optional write controls (mode + setpoint)
+## 4) Optional write control (mode + setpoint)
 
 In VentReader admin (`/admin`), enable:
 1. `Modbus`
 2. `Enable remote control writes (experimental)`
 
-Add REST commands:
+REST commands:
 
 ```yaml
 rest_command:
@@ -112,36 +133,21 @@ rest_command:
     method: POST
 ```
 
-Add helpers (UI):
+Helpers:
 1. `input_select.vent_mode` with options `AWAY`, `HOME`, `HIGH`, `FIRE`
-2. `input_number.vent_setpoint_home` (range e.g. 10-30)
+2. `input_number.vent_setpoint_home` with range `10-30`
 
-Example automations:
+## 5) Troubleshooting
 
-```yaml
-automation:
-  - alias: VentReader apply mode
-    trigger:
-      - platform: state
-        entity_id: input_select.vent_mode
-    action:
-      - service: rest_command.ventreader_mode
-        data:
-          mode: "{{ states('input_select.vent_mode') }}"
+- `401 missing/invalid token`: wrong token in URL.
+- `403 home assistant/api disabled`: `Home Assistant/API` is disabled.
+- `403 control disabled`: write control disabled.
+- `409 modbus disabled`: `Modbus` disabled for write calls.
+- `500 write ... failed`: Modbus settings/transport/physical bus issue.
+- No values in HA: verify resource URL, restart, and template entity names.
 
-  - alias: VentReader apply home setpoint
-    trigger:
-      - platform: state
-        entity_id: input_number.vent_setpoint_home
-    action:
-      - service: rest_command.ventreader_setpoint
-        data:
-          profile: home
-          value: "{{ states('input_number.vent_setpoint_home') }}"
-```
+## 6) Notes
 
-## 5) Notes
-
-- API calls are local LAN only by default.
+- API calls are local LAN by default.
 - Keep token private.
-- If Modbus is disabled, write endpoints return conflict/error as expected.
+- Keep write control disabled unless needed.

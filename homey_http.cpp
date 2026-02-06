@@ -400,9 +400,80 @@ static String buildStatusJson(bool pretty)
   return String(buf);
 }
 
+static String currentBaseUrl()
+{
+  if (WiFi.status() == WL_CONNECTED) return String("http://") + WiFi.localIP().toString();
+  if (g_data.ip.length() > 0) return String("http://") + g_data.ip;
+  return "http://ventreader.local";
+}
+
+static String buildHomeyExportText()
+{
+  const String base = currentBaseUrl();
+  const String token = g_cfg->api_token;
+  const String statusUrl = base + "/status?token=" + token;
+
+  String out;
+  out.reserve(3600);
+  out += "VentReader Homey setup\n";
+  out += "======================\n\n";
+  out += "Generated: " + isoFromEpochMs(nowEpochMs()) + "\n";
+  out += "Model: " + g_cfg->model + "\n";
+  out += "Firmware: " + String(FW_VERSION) + "\n";
+  out += "Base URL: " + base + "\n";
+  out += "Token: " + token + "\n\n";
+  out += "Enable in VentReader admin\n";
+  out += "- Homey/API: " + String(g_cfg->homey_enabled ? "ON" : "OFF") + "\n";
+  out += "- Modbus: " + String(g_cfg->modbus_enabled ? "ON" : "OFF") + "\n";
+  out += "- Control writes: " + String(g_cfg->control_enabled ? "ON" : "OFF") + " (optional)\n\n";
+  out += "Status endpoint\n";
+  out += "- " + statusUrl + "\n\n";
+  out += "Recommended virtual devices\n";
+  out += "- VentReader - Uteluft (measure_temperature)\n";
+  out += "- VentReader - Tilluft (measure_temperature)\n";
+  out += "- VentReader - Avtrekk (measure_temperature)\n";
+  out += "- VentReader - Avkast (measure_temperature)\n";
+  out += "- VentReader - Fan % (measure_percentage)\n";
+  out += "- VentReader - Heat % (measure_percentage)\n";
+  out += "- VentReader - Gjenvinning % (measure_percentage)\n\n";
+  out += "HomeyScript (VentReader Poll)\n";
+  out += "-----------------------------\n";
+  out += "const VENTREADER_URL = '" + statusUrl + "';\n";
+  out += "const MAP = {\n";
+  out += "  'VentReader - Uteluft': { field: 'uteluft', cap: 'measure_temperature' },\n";
+  out += "  'VentReader - Tilluft': { field: 'tilluft', cap: 'measure_temperature' },\n";
+  out += "  'VentReader - Avtrekk': { field: 'avtrekk', cap: 'measure_temperature' },\n";
+  out += "  'VentReader - Avkast':  { field: 'avkast',  cap: 'measure_temperature' },\n";
+  out += "  'VentReader - Fan %':   { field: 'fan', cap: 'measure_percentage' },\n";
+  out += "  'VentReader - Heat %':  { field: 'heat', cap: 'measure_percentage' },\n";
+  out += "  'VentReader - Gjenvinning %': { field: 'efficiency', cap: 'measure_percentage' }\n";
+  out += "};\n";
+  out += "function num(v){ const n=Number(v); return Number.isFinite(n)?n:null; }\n";
+  out += "async function setByName(devices,name,capability,value){\n";
+  out += "  const d=Object.values(devices).find(x=>x.name===name);\n";
+  out += "  if(!d||!d.capabilitiesObj||!d.capabilitiesObj[capability]) return;\n";
+  out += "  await d.setCapabilityValue(capability,value);\n";
+  out += "}\n";
+  out += "const res = await fetch(VENTREADER_URL); if(!res.ok) throw new Error(`HTTP ${res.status}`);\n";
+  out += "const s = await res.json(); const devices = await Homey.devices.getDevices();\n";
+  out += "for (const [name,cfg] of Object.entries(MAP)) { const v=num(s[cfg.field]); if(v===null) continue; await setByName(devices,name,cfg.cap,v); }\n";
+  out += "return `VentReader OK: ${s.time||'--:--'} ${s.modbus||''}`;\n";
+  return out;
+}
+
 static void handleHealth()
 {
   server.send(200, "text/plain", "ok");
+}
+
+static void handleAdminHomeyExportText()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed) { redirectTo("/admin/setup?step=1"); return; }
+  const String out = buildHomeyExportText();
+  server.sendHeader("Cache-Control", "no-store");
+  server.sendHeader("Content-Disposition", "attachment; filename=ventreader_homey_setup.txt");
+  server.send(200, "text/plain; charset=utf-8", out);
 }
 
 static void handleStatus()
@@ -1096,6 +1167,12 @@ static void handleAdmin()
   s += "<div class='sep-gold'></div>";
   s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
   s += "<div class='sep-gold'></div>";
+  s += "<div class='actions'>";
+  s += "<a class='btn secondary' href='/admin/export/homey.txt'>Eksporter Homey-oppsett (.txt)</a>";
+  s += "<button class='btn secondary' type='button' onclick='emailHomeySetup()'>Send til e-post (mobil)</button>";
+  s += "</div>";
+  s += "<div class='help'>Mobilknappen åpner e-postklient med oppsetttekst i ny e-post.</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
   s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
   s += "<div class='sep-gold'></div>";
@@ -1187,6 +1264,18 @@ static void handleAdmin()
   s += "</div>";
   s += "<div class='help'>Fabrikkreset kan også trigges ved å holde BOOT (GPIO0) ~6s ved oppstart.</div>";
   s += "</div>";
+
+  s += "<script>(function(){"
+       "window.emailHomeySetup=async function(){"
+       "try{"
+       "const r=await fetch('/admin/export/homey.txt',{credentials:'same-origin'});"
+       "if(!r.ok) throw new Error('HTTP '+r.status);"
+       "const txt=await r.text();"
+       "const subject='VentReader Homey setup';"
+       "window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(txt);"
+       "}catch(e){alert('Homey eksport feilet: '+e.message);}"
+       "};"
+       "})();</script>";
 
   s += "</div>"; // grid
   s += pageFooter();
@@ -1601,6 +1690,7 @@ void webportal_begin(DeviceConfig& cfg)
   server.on("/admin", HTTP_GET, handleAdmin);
   server.on("/admin/manual", HTTP_GET, handleAdminManual);
   server.on("/admin/graphs", HTTP_GET, handleAdminGraphs);
+  server.on("/admin/export/homey.txt", HTTP_GET, handleAdminHomeyExportText);
   server.on("/admin/lang", HTTP_POST, handleAdminLang);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
   server.on("/admin/control/mode", HTTP_POST, handleAdminControlMode);

@@ -1,186 +1,135 @@
 # Homey Setup Guide (Step by Step)
 
-This guide shows how to integrate VentReader with Homey Pro and get both:
-- current values in Homey devices
-- history graphs (Insights)
+Goal of this guide:
+- Make Homey setup fast and predictable for end users
+- Minimize manual copy/paste and mapping errors
+- Ensure all required data comes from VentReader export
 
-The method below uses:
-- VentReader `/status` API
-- HomeyScript
-- Virtual sensor devices in Homey (from a virtual devices app)
+## Quick start (recommended)
+
+1. Verify `Homey/API` is enabled in VentReader admin.
+2. Click **Export Homey setup** in admin.
+3. Mobile: use **Share file (mobile)** and send to your own email.
+4. Desktop: download file directly.
+5. Create Homey virtual devices based on export mapping.
+6. Paste `homey_script_js` from export into HomeyScript.
+7. Create polling flow every 1-2 minutes.
+
+## Required vs optional
+
+### Required
+1. `Homey/API` enabled.
+2. Correct token in endpoint/script.
+3. Required virtual devices with correct capability IDs.
+4. Polling flow that executes script periodically.
+
+### Optional
+1. Modbus alarm virtual device.
+2. Status text virtual device.
+3. Write control (mode/setpoint).
+
+## Recommended default flow: VentReader export file
+
+Use **Export Homey setup** in VentReader admin.
+
+Export contains:
+1. Base URL (`http://<ip>`)
+2. API token
+3. Ready HomeyScript template
+4. Recommended virtual device/capability mapping
+5. Polling flow notes
+6. Optional control section (if writes enabled)
+
+Distribution:
+1. Mobile/tablet: share/send to email.
+2. Desktop/laptop: download locally.
+
+---
 
 ## 1) Prepare VentReader
 
 In VentReader admin (`/admin`):
-1. Enable `Homey/API`.
-2. Keep a strong API token.
-3. Note the local IP address.
+1. Verify `Homey/API` enabled.
+2. Verify/update API token.
+3. Confirm local IP/hostname.
 
-Test in browser:
+Quick test:
 - `http://<VENTREADER_IP>/status?token=<TOKEN>&pretty=1`
 
-You should see JSON with fields such as:
-- `uteluft`, `tilluft`, `avtrekk`, `avkast`
-- `fan`, `heat`, `efficiency`
-- `mode`, `modbus`, `model`, `time`
+## 2) Export Homey setup file
 
-## 2) Install apps on Homey Pro
+1. Open VentReader admin.
+2. Click **Export Homey setup**.
+3. Share or download the file.
+
+Expected content:
+- `homey_script_js`
+- virtual device mapping
+- flow notes
+
+## 3) Install required Homey apps
 
 Install:
-1. `HomeyScript` (official Athom app)
-2. A virtual devices app (any app that can create numeric/temperature sensors with Insights)
+1. `HomeyScript`
+2. A virtual devices app supporting numeric/temperature sensors with Insights
 
-## 3) Create virtual devices in Homey
+## 4) Create virtual devices in Homey
 
-Create one virtual sensor per metric you want to graph, for example:
-1. `VentReader - Uteluft` (temperature capability)
-2. `VentReader - Tilluft` (temperature capability)
-3. `VentReader - Avtrekk` (temperature capability)
-4. `VentReader - Avkast` (temperature capability)
-5. `VentReader - Fan %` (percentage/number capability)
-6. `VentReader - Heat %` (percentage/number capability)
-7. `VentReader - Gjenvinning %` (percentage/number capability)
-8. `VentReader - Modbus Alarm` (boolean/alarm capability, optional)
-9. `VentReader - Status tekst` (text capability, optional)
+Minimum recommended:
+1. `VentReader - Uteluft` (temperature)
+2. `VentReader - Tilluft` (temperature)
+3. `VentReader - Avtrekk` (temperature)
+4. `VentReader - Avkast` (temperature)
+5. `VentReader - Fan %` (percentage/number)
+6. `VentReader - Heat %` (percentage/number)
+7. `VentReader - Gjenvinning %` (percentage/number)
 
-Important:
-- Use device capabilities that support Insights history (number/temperature/percentage).
+Optional:
+1. `VentReader - Modbus Alarm`
+2. `VentReader - Status tekst`
 
-## 4) Create HomeyScript
+## 5) Import script from export file
 
-Create a script in HomeyScript, e.g. `VentReader Poll`.
+1. Copy `homey_script_js` from export file.
+2. Create HomeyScript, e.g. `VentReader Poll`.
+3. Paste script as-is (avoid manual logic rewrites).
 
-Paste and edit this script:
+## 6) Create polling flow
 
-```javascript
-// VentReader -> Homey virtual devices
-const VENTREADER_URL = 'http://192.168.1.50/status?token=REPLACE_TOKEN';
+1. `When`: every 1-2 minutes
+2. `Then`: run `VentReader Poll`
 
-// Map: Homey device name -> capability id
-const MAP = {
-  'VentReader - Uteluft': { field: 'uteluft', cap: 'measure_temperature' },
-  'VentReader - Tilluft': { field: 'tilluft', cap: 'measure_temperature' },
-  'VentReader - Avtrekk': { field: 'avtrekk', cap: 'measure_temperature' },
-  'VentReader - Avkast':  { field: 'avkast',  cap: 'measure_temperature' },
-  'VentReader - Fan %':   { field: 'fan', cap: 'measure_percentage' },
-  'VentReader - Heat %':  { field: 'heat', cap: 'measure_percentage' },
-  'VentReader - Gjenvinning %': { field: 'efficiency', cap: 'measure_percentage' },
-};
+Optional:
+1. Push notification flow on script/alarm failure.
 
-const ALARM_DEVICE = 'VentReader - Modbus Alarm'; // optional
-const ALARM_CAP = 'alarm_generic'; // adjust if your virtual app uses another id
+## 7) Verify operation
 
-const STATUS_DEVICE = 'VentReader - Status tekst'; // optional
-const STATUS_CAP = 'measure_text'; // adjust for your virtual app
+1. Virtual device values update.
+2. Insights graphs build over time.
+3. Alarm behavior works (if configured).
 
-function num(v) {
-  if (v === null || v === undefined) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+## 8) Optional control from Homey (mode + setpoint)
 
-async function setByName(devices, name, capability, value) {
-  const d = Object.values(devices).find(x => x.name === name);
-  if (!d) return;
-  if (!d.capabilitiesObj || !d.capabilitiesObj[capability]) return;
-  await d.setCapabilityValue(capability, value);
-}
-
-const res = await fetch(VENTREADER_URL);
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
-const s = await res.json();
-
-const devices = await Homey.devices.getDevices();
-
-for (const [name, cfg] of Object.entries(MAP)) {
-  const v = num(s[cfg.field]);
-  if (v === null) continue; // keep previous value if missing
-  await setByName(devices, name, cfg.cap, v);
-}
-
-// Optional alarm + status helpers
-if (ALARM_DEVICE) {
-  const modbusStr = String(s.modbus || '');
-  const bad = !(modbusStr.startsWith('MB OK'));
-  await setByName(devices, ALARM_DEVICE, ALARM_CAP, bad);
-}
-
-if (STATUS_DEVICE) {
-  const status = `${s.model || 'N/A'} | ${s.mode || 'N/A'} | ${s.modbus || 'N/A'} | ${s.time || '--:--'}`;
-  await setByName(devices, STATUS_DEVICE, STATUS_CAP, status);
-}
-
-return `VentReader OK: ${s.time || '--:--'} ${s.modbus || ''}`;
-```
-
-Notes:
-- Some virtual device apps use different capability IDs. If needed, adjust `cap` names.
-- Start with the 3-4 most important sensors first, then expand.
-
-## 5) Create polling flow
-
-Create a flow in Homey:
-1. `When`: Every 1 minute (or 2-5 min if you prefer lower load)
-2. `Then`: Run script `VentReader Poll`
-
-Optional second flow:
-1. `When`: Script failed (or use alarm virtual device trigger)
-2. `Then`: Send push notification
-
-## 6) Verify history graphs
-
-After a few polling cycles:
-1. Open each virtual sensor device in Homey.
-2. Confirm value updates.
-3. Confirm Insights graph is building.
-
-## 7) Recommended intervals and reliability
-
-Recommended:
-- Poll every 1-2 minutes for smooth graphs.
-- Keep VentReader poll interval at 30-120 seconds if you want responsive data.
-
-Reliability tips:
-1. Keep VentReader on fixed LAN IP (DHCP reservation).
-2. Keep Homey and VentReader on same LAN/subnet.
-3. If `modbus` field returns stale/error, use alarm flow to notify.
-
-## 8) Alternative architecture (future)
-
-For the smoothest user experience, build a dedicated Homey app (LAN driver) for VentReader:
-- Pair by IP/token
-- Native capabilities
-- Built-in Insights and flow cards
-
-This project currently provides a stable local JSON API that is ready for that next step.
-
-## 9) Optional control from Homey (mode + setpoint)
-
-In VentReader admin (`/admin`), enable:
+Requires in VentReader:
 1. `Modbus`
 2. `Enable remote control writes (experimental)`
 
-Control endpoints:
+Endpoints:
 1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
 2. `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
 
-Example HomeyScript action:
+## 9) Troubleshooting
 
-```javascript
-const BASE = 'http://192.168.1.50';
-const TOKEN = 'REPLACE_TOKEN';
+- `401 missing/invalid token`: wrong token in URL/script.
+- `403 api disabled`: `Homey/API` disabled.
+- `403 control disabled`: write control disabled.
+- `409 modbus disabled`: `Modbus` disabled for write calls.
+- `500 write ... failed`: Modbus settings/transport/physical bus issue.
+- No updates in Homey: check flow trigger and capability IDs.
 
-// Set mode to HOME
-let res = await fetch(`${BASE}/api/control/mode?token=${TOKEN}&mode=HOME`, { method: 'POST' });
-if (!res.ok) throw new Error(`Mode write failed: HTTP ${res.status}`);
+## 10) Operations and security
 
-// Set HOME setpoint to 20.5 C
-res = await fetch(`${BASE}/api/control/setpoint?token=${TOKEN}&profile=home&value=20.5`, { method: 'POST' });
-if (!res.ok) throw new Error(`Setpoint write failed: HTTP ${res.status}`);
-
-return 'Control writes OK';
-```
-
-Safety:
-1. Keep control writes disabled unless needed.
-2. Restrict API token access to trusted local automations.
+1. Use DHCP reservation for stable IP.
+2. Keep Homey and VentReader on same LAN/subnet.
+3. Share token only with trusted local automations.
+4. Keep writes disabled unless needed.
