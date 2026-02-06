@@ -8,6 +8,7 @@ Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiv
 ### v3.2.5 høydepunkter
 
 - Språkvalg gjelder nå også admin-undersider og ePaper-tekster
+- Dashboardets modusverdier oversettes nå etter valgt språk
 - Ny manual/changelog-side i admin (`/admin/manual`)
 - Mer konsistente kvitteringssider i admin (lagre/restart/OTA)
 

@@ -61,6 +61,33 @@ static String tr(const char* key)
   return k;
 }
 
+static String trModeValue(const String& rawMode)
+{
+  String m = rawMode;
+  m.trim();
+  m.toUpperCase();
+
+  // Normalize common aliases/legacy values
+  if (m == "VARME") m = "HOME";
+  if (m == "HJEMME") m = "HOME";
+  if (m == "BORTE") m = "AWAY";
+  if (m == "HOY") m = "HIGH";
+  if (m == "HØY") m = "HIGH";
+
+  const String l = g_ui_lang;
+
+  if (m == "OFF")   return (l == "en") ? "OFF"  : (l == "no") ? "AV"      : (l == "da") ? "FRA"      : (l == "sv") ? "AV"       : (l == "fi") ? "POIS"     : "OFF";
+  if (m == "AWAY")  return (l == "en") ? "AWAY" : (l == "no") ? "BORTE"   : (l == "da") ? "UDE"      : (l == "sv") ? "BORTA"    : (l == "fi") ? "POISSA"   : "AWAY";
+  if (m == "HOME")  return (l == "en") ? "HOME" : (l == "no") ? "HJEMME"  : (l == "da") ? "HJEMME"   : (l == "sv") ? "HEMMA"    : (l == "fi") ? "KOTI"     : "HOME";
+  if (m == "HIGH")  return (l == "en") ? "HIGH" : (l == "no") ? "HOY"     : (l == "da") ? "HOJ"      : (l == "sv") ? "HOG"      : (l == "fi") ? "TEHO"     : "HIGH";
+  if (m == "FUME")  return (l == "en") ? "FUME" : (l == "no") ? "MATLAGING" : (l == "da") ? "MADLAVNING" : (l == "sv") ? "MATLAGNING" : (l == "fi") ? "RUUANLAITTO" : "FUME";
+  if (m == "FIRE")  return (l == "en") ? "FIRE" : (l == "no") ? "PEIS"    : (l == "da") ? "PEJS"     : (l == "sv") ? "KAMIN"    : (l == "fi") ? "TAKKA"    : "FIRE";
+  if (m == "TMP HIGH") return (l == "en") ? "TMP HIGH" : (l == "no") ? "MIDL HOY" : (l == "da") ? "MIDL HOJ" : (l == "sv") ? "TILLF HOG" : (l == "fi") ? "VALIAIK TEHO" : "TMP HIGH";
+  if (m == "UNKNOWN") return (l == "en") ? "UNKNOWN" : (l == "no") ? "UKJENT" : (l == "da") ? "UKENDT" : (l == "sv") ? "OKAND" : (l == "fi") ? "TUNTEMATON" : "UNKNOWN";
+
+  return rawMode;
+}
+
 static inline void setTextBlack() { display.setTextColor(GxEPD_BLACK); }
 static inline void setTextWhite() { display.setTextColor(GxEPD_WHITE); }
 
@@ -125,7 +152,7 @@ static void drawHeader(const FlexitData& d)
   setTextBlack();
 
   // chips line
-  drawChip(10, 38, 150, 22, tr("mode") + String(": ") + d.mode);
+  drawChip(10, 38, 150, 22, tr("mode") + String(": ") + trModeValue(d.mode));
   // FAN chip width fixed for 0-100%
   drawChip(170, 38, 105, 22, tr("fan") + String(" ") + d.fan_percent + "%");
   drawChip(282, 38, 108, 22, tr("eff") + String(" ") + d.efficiency_percent + "%");

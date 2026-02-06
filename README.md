@@ -40,6 +40,7 @@ The name “Flexit” is used only to describe supported equipment.
 ### v3.2.5 highlights
 
 - Language selection now applies to admin sub-pages and ePaper texts
+- Dashboard mode values are now translated per selected language
 - New admin manual/changelog page (`/admin/manual`)
 - More consistent admin response pages (save/restart/OTA)
 
