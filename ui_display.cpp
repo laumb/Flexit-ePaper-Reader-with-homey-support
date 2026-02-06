@@ -93,12 +93,41 @@ static inline void setTextWhite() { display.setTextColor(GxEPD_WHITE); }
 
 enum IconType { ICON_OUTDOOR, ICON_SUPPLY, ICON_EXTRACT, ICON_EXHAUST };
 
-static void drawChip(int x, int y, int w, int h, const String& txt)
+static int textWidth(const String& txt, int16_t* x1Out = nullptr, int16_t* y1Out = nullptr, uint16_t* hOut = nullptr)
 {
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(txt, 0, 0, &x1, &y1, &w, &h);
+  if (x1Out) *x1Out = x1;
+  if (y1Out) *y1Out = y1;
+  if (hOut) *hOut = h;
+  return (int)w;
+}
+
+static String fitTextToWidth(String txt, int maxW)
+{
+  if (textWidth(txt) <= maxW) return txt;
+  const String ell = "...";
+  while (txt.length() > 1)
+  {
+    txt.remove(txt.length() - 1);
+    String candidate = txt + ell;
+    if (textWidth(candidate) <= maxW) return candidate;
+  }
+  return ell;
+}
+
+static void drawChip(int x, int y, int w, int h, const String& rawTxt)
+{
+  String txt = fitTextToWidth(rawTxt, w - 18);
   display.fillRoundRect(x, y, w, h, 8, GxEPD_BLACK);
   setTextWhite();
   display.setFont(&FreeSans9pt7b);
-  display.setCursor(x + 10, y + 16);
+  int16_t x1, y1;
+  uint16_t th;
+  textWidth(txt, &x1, &y1, &th);
+  const int baseY = y + (h + (int)th) / 2 - 2;
+  display.setCursor(x + 10 - x1, baseY);
   display.print(txt);
   setTextBlack();
 }
@@ -107,16 +136,23 @@ static void drawIconV2(int x, int y, IconType t)
 {
   switch (t)
   {
-    case ICON_OUTDOOR: { // cloud
-      display.fillCircle(x+16, y+22, 8, GxEPD_BLACK);
-      display.fillCircle(x+27, y+16, 10, GxEPD_BLACK);
-      display.fillCircle(x+38, y+23, 7, GxEPD_BLACK);
-      display.fillRect(x+10, y+24, 34, 12, GxEPD_BLACK);
+    case ICON_OUTDOOR: { // cloud + sun
+      display.fillCircle(x + 14, y + 13, 6, GxEPD_BLACK);
+      display.fillRect(x + 13, y + 3, 2, 5, GxEPD_BLACK);
+      display.fillRect(x + 7, y + 11, 5, 2, GxEPD_BLACK);
+      display.fillRect(x + 17, y + 11, 5, 2, GxEPD_BLACK);
+      display.fillCircle(x + 18, y + 24, 8, GxEPD_BLACK);
+      display.fillCircle(x + 29, y + 18, 10, GxEPD_BLACK);
+      display.fillCircle(x + 40, y + 24, 7, GxEPD_BLACK);
+      display.fillRect(x + 12, y + 25, 34, 11, GxEPD_BLACK);
       break;
     }
-    case ICON_SUPPLY: { // right arrow
-      display.fillTriangle(x+10, y+12, x+10, y+34, x+32, y+23, GxEPD_BLACK);
-      display.fillRect(x+32, y+19, 10, 8, GxEPD_BLACK);
+    case ICON_SUPPLY: { // right arrow + flow bars
+      display.fillTriangle(x + 16, y + 12, x + 16, y + 34, x + 36, y + 23, GxEPD_BLACK);
+      display.fillRect(x + 36, y + 18, 9, 10, GxEPD_BLACK);
+      display.fillRect(x + 8, y + 17, 5, 3, GxEPD_BLACK);
+      display.fillRect(x + 8, y + 22, 7, 3, GxEPD_BLACK);
+      display.fillRect(x + 8, y + 27, 5, 3, GxEPD_BLACK);
       break;
     }
     case ICON_EXTRACT: { // up arrow
@@ -151,11 +187,44 @@ static void drawHeader(const FlexitData& d)
   display.print(d.time);
   setTextBlack();
 
-  // chips line
-  drawChip(10, 38, 150, 22, tr("mode") + String(": ") + trModeValue(d.mode));
-  // FAN chip width fixed for 0-100%
-  drawChip(170, 38, 105, 22, tr("fan") + String(" ") + d.fan_percent + "%");
-  drawChip(282, 38, 108, 22, tr("eff") + String(" ") + d.efficiency_percent + "%");
+  // chips line (dynamic widths with fallback fitting)
+  display.setFont(&FreeSans9pt7b);
+  const int y = 38;
+  const int h = 22;
+  const int gap = 7;
+  const int startX = 10;
+  const int totalW = display.width() - startX * 2;
+
+  String c1 = tr("mode") + String(": ") + trModeValue(d.mode);
+  String c2 = tr("fan") + String(" ") + d.fan_percent + "%";
+  String c3 = tr("eff") + String(" ") + d.efficiency_percent + "%";
+
+  int w1 = textWidth(c1) + 20;
+  int w2 = textWidth(c2) + 20;
+  int w3 = textWidth(c3) + 20;
+  const int minW = 85;
+  if (w1 < minW) w1 = minW;
+  if (w2 < minW) w2 = minW;
+  if (w3 < minW) w3 = minW;
+
+  int sum = w1 + w2 + w3 + gap * 2;
+  if (sum > totalW)
+  {
+    const float ratio = (float)(totalW - gap * 2) / (float)(w1 + w2 + w3);
+    w1 = (int)(w1 * ratio);
+    w2 = (int)(w2 * ratio);
+    w3 = totalW - gap * 2 - w1 - w2;
+    if (w1 < minW) w1 = minW;
+    if (w2 < minW) w2 = minW;
+    w3 = totalW - gap * 2 - w1 - w2;
+  }
+
+  int x1 = startX;
+  int x2 = x1 + w1 + gap;
+  int x3 = x2 + w2 + gap;
+  drawChip(x1, y, w1, h, c1);
+  drawChip(x2, y, w2, h, c2);
+  drawChip(x3, y, w3, h, c3);
 }
 
 static void drawTempCard(int x, int y, const char* label, float value, IconType icon, const FlexitData& d)
@@ -169,25 +238,34 @@ static void drawTempCard(int x, int y, const char* label, float value, IconType 
 
   setTextBlack();
   display.setFont(&FreeSans9pt7b);
-  display.setCursor(x + 70, y + 22);
-  display.print(label);
+  String title = fitTextToWidth(String(label), cardW - 86);
+  int titleW = textWidth(title);
+  int titleX = x + 70 + ((cardW - 78 - titleW) / 2);
+  if (titleX < x + 70) titleX = x + 70;
+  display.setCursor(titleX, y + 22);
+  display.print(title);
 
   display.setFont(&FreeSansBold18pt7b);
-  display.setCursor(x + 70, y + 62);
-  display.print(value, 1);
+  String valTxt = String(value, 1);
+  int valX = x + 70;
+  display.setCursor(valX, y + 62);
+  display.print(valTxt);
 
-  // degree symbol and C
-  int degX = x + 70 + 78;
-  int degY = y + 48;
-  drawDegreeSymbol(degX, degY, 3);
+  // degree symbol + C dynamically right of value
+  int valW = textWidth(valTxt);
+  int degX = valX + valW + 8;
+  int degY = y + 44;
+  drawDegreeSymbol(degX, degY, 2);
   display.setCursor(degX + 7, y + 62);
   display.print("C");
 
   display.setFont(&FreeSans9pt7b);
-  display.setCursor(x + 62, y + 84);
-  display.print(tr("updated"));
-  display.print(" ");
-  display.print(d.time);
+  String upd = tr("updated") + String(" ") + d.time;
+  int updW = textWidth(upd);
+  int updX = x + (cardW - updW) / 2;
+  if (updX < x + 10) updX = x + 10;
+  display.setCursor(updX, y + 84);
+  display.print(upd);
 }
 
 static void drawFooter(const FlexitData& d, const String& mbStatus)
@@ -199,14 +277,21 @@ static void drawFooter(const FlexitData& d, const String& mbStatus)
   setTextWhite();
   display.setFont(&FreeSans9pt7b);
 
+  String left = tr("heat") + String(" ") + d.heat_element_percent + "%   " + mbStatus;
+  left = fitTextToWidth(left, 218);
   display.setCursor(10, y + 20);
-  display.print(tr("heat") + String(" ") + d.heat_element_percent + "%");
+  display.print(left);
 
-  display.setCursor(120, y + 20);
-  display.print(mbStatus);
+  // visual separator
+  display.fillRect(226, y + 6, 2, h - 12, GxEPD_WHITE);
 
-  display.setCursor(240, y + 20);
-  display.print(String("WiFi ") + d.wifi_status + d.ip);
+  String right = String("WiFi ") + d.wifi_status + " " + d.ip;
+  right = fitTextToWidth(right, 154);
+  int rightW = textWidth(right);
+  int rightX = display.width() - rightW - 10;
+  if (rightX < 236) rightX = 236;
+  display.setCursor(rightX, y + 20);
+  display.print(right);
 
   setTextBlack();
 }
