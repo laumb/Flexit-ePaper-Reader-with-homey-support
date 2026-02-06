@@ -237,6 +237,7 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += ".kpi .kv{min-width:140px;}";
       s += ".kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}";
       s += ".kpi .v{font-size:16px;font-weight:700;margin-top:4px;}";
+      s += ".sep-gold{height:1px;background:var(--accent);opacity:.65;margin:12px 0;}";
       s += "a{color:var(--accent);text-decoration:none;}";
       s += "code{background:rgba(194,161,126,.18);padding:2px 6px;border-radius:8px;}";
       s += "</style>";
@@ -344,11 +345,14 @@ static void handleAdminSetup()
     s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
     s += "<option value='S4'" + String(g_cfg->model == "S4" ? " selected" : "") + ">Nordic S4</option>";
     s += "</select>";
-
+    s += "<div class='sep-gold'></div>";
     s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
-    s += "<label><input type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
+    s += "<div class='sep-gold'></div>";
     s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
-    s += "<label>Modbus transport</label>";
+    s += "<div class='sep-gold'></div>";
+    s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
+    s += "<div id='mb_adv_setup' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
+    s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
     s += "<select name='mbtr' class='input'>";
     s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
     s += "<option value='MANUAL'" + String(g_cfg->modbus_transport_mode == "MANUAL" ? " selected" : "") + ">MANUAL (DE/RE styres av GPIO)</option>";
@@ -364,6 +368,9 @@ static void handleAdminSetup()
     s += "<option value='8E1'" + String(g_cfg->modbus_serial_format == "8E1" ? " selected" : "") + ">8E1</option>";
     s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
     s += "</select>";
+    s += "</div>";
+    s += "<script>(function(){var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');if(!t||!a)return;function u(){a.style.display=t.checked?'block':'none';}t.addEventListener('change',u);u();})();</script>";
+    s += "<div class='sep-gold'></div>";
     s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
     s += "</form>";
@@ -510,11 +517,14 @@ static void handleAdmin()
   s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
   s += "<option value='S4'" + String(g_cfg->model == "S4" ? " selected" : "") + ">Nordic S4</option>";
   s += "</select>";
+  s += "<div class='sep-gold'></div>";
   s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
-  s += "<div class='row'>";
-  s += "<label style='flex:1 1 220px'><input type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
-  s += "<label style='flex:1 1 220px'><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
-  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
+  s += "<div class='sep-gold'></div>";
+  s += "<label><input id='mb_toggle_admin' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
+  s += "<div id='mb_adv_admin' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
+  s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
   s += "<label>Modbus transport</label>";
   s += "<select name='mbtr' class='input'>";
   s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
@@ -531,6 +541,9 @@ static void handleAdmin()
   s += "<option value='8E1'" + String(g_cfg->modbus_serial_format == "8E1" ? " selected" : "") + ">8E1</option>";
   s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
   s += "</select>";
+  s += "</div>";
+  s += "<script>(function(){var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');if(!t||!a)return;function u(){a.style.display=t.checked?'block':'none';}t.addEventListener('change',u);u();})();</script>";
+  s += "<div class='sep-gold'></div>";
   s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
   s += "</div>";
