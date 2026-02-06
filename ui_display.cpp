@@ -69,6 +69,7 @@ static String trModeValue(const String& rawMode)
 
   // Normalize common aliases/legacy values
   if (m == "VARME") m = "HOME";
+  if (m == "HJEM") m = "HOME";
   if (m == "HJEMME") m = "HOME";
   if (m == "BORTE") m = "AWAY";
   if (m == "HOY") m = "HIGH";
@@ -78,7 +79,7 @@ static String trModeValue(const String& rawMode)
 
   if (m == "OFF")   return (l == "en") ? "OFF"  : (l == "no") ? "AV"      : (l == "da") ? "FRA"      : (l == "sv") ? "AV"       : (l == "fi") ? "POIS"     : "OFF";
   if (m == "AWAY")  return (l == "en") ? "AWAY" : (l == "no") ? "BORTE"   : (l == "da") ? "UDE"      : (l == "sv") ? "BORTA"    : (l == "fi") ? "POISSA"   : "AWAY";
-  if (m == "HOME")  return (l == "en") ? "HOME" : (l == "no") ? "HJEMME"  : (l == "da") ? "HJEMME"   : (l == "sv") ? "HEMMA"    : (l == "fi") ? "KOTI"     : "HOME";
+  if (m == "HOME")  return (l == "en") ? "HOME" : (l == "no") ? "HJEM"  : (l == "da") ? "HJEMME"   : (l == "sv") ? "HEMMA"    : (l == "fi") ? "KOTI"     : "HOME";
   if (m == "HIGH")  return (l == "en") ? "HIGH" : (l == "no") ? "HOY"     : (l == "da") ? "HOJ"      : (l == "sv") ? "HOG"      : (l == "fi") ? "TEHO"     : "HIGH";
   if (m == "FUME")  return (l == "en") ? "FUME" : (l == "no") ? "MATLAGING" : (l == "da") ? "MADLAVNING" : (l == "sv") ? "MATLAGNING" : (l == "fi") ? "RUUANLAITTO" : "FUME";
   if (m == "FIRE")  return (l == "en") ? "FIRE" : (l == "no") ? "PEIS"    : (l == "da") ? "PEJS"     : (l == "sv") ? "KAMIN"    : (l == "fi") ? "TAKKA"    : "FIRE";

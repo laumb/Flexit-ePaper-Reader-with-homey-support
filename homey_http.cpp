@@ -226,7 +226,7 @@ static String tr(const char* key)
   if (strcmp(key, "quick_control_help") == 0) return en ? "Writes mode and setpoint directly over Modbus." : no ? "Skriver modus og settpunkt direkte over Modbus." : da ? "Skriver tilstand og setpunkt direkte over Modbus." : sv ? "Skriver lage och borvarde direkt over Modbus." : fi ? "Kirjoittaa tilan ja asetusarvon suoraan Modbusiin." : "Записує режим і уставку безпосередньо через Modbus.";
   if (strcmp(key, "enable_control_hint") == 0) return en ? "Enable both Modbus and remote control writes to use quick control." : no ? "Aktiver både Modbus og fjernstyring med skriv for å bruke hurtigstyring." : da ? "Aktiver bade Modbus og fjernstyring med skriv for at bruge hurtigstyring." : sv ? "Aktivera bade Modbus och fjarrstyrning med skrivning for att anvanda snabbstyrning." : fi ? "Ota kayttoon Modbus ja etakirjoitus kayttaaksesi pikaohjausta." : "Увімкніть Modbus і віддалений запис для швидкого керування.";
   if (strcmp(key, "mode_away") == 0) return en ? "Away" : no ? "Borte" : da ? "Ude" : sv ? "Borta" : fi ? "Poissa" : "Away";
-  if (strcmp(key, "mode_home") == 0) return en ? "Home" : no ? "Hjemme" : da ? "Hjemme" : sv ? "Hemma" : fi ? "Koti" : "Home";
+  if (strcmp(key, "mode_home") == 0) return en ? "Home" : no ? "Hjem" : da ? "Hjemme" : sv ? "Hemma" : fi ? "Koti" : "Home";
   if (strcmp(key, "mode_high") == 0) return en ? "High" : no ? "Hoy" : da ? "Hoj" : sv ? "Hog" : fi ? "Teho" : "High";
   if (strcmp(key, "mode_fire") == 0) return en ? "Fireplace" : no ? "Peis" : da ? "Pejs" : sv ? "Kamin" : fi ? "Takka" : "Fireplace";
   if (strcmp(key, "profile") == 0) return en ? "Profile" : no ? "Profil" : da ? "Profil" : sv ? "Profil" : fi ? "Profiili" : "Профіль";

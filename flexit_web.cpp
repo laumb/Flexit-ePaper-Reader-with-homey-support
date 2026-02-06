@@ -1,5 +1,6 @@
 #include "flexit_web.h"
 
+#include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ctype.h>
@@ -337,4 +338,3 @@ bool flexit_web_is_ready()
          startsWithHttp(trimCopy(g_cfg_web.flexitweb_device_url)) &&
          startsWithHttp(trimCopy(g_cfg_web.flexitweb_datapoint_url));
 }
-
