@@ -11,8 +11,9 @@ Du får:
 
 I VentReader admin (`/admin`):
 1. Aktiver `Home Assistant/API` (wizard steg 3 krever eksplisitt aktiver/deaktiver).
-2. Bruk en sterk API-token.
-3. Noter lokal IP-adresse til VentReader.
+2. Velg datakilde (`Modbus` eller `FlexitWeb Cloud`).
+3. Bruk en sterk API-token.
+4. Noter lokal IP-adresse til VentReader.
 
 Test i nettleser:
 - `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`
@@ -96,8 +97,9 @@ Legg til entities-kort og historikk-grafkort for sensorene over.
 ## 4) Valgfri skrivestyring (modus + setpunkt)
 
 I VentReader admin (`/admin`), aktiver:
-1. `Modbus`
-2. `Enable remote control writes (experimental)`
+1. Datakilde = `Modbus`
+2. `Modbus`
+3. `Enable remote control writes (experimental)`
 
 Legg til REST-kommandoer:
 

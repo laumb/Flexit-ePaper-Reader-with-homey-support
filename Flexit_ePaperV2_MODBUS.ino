@@ -7,6 +7,7 @@
 #include "ui_display.h"
 #include "data_example.h"
 #include "flexit_modbus.h"
+#include "flexit_web.h"
 #include "config_store.h"
 #include "homey_http.h" // web portal + /status API
 
@@ -109,6 +110,9 @@ static FlexitData data;
 static String mbStatus = "MB OFF";
 static FlexitData lastGoodModbusData;
 static bool hasLastGoodModbusData = false;
+static FlexitData lastGoodWebData;
+static bool hasLastGoodWebData = false;
+static uint32_t lastFlexitWebPollMs = 0;
 
 // UI refresh every 10 minutes
 static uint32_t UI_REFRESH_MS = 10UL * 60UL * 1000UL;
@@ -123,6 +127,25 @@ static String modelLabel(const String& key)
   if (key == "CL3_EXP") return "CL3 EXP";
   if (key == "CL4_EXP") return "CL4 EXP";
   return "S3";
+}
+
+static String normDataSource(const String& in)
+{
+  if (in == "FLEXITWEB") return "FLEXITWEB";
+  return "MODBUS";
+}
+
+static bool useFlexitWebSource()
+{
+  return normDataSource(cfg.data_source) == "FLEXITWEB";
+}
+
+static uint32_t flexitWebPollIntervalMs()
+{
+  uint32_t m = cfg.flexitweb_poll_minutes;
+  if (m < 5) m = 5;
+  if (m > 60) m = 60;
+  return m * 60UL * 1000UL;
 }
 
 static void updateCommonMeta()
@@ -154,6 +177,14 @@ static void clearModbusDataUnknown()
   data.fan_percent = 0;
   data.heat_element_percent = 0;
   data.mode = "N/A";
+}
+
+static void recomputeEfficiency()
+{
+  if (!isnan(data.uteluft) && !isnan(data.tilluft) && !isnan(data.avtrekk))
+    data.efficiency_percent = calcEtaPercent(data.uteluft, data.tilluft, data.avtrekk);
+  else
+    data.efficiency_percent = 0;
 }
 
 static void updateDataFromModbusOrFallback()
@@ -195,12 +226,57 @@ static void updateDataFromModbusOrFallback()
       }
     }
   }
+  recomputeEfficiency();
+}
 
-  // Always compute ETA based on temps (robust)
-  if (!isnan(data.uteluft) && !isnan(data.tilluft) && !isnan(data.avtrekk))
-    data.efficiency_percent = calcEtaPercent(data.uteluft, data.tilluft, data.avtrekk);
+static void updateDataFromFlexitWeb(bool forceRead)
+{
+  updateCommonMeta();
+  flexit_web_set_runtime_config(cfg);
+
+  const uint32_t nowMs = millis();
+  const uint32_t webIntMs = flexitWebPollIntervalMs();
+  const bool shouldRead = forceRead || !hasLastGoodWebData || (nowMs - lastFlexitWebPollMs >= webIntMs);
+
+  if (!shouldRead)
+  {
+    data = lastGoodWebData;
+    updateCommonMeta();
+    mbStatus = "WEB OK (cached)";
+  }
+  else if (flexit_web_poll(data))
+  {
+    mbStatus = "WEB OK";
+    lastGoodWebData = data;
+    hasLastGoodWebData = true;
+    lastFlexitWebPollMs = nowMs;
+  }
   else
-    data.efficiency_percent = 0;
+  {
+    const char* err = flexit_web_last_error();
+    if (hasLastGoodWebData)
+    {
+      data = lastGoodWebData;
+      updateCommonMeta();
+      mbStatus = String("WEB ") + (err ? err : "ERR") + " (stale)";
+    }
+    else
+    {
+      clearModbusDataUnknown();
+      updateCommonMeta();
+      mbStatus = String("WEB ") + (err ? err : "ERR");
+    }
+  }
+
+  recomputeEfficiency();
+}
+
+static void updateDataFromActiveSource(bool forceRead)
+{
+  if (useFlexitWebSource())
+    updateDataFromFlexitWeb(forceRead);
+  else
+    updateDataFromModbusOrFallback();
 }
 
 void setup()
@@ -285,7 +361,7 @@ if (WiFi.status() == WL_CONNECTED)
 // Start web portal (admin + /status API)
 webportal_begin(cfg);
 
-  updateDataFromModbusOrFallback();
+  updateDataFromActiveSource(true);
 
   // Only show dashboard after wizard is completed
   if (setup_done)
@@ -322,7 +398,7 @@ void loop()
     if (!timeReady && WiFi.status() == WL_CONNECTED)
       setupTimeNTP();
 
-    updateDataFromModbusOrFallback();
+    updateDataFromActiveSource(false);
     if (cfg.setup_completed)
     {
       ui_set_language(cfg.ui_language);

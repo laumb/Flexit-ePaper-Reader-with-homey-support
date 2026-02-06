@@ -8,12 +8,15 @@ Goal of this guide:
 ## Quick start (recommended)
 
 1. Verify `Homey/API` is enabled in VentReader admin.
-2. Click **Export Homey setup** in admin.
-3. Mobile: use **Share file (mobile)** and send to your own email.
-4. Desktop: download file directly.
-5. Create Homey virtual devices based on export mapping.
-6. Paste `homey_script_js` from export into HomeyScript.
-7. Create polling flow every 1-2 minutes.
+2. Verify data source is configured:
+   - `Modbus (local)`, or
+   - `FlexitWeb Cloud (read-only)` with valid cloud login.
+3. Click **Export Homey setup** in admin.
+4. Mobile: use **Share file (mobile)** and send to your own email.
+5. Desktop: download file directly.
+6. Create Homey virtual devices based on export mapping.
+7. Paste `homey_script_js` from export into HomeyScript.
+8. Create polling flow every 1-2 minutes.
 
 ## Required vs optional
 
@@ -111,8 +114,9 @@ Optional:
 ## 8) Optional control from Homey (mode + setpoint)
 
 Requires in VentReader:
-1. `Modbus`
-2. `Enable remote control writes (experimental)`
+1. Data source = `Modbus`
+2. `Modbus`
+3. `Enable remote control writes (experimental)`
 
 Endpoints:
 1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`

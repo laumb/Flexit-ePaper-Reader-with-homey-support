@@ -34,6 +34,12 @@ static String normalize_lang(const String& in)
   return "no";
 }
 
+static String normalize_data_source(const String& in)
+{
+  if (in == "FLEXITWEB") return "FLEXITWEB";
+  return "MODBUS";
+}
+
 void config_begin() {
   prefs.begin("flexit", false);
 }
@@ -94,6 +100,17 @@ DeviceConfig config_load() {
   c.homey_enabled  = prefs.getBool("homey", true);
   c.ha_enabled     = prefs.getBool("ha", true);
   c.control_enabled = prefs.getBool("ctrl", false);
+  c.data_source = normalize_data_source(prefs.getString("src", "MODBUS"));
+  c.flexitweb_user = prefs.getString("fwuser", "");
+  c.flexitweb_pass = prefs.getString("fwpass", "");
+  c.flexitweb_serial = prefs.getString("fwserial", "");
+  c.flexitweb_auth_url = prefs.getString("fwauth", "https://userapi.climatixic.com/api/User/Authenticate");
+  c.flexitweb_device_url = prefs.getString("fwdev", "https://v2-api.climatixic.com/api/Device?searchText=");
+  c.flexitweb_datapoint_url = prefs.getString("fwdata", "https://v2-api.climatixic.com/api/Device/DataPoint/value/{serial}?lastRead=true&isStringValue=true");
+  int fwp = prefs.getInt("fwpoll", 10);
+  if (fwp < 5) fwp = 5;
+  if (fwp > 60) fwp = 60;
+  c.flexitweb_poll_minutes = (uint8_t)fwp;
   c.ui_language = normalize_lang(prefs.getString("lang", "no"));
   c.modbus_transport_mode = prefs.getString("mbtr", "");
   if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")
@@ -138,6 +155,17 @@ void config_save(const DeviceConfig& c) {
   prefs.putBool("homey", c.homey_enabled);
   prefs.putBool("ha", c.ha_enabled);
   prefs.putBool("ctrl", c.control_enabled);
+  prefs.putString("src", normalize_data_source(c.data_source));
+  prefs.putString("fwuser", c.flexitweb_user);
+  prefs.putString("fwpass", c.flexitweb_pass);
+  prefs.putString("fwserial", c.flexitweb_serial);
+  prefs.putString("fwauth", c.flexitweb_auth_url);
+  prefs.putString("fwdev", c.flexitweb_device_url);
+  prefs.putString("fwdata", c.flexitweb_datapoint_url);
+  int fwp = (int)c.flexitweb_poll_minutes;
+  if (fwp < 5) fwp = 5;
+  if (fwp > 60) fwp = 60;
+  prefs.putInt("fwpoll", fwp);
   prefs.putString("lang", normalize_lang(c.ui_language));
   prefs.putString("mbtr", c.modbus_transport_mode);
   prefs.putString("mbser", c.modbus_serial_format);

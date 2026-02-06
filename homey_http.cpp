@@ -127,6 +127,18 @@ static String normModel(const String& in)
   return "S3";
 }
 
+static String normDataSource(const String& in)
+{
+  if (in == "FLEXITWEB") return "FLEXITWEB";
+  return "MODBUS";
+}
+
+static String dataSourceLabel(const String& src)
+{
+  if (normDataSource(src) == "FLEXITWEB") return "FlexitWeb Cloud";
+  return "Modbus (local)";
+}
+
 static String normLang(const String& in)
 {
   if (in == "en" || in == "no" || in == "da" || in == "sv" || in == "fi" || in == "uk") return in;
@@ -162,6 +174,18 @@ static String tr(const char* key)
   if (strcmp(key, "next") == 0) return en ? "Next" : no ? "Neste" : da ? "Næste" : sv ? "Nästa" : fi ? "Seuraava" : "Далі";
   if (strcmp(key, "complete_restart") == 0) return en ? "Complete & restart" : no ? "Fullfør & restart" : da ? "Fuldfør & genstart" : sv ? "Slutför & starta om" : fi ? "Valmis & käynnistä uudelleen" : "Завершити та перезапустити";
   if (strcmp(key, "poll_sec") == 0) return en ? "Update interval (sec)" : no ? "Oppdateringsintervall (sek)" : da ? "Opdateringsinterval (sek)" : sv ? "Uppdateringsintervall (sek)" : fi ? "Päivitysväli (s)" : "Інтервал оновлення (с)";
+  if (strcmp(key, "data_source") == 0) return en ? "Data source" : no ? "Datakilde" : da ? "Datakilde" : sv ? "Datakälla" : fi ? "Tietolähde" : "Джерело даних";
+  if (strcmp(key, "source_modbus") == 0) return en ? "Modbus (local)" : no ? "Modbus (lokal)" : da ? "Modbus (lokal)" : sv ? "Modbus (lokal)" : fi ? "Modbus (paikallinen)" : "Modbus (локально)";
+  if (strcmp(key, "source_flexitweb") == 0) return en ? "FlexitWeb Cloud (read-only)" : no ? "FlexitWeb Cloud (kun lesing)" : da ? "FlexitWeb Cloud (kun laesning)" : sv ? "FlexitWeb Cloud (endast lasning)" : fi ? "FlexitWeb Cloud (vain luku)" : "FlexitWeb Cloud (лише читання)";
+  if (strcmp(key, "source_flexitweb_help") == 0) return en ? "Uses Flexit cloud login and API. Modbus writes are disabled in this mode." : no ? "Bruker Flexit cloud-innlogging og API. Modbus-skriving er deaktivert i denne modusen." : da ? "Bruger Flexit cloud-login og API. Modbus-skrivning er deaktiveret i denne tilstand." : sv ? "Anvander Flexit cloud-inloggning och API. Modbus-skrivning ar av i detta lage." : fi ? "Kayttaa Flexit cloud -kirjautumista ja API:a. Modbus-kirjoitus ei ole kaytossa tassa tilassa." : "Використовує вхід Flexit cloud та API. Запис Modbus вимкнено в цьому режимі.";
+  if (strcmp(key, "cloud_poll_min") == 0) return en ? "Cloud polling interval (minutes, 5-60)" : no ? "Cloud polling-intervall (minutter, 5-60)" : da ? "Cloud polling-interval (minutter, 5-60)" : sv ? "Cloud pollingintervall (minuter, 5-60)" : fi ? "Cloud-pollausvali (minuuttia, 5-60)" : "Інтервал опитування cloud (хвилини, 5-60)";
+  if (strcmp(key, "cloud_user") == 0) return en ? "Flexit login (email/user)" : no ? "Flexit login (e-post/bruker)" : da ? "Flexit login (e-mail/bruger)" : sv ? "Flexit login (e-post/anvandare)" : fi ? "Flexit-kirjautuminen (sahkoposti/kayttaja)" : "Логін Flexit (email/користувач)";
+  if (strcmp(key, "cloud_pass") == 0) return en ? "Flexit password" : no ? "Flexit passord" : da ? "Flexit adgangskode" : sv ? "Flexit losenord" : fi ? "Flexit salasana" : "Пароль Flexit";
+  if (strcmp(key, "cloud_serial") == 0) return en ? "Device serial (optional)" : no ? "Enhetsserienummer (valgfritt)" : da ? "Enhedsserienummer (valgfrit)" : sv ? "Enhetens serienummer (valfritt)" : fi ? "Laitteen sarjanumero (valinnainen)" : "Серійний номер пристрою (необов'язково)";
+  if (strcmp(key, "cloud_adv") == 0) return en ? "Cloud endpoint overrides (advanced)" : no ? "Cloud endpoint-overstyring (avansert)" : da ? "Cloud endpoint-overstyring (avanceret)" : sv ? "Cloud endpoint-override (avancerat)" : fi ? "Cloud endpoint -ylikirjoitus (edistynyt)" : "Перевизначення cloud endpoint (розширено)";
+  if (strcmp(key, "cloud_auth_url") == 0) return en ? "Auth URL" : no ? "Auth URL" : da ? "Auth URL" : sv ? "Auth URL" : fi ? "Auth URL" : "Auth URL";
+  if (strcmp(key, "cloud_dev_url") == 0) return en ? "Device list URL" : no ? "Enhetsliste URL" : da ? "Enhedsliste URL" : sv ? "Enhetslista URL" : fi ? "Laite-lista URL" : "URL списку пристроїв";
+  if (strcmp(key, "cloud_data_url") == 0) return en ? "Datapoint URL ({serial})" : no ? "Datapoint URL ({serial})" : da ? "Datapoint URL ({serial})" : sv ? "Datapoint URL ({serial})" : fi ? "Datapoint URL ({serial})" : "Datapoint URL ({serial})";
   if (strcmp(key, "language") == 0) return en ? "Language" : no ? "Språk" : da ? "Sprog" : sv ? "Språk" : fi ? "Kieli" : "Мова";
   if (strcmp(key, "control_enable") == 0) return en ? "Enable remote control writes (experimental)" : no ? "Aktiver fjernstyring med skriv (experimental)" : da ? "Aktivér fjernstyring med skriv (experimental)" : sv ? "Aktivera fjärrstyrning med skrivning (experimental)" : fi ? "Salli etäohjaus kirjoituksilla (experimental)" : "Увімкнути віддалене керування записом (experimental)";
   if (strcmp(key, "admin") == 0) return en ? "Admin" : no ? "Admin" : da ? "Admin" : sv ? "Admin" : fi ? "Admin" : "Адмін";
@@ -265,6 +289,27 @@ static void applyPostedModbusSettings()
   }
 }
 
+static void applyPostedFlexitWebSettings()
+{
+  if (server.hasArg("fwuser")) g_cfg->flexitweb_user = server.arg("fwuser");
+  if (server.hasArg("fwpass"))
+  {
+    String p = server.arg("fwpass");
+    if (p.length() > 0) g_cfg->flexitweb_pass = p;
+  }
+  if (server.hasArg("fwserial")) g_cfg->flexitweb_serial = server.arg("fwserial");
+  if (server.hasArg("fwauth")) g_cfg->flexitweb_auth_url = server.arg("fwauth");
+  if (server.hasArg("fwdev")) g_cfg->flexitweb_device_url = server.arg("fwdev");
+  if (server.hasArg("fwdata")) g_cfg->flexitweb_datapoint_url = server.arg("fwdata");
+  if (server.hasArg("fwpoll"))
+  {
+    int m = server.arg("fwpoll").toInt();
+    if (m < 5) m = 5;
+    if (m > 60) m = 60;
+    g_cfg->flexitweb_poll_minutes = (uint8_t)m;
+  }
+}
+
 static bool tokenOK()
 {
   if (!server.hasArg("token")) return false;
@@ -295,6 +340,7 @@ static String buildStatusJson(bool pretty)
   String ip   = jsonEscape(g_data.ip);
   String time = jsonEscape(g_data.time);
   String mb   = jsonEscape(g_mb);
+  String src  = jsonEscape(normDataSource(g_cfg->data_source));
   String model = jsonEscape(g_data.device_model);
   String fw = jsonEscape(String(FW_VERSION));
 
@@ -314,7 +360,7 @@ static String buildStatusJson(bool pretty)
   String av = fOrNull(g_data.avtrekk);
   String ak = fOrNull(g_data.avkast);
 
-  char buf[900];
+  char buf[1024];
 
   if (!pretty)
   {
@@ -336,7 +382,8 @@ static String buildStatusJson(bool pretty)
         "\"fw\":\"%s\","
         "\"wifi\":\"%s\","
         "\"ip\":\"%s\","
-        "\"modbus\":\"%s\""
+        "\"modbus\":\"%s\","
+        "\"data_source\":\"%s\""
       "}",
       (unsigned long long)tsEpochMs,
       tsIso.c_str(),
@@ -354,7 +401,8 @@ static String buildStatusJson(bool pretty)
       fw.c_str(),
       wifi.c_str(),
       ip.c_str(),
-      mb.c_str()
+      mb.c_str(),
+      src.c_str()
     );
     return String(buf);
   }
@@ -377,7 +425,8 @@ static String buildStatusJson(bool pretty)
     "  \"fw\": \"%s\",\n"
     "  \"wifi\": \"%s\",\n"
     "  \"ip\": \"%s\",\n"
-    "  \"modbus\": \"%s\"\n"
+    "  \"modbus\": \"%s\",\n"
+    "  \"data_source\": \"%s\"\n"
     "}\n",
     (unsigned long long)tsEpochMs,
     tsIso.c_str(),
@@ -395,7 +444,8 @@ static String buildStatusJson(bool pretty)
     fw.c_str(),
     wifi.c_str(),
     ip.c_str(),
-    mb.c_str()
+    mb.c_str(),
+    src.c_str()
   );
   return String(buf);
 }
@@ -416,7 +466,7 @@ static String buildHomeyExportJson()
 {
   const String base = currentBaseUrl();
   const String statusUrl = base + "/status?token=" + g_cfg->api_token;
-  const bool controlActive = (g_cfg->modbus_enabled && g_cfg->control_enabled);
+  const bool controlActive = (normDataSource(g_cfg->data_source) == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled);
   const uint64_t ts = nowEpochMs();
   const String tsIso = isoFromEpochMs(ts);
   const String tsStr = u64ToString(ts);
@@ -457,7 +507,8 @@ static String buildHomeyExportJson()
   script += "  await setByName(devices,name,cfg.cap,v);\n";
   script += "}\n\n";
   script += "if (ALARM_DEVICE) {\n";
-  script += "  const bad = !String(s.modbus || '').startsWith('MB OK');\n";
+  script += "  const st = String(s.modbus || '');\n";
+  script += "  const bad = !(st.startsWith('MB OK') || st.startsWith('WEB OK'));\n";
   script += "  await setByName(devices,ALARM_DEVICE,ALARM_CAP,bad);\n";
   script += "}\n\n";
   script += "if (STATUS_DEVICE) {\n";
@@ -617,7 +668,8 @@ static String buildAdminManualText(bool noLang)
     out += "2) Fullfor setup wizard.\n";
     out += "3) Verifiser /status?token=... svar.\n";
     out += "4) For Homey: bruk Eksporter Homey-oppsett.\n";
-    out += "5) For HA: konfigurer REST sensor mot /ha/status.\n\n";
+    out += "5) For HA: konfigurer REST sensor mot /ha/status.\n";
+    out += "6) Datakilde: velg Modbus (lokal) eller FlexitWeb Cloud (kun lesing).\n\n";
     out += "Modbus skriv (valgfritt)\n";
     out += "- Aktiver Modbus\n";
     out += "- Aktiver Enable remote control writes (experimental)\n";
@@ -643,7 +695,8 @@ static String buildAdminManualText(bool noLang)
     out += "2) Complete setup wizard.\n";
     out += "3) Verify /status?token=... returns data.\n";
     out += "4) For Homey: use Export Homey setup.\n";
-    out += "5) For HA: configure REST sensor to /ha/status.\n\n";
+    out += "5) For HA: configure REST sensor to /ha/status.\n";
+    out += "6) Data source: choose Modbus (local) or FlexitWeb Cloud (read-only).\n\n";
     out += "Modbus writes (optional)\n";
     out += "- Enable Modbus\n";
     out += "- Enable remote control writes (experimental)\n";
@@ -920,6 +973,7 @@ static void handleHaHistoryCsv()
 static void handleControlMode()
 {
   if (!tokenOK()) { server.send(401, "text/plain", "missing/invalid token"); return; }
+  if (normDataSource(g_cfg->data_source) != "MODBUS") { server.send(403, "text/plain", "control disabled for selected data source"); return; }
   if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
   if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
   if (!server.hasArg("mode")) { server.send(400, "text/plain", "missing mode"); return; }
@@ -937,6 +991,7 @@ static void handleControlMode()
 static void handleControlSetpoint()
 {
   if (!tokenOK()) { server.send(401, "text/plain", "missing/invalid token"); return; }
+  if (normDataSource(g_cfg->data_source) != "MODBUS") { server.send(403, "text/plain", "control disabled for selected data source"); return; }
   if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
   if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
   if (!server.hasArg("profile") || !server.hasArg("value"))
@@ -960,7 +1015,7 @@ static void handleControlSetpoint()
 static void handleAdminControlMode()
 {
   if (!checkAdminAuth()) return;
-  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled || !server.hasArg("mode"))
+  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled || normDataSource(g_cfg->data_source) != "MODBUS" || !server.hasArg("mode"))
   {
     redirectTo("/admin");
     return;
@@ -978,7 +1033,7 @@ static void handleAdminControlMode()
 static void handleAdminControlSetpoint()
 {
   if (!checkAdminAuth()) return;
-  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled ||
+  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled || normDataSource(g_cfg->data_source) != "MODBUS" ||
       !server.hasArg("profile") || !server.hasArg("value"))
   {
     redirectTo("/admin");
@@ -1110,10 +1165,13 @@ static void handleRoot()
 
   s += "<div class='card'><h2>Moduler (offentlig)</h2>";
   s += "<div class='kpi'>";
+  s += "<div class='kv'><div class='k'>Datakilde</div><div class='v'>" + dataSourceLabel(g_cfg->data_source) + "</div></div>";
   s += "<div class='kv'><div class='k'>Homey/API</div><div class='v'>" + boolLabel(g_cfg->homey_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>Home Assistant/API</div><div class='v'>" + boolLabel(g_cfg->ha_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>Modbus</div><div class='v'>" + boolLabel(g_cfg->modbus_enabled) + "</div></div>";
-  s += "<div class='kv'><div class='k'>Control writes</div><div class='v'>" + boolLabel(g_cfg->control_enabled) + "</div></div>";
+  s += "<div class='kv'><div class='k'>FlexitWeb Cloud</div><div class='v'>" + boolLabel(normDataSource(g_cfg->data_source) == "FLEXITWEB") + "</div></div>";
+  const bool ctrlActive = (g_cfg->control_enabled && normDataSource(g_cfg->data_source) == "MODBUS");
+  s += "<div class='kv'><div class='k'>Control writes</div><div class='v'>" + boolLabel(ctrlActive) + "</div></div>";
   s += "</div>";
   s += "<div class='help'>Dette er lesbar oversikt uten innlogging. Konfigurasjon krever admin-login.</div>";
   s += "</div>";
@@ -1122,7 +1180,7 @@ static void handleRoot()
   s += "<div class='kpi'>";
   s += "<div class='kv'><div class='k'>Model</div><div class='v'>" + jsonEscape(g_data.device_model) + "</div></div>";
   s += "<div class='kv'><div class='k'>Mode</div><div class='v'>" + jsonEscape(g_data.mode) + "</div></div>";
-  s += "<div class='kv'><div class='k'>Modbus status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Source status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
   s += "<div class='kv'><div class='k'>Ute / Tilluft</div><div class='v'>" + fOrDash(g_data.uteluft) + " / " + fOrDash(g_data.tilluft) + " C</div></div>";
   s += "</div>";
   s += "<div class='help'>Siste sample fra enheten. Full JSON krever token.</div>";
@@ -1237,6 +1295,12 @@ static void handleAdminSetup()
          + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
          + "> Deaktiver</label>";
     s += "<div class='sep-gold'></div>";
+    const bool srcWeb = (normDataSource(g_cfg->data_source) == "FLEXITWEB");
+    s += "<div><strong>" + tr("data_source") + "</strong></div>";
+    s += "<label><input type='radio' name='src' value='MODBUS'" + String(!srcWeb ? " checked" : "") + "> " + tr("source_modbus") + "</label>";
+    s += "<label><input type='radio' name='src' value='FLEXITWEB'" + String(srcWeb ? " checked" : "") + "> " + tr("source_flexitweb") + "</label>";
+    s += "<div class='help'>" + tr("source_flexitweb_help") + "</div>";
+    s += "<div class='sep-gold'></div>";
     s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
     s += "<div id='mb_adv_setup' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
     s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
@@ -1257,19 +1321,36 @@ static void handleAdminSetup()
     s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
     s += "</select>";
     s += "</div>";
+    s += "<div id='fw_adv_setup' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
+    s += "<div class='help'>" + tr("source_flexitweb_help") + "</div>";
+    s += "<label>" + tr("cloud_user") + "</label><input name='fwuser' value='" + jsonEscape(g_cfg->flexitweb_user) + "'>";
+    s += "<label>" + tr("cloud_pass") + "</label><input name='fwpass' type='password' value=''>";
+    s += "<label>" + tr("cloud_serial") + "</label><input name='fwserial' value='" + jsonEscape(g_cfg->flexitweb_serial) + "'>";
+    s += "<label>" + tr("cloud_poll_min") + "</label><input name='fwpoll' type='number' min='5' max='60' value='" + String((int)g_cfg->flexitweb_poll_minutes) + "'>";
+    s += "<details style='margin-top:8px'><summary>" + tr("cloud_adv") + "</summary>";
+    s += "<label>" + tr("cloud_auth_url") + "</label><input class='mono' name='fwauth' value='" + jsonEscape(g_cfg->flexitweb_auth_url) + "'>";
+    s += "<label>" + tr("cloud_dev_url") + "</label><input class='mono' name='fwdev' value='" + jsonEscape(g_cfg->flexitweb_device_url) + "'>";
+    s += "<label>" + tr("cloud_data_url") + "</label><input class='mono' name='fwdata' value='" + jsonEscape(g_cfg->flexitweb_datapoint_url) + "'>";
+    s += "</details>";
+    s += "</div>";
     s += "<script>(function(){"
          "var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');"
+         "var fw=document.getElementById('fw_adv_setup');"
+         "var src=document.querySelectorAll('input[name=\"src\"]');"
          "var m=document.getElementById('model_setup');var tr=document.getElementById('mbtr_setup');"
          "var sf=document.getElementById('mbser_setup');var bd=document.getElementById('mbbaud_setup');"
          "var id=document.getElementById('mbid_setup');var of=document.getElementById('mboff_setup');"
          "if(!t||!a)return;"
-         "function u(){a.style.display=t.checked?'block':'none';}"
+         "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
+         "function u(){var useMb=(srcVal()==='MODBUS');a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=(srcVal()==='FLEXITWEB')?'block':'none';}"
          "function p(model){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';}"
          "t.addEventListener('change',u);"
+         "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
          "u();})();</script>";
     s += "<div class='sep-gold'></div>";
     s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
+    s += "<div class='help'>Gjelder visningsoppdatering. Cloud-frekvens styres av eget minuttfelt.</div>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
     s += "</form>";
     s += "<div class='help'>Når du fullfører, blir oppsettet lagret og du kan gå til admin.</div>";
@@ -1347,9 +1428,19 @@ static void handleAdminSetupSave()
   }
   g_cfg->homey_enabled  = (homeyMode == "enable");
   g_cfg->ha_enabled     = (haMode == "enable");
-  g_cfg->control_enabled = server.hasArg("ctrl");
+  g_cfg->data_source = normDataSource(server.arg("src"));
+  g_cfg->control_enabled = (g_cfg->data_source == "MODBUS") ? server.hasArg("ctrl") : false;
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
+  applyPostedFlexitWebSettings();
+  if (g_cfg->data_source == "FLEXITWEB")
+  {
+    if (g_cfg->flexitweb_user.length() == 0 || g_cfg->flexitweb_pass.length() == 0)
+    {
+      server.send(400, "text/plain", "FlexitWeb krever bruker/e-post og passord.");
+      return;
+    }
+  }
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
   if (pollSec < 30) pollSec = 30;
@@ -1433,8 +1524,14 @@ static void handleAdmin()
   s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
   s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
   s += "<div class='sep-gold'></div>";
+  const bool srcWeb = (normDataSource(g_cfg->data_source) == "FLEXITWEB");
+  s += "<div><strong>" + tr("data_source") + "</strong></div>";
+  s += "<label><input type='radio' name='src' value='MODBUS'" + String(!srcWeb ? " checked" : "") + "> " + tr("source_modbus") + "</label>";
+  s += "<label><input type='radio' name='src' value='FLEXITWEB'" + String(srcWeb ? " checked" : "") + "> " + tr("source_flexitweb") + "</label>";
+  s += "<div class='help'>" + tr("source_flexitweb_help") + "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<label><input id='mb_toggle_admin' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
-  s += "<div id='mb_adv_admin' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
+  s += "<div id='mb_adv_admin' style='display:" + String((g_cfg->modbus_enabled && !srcWeb) ? "block" : "none") + ";'>";
   s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
   s += "<label><input type='checkbox' name='ctrl' " + String(g_cfg->control_enabled ? "checked" : "") + "> " + tr("control_enable") + "</label>";
   s += "<label>Modbus transport</label>";
@@ -1454,15 +1551,31 @@ static void handleAdmin()
   s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
   s += "</select>";
   s += "</div>";
+  s += "<div id='fw_adv_admin' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
+  s += "<div class='help'>" + tr("source_flexitweb_help") + "</div>";
+  s += "<label>" + tr("cloud_user") + "</label><input name='fwuser' value='" + jsonEscape(g_cfg->flexitweb_user) + "'>";
+  s += "<label>" + tr("cloud_pass") + "</label><input name='fwpass' type='password' value=''>";
+  s += "<label>" + tr("cloud_serial") + "</label><input name='fwserial' value='" + jsonEscape(g_cfg->flexitweb_serial) + "'>";
+  s += "<label>" + tr("cloud_poll_min") + "</label><input name='fwpoll' type='number' min='5' max='60' value='" + String((int)g_cfg->flexitweb_poll_minutes) + "'>";
+  s += "<details style='margin-top:8px'><summary>" + tr("cloud_adv") + "</summary>";
+  s += "<label>" + tr("cloud_auth_url") + "</label><input class='mono' name='fwauth' value='" + jsonEscape(g_cfg->flexitweb_auth_url) + "'>";
+  s += "<label>" + tr("cloud_dev_url") + "</label><input class='mono' name='fwdev' value='" + jsonEscape(g_cfg->flexitweb_device_url) + "'>";
+  s += "<label>" + tr("cloud_data_url") + "</label><input class='mono' name='fwdata' value='" + jsonEscape(g_cfg->flexitweb_datapoint_url) + "'>";
+  s += "</details>";
+  s += "</div>";
   s += "<script>(function(){"
        "var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');"
+       "var fw=document.getElementById('fw_adv_admin');"
+       "var src=document.querySelectorAll('input[name=\"src\"]');"
        "var m=document.getElementById('model_admin');var tr=document.getElementById('mbtr_admin');"
        "var sf=document.getElementById('mbser_admin');var bd=document.getElementById('mbbaud_admin');"
        "var id=document.getElementById('mbid_admin');var of=document.getElementById('mboff_admin');"
        "if(!t||!a)return;"
-       "function u(){a.style.display=t.checked?'block':'none';}"
+       "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
+       "function u(){var useMb=(srcVal()==='MODBUS');a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=(srcVal()==='FLEXITWEB')?'block':'none';}"
        "function p(model){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';}"
        "t.addEventListener('change',u);"
+       "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
        "u();})();</script>";
   s += "<div class='sep-gold'></div>";
@@ -1483,7 +1596,7 @@ static void handleAdmin()
 
   // Quick control panel (next-level UX)
   s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
-  if (g_cfg->modbus_enabled && g_cfg->control_enabled)
+  if (g_cfg->modbus_enabled && g_cfg->control_enabled && normDataSource(g_cfg->data_source) == "MODBUS")
   {
     s += "<div class='help'>" + tr("quick_control_help") + "</div>";
     s += "<div class='actions'>";
@@ -1571,6 +1684,14 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.0.0</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Ny datakilde: FlexitWeb Cloud (kun lesing) med egen polling (5-60 min), wizard/admin-oppsett og tydelig source-status.";
+  else
+    s += "New data source: FlexitWeb Cloud (read-only) with dedicated polling (5-60 min), wizard/admin setup and clear source status.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v3.7.0</strong></div>";
   s += "<div class='help'>";
   if (noLang)
@@ -1605,7 +1726,15 @@ static void handleAdminManual()
     s += "Display shows live values. Read API status from <code>/status?token=...</code> (or <code>/ha/status?token=...</code>).";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>3) Modbus</strong></div>";
+  s += "<div><strong>3) " + String(noLang ? "Datakilde" : "Data source") + "</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Velg enten <code>Modbus (lokal)</code> eller <code>FlexitWeb Cloud (kun lesing)</code>. Cloud krever Flexit-bruker og passord.";
+  else
+    s += "Choose either <code>Modbus (local)</code> or <code>FlexitWeb Cloud (read-only)</code>. Cloud requires Flexit username and password.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>4) Modbus</strong></div>";
   s += "<div class='help'>";
   if (noLang)
     s += "Modbus er AV som standard. N&aring;r Modbus aktiveres, vises avanserte innstillinger automatisk.";
@@ -1613,7 +1742,7 @@ static void handleAdminManual()
     s += "Modbus is OFF by default. When enabled, advanced settings appear automatically.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>4) Homey / Home Assistant</strong></div>";
+  s += "<div><strong>5) Homey / Home Assistant</strong></div>";
   s += "<div class='help'>";
   if (noLang)
     s += "Aktiver Homey/API eller Home Assistant/API i admin. Bruk token-beskyttet API lokalt.";
@@ -1621,16 +1750,16 @@ static void handleAdminManual()
     s += "Enable Homey/API or Home Assistant/API in admin. Use token-protected local API.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>5) " + String(noLang ? "Fjernstyring (eksperimentell)" : "Remote control (experimental)") + "</strong></div>";
+  s += "<div><strong>6) " + String(noLang ? "Fjernstyring (eksperimentell)" : "Remote control (experimental)") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Kun aktiv n&aring;r <code>Modbus</code> og <code>Enable remote control writes</code> er p&aring;.";
+    s += "Kun aktiv n&aring;r <code>Datakilde=Modbus</code>, <code>Modbus</code> og <code>Enable remote control writes</code> er p&aring;.";
   else
-    s += "Only active when <code>Modbus</code> and <code>Enable remote control writes</code> are enabled.";
+    s += "Only active when <code>Data source=Modbus</code>, <code>Modbus</code> and <code>Enable remote control writes</code> are enabled.";
   s += " API: <code>POST /api/control/mode</code>, <code>POST /api/control/setpoint</code>.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>6) " + String(noLang ? "OTA-oppdatering" : "OTA update") + "</strong></div>";
+  s += "<div><strong>7) " + String(noLang ? "OTA-oppdatering" : "OTA update") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
     s += "G&aring; til <code>/admin/ota</code>, last opp firmwarefil (.bin), enheten restarter automatisk.";
@@ -1638,7 +1767,7 @@ static void handleAdminManual()
     s += "Go to <code>/admin/ota</code>, upload firmware (.bin), device restarts automatically.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>7) " + String(noLang ? "Feilsoking" : "Troubleshooting") + "</strong></div>";
+  s += "<div><strong>8) " + String(noLang ? "Feilsoking" : "Troubleshooting") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
     s += "Sjekk <code>/health</code> og <code>/status?token=...&pretty=1</code>. Ved Modbus-feil brukes siste gyldige data.";
@@ -1775,9 +1904,19 @@ static void handleAdminSave()
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
   g_cfg->ha_enabled     = server.hasArg("ha");
-  g_cfg->control_enabled = server.hasArg("ctrl");
+  g_cfg->data_source = normDataSource(server.arg("src"));
+  g_cfg->control_enabled = (g_cfg->data_source == "MODBUS") ? server.hasArg("ctrl") : false;
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
+  applyPostedFlexitWebSettings();
+  if (g_cfg->data_source == "FLEXITWEB")
+  {
+    if (g_cfg->flexitweb_user.length() == 0 || g_cfg->flexitweb_pass.length() == 0)
+    {
+      server.send(400, "text/plain", "FlexitWeb krever bruker/e-post og passord.");
+      return;
+    }
+  }
 
   // Poll interval
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
@@ -1943,8 +2082,8 @@ void webportal_set_data(const FlexitData& data, const String& mbStatus)
   g_diag_total_updates++;
   g_diag_last_mb = mbStatus;
   g_diag_last_sample_ms = nowEpochMs();
-  if (mbStatus == "MB OFF") g_diag_mb_off++;
-  else if (mbStatus.startsWith("MB OK")) g_diag_mb_ok++;
+  if (mbStatus.endsWith("OFF")) g_diag_mb_off++;
+  else if (mbStatus.startsWith("MB OK") || mbStatus.startsWith("WEB OK")) g_diag_mb_ok++;
   else g_diag_mb_err++;
   if (mbStatus.indexOf("stale") >= 0) g_diag_stale++;
 }

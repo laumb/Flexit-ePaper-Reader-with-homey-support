@@ -25,6 +25,16 @@ struct DeviceConfig {
   bool homey_enabled;
   bool ha_enabled;
   bool control_enabled; // allows Modbus write actions via API (experimental)
+  String data_source;   // "MODBUS" or "FLEXITWEB"
+
+  // Flexit cloud source (read-only)
+  String flexitweb_user;          // app login (email/user)
+  String flexitweb_pass;          // app password
+  String flexitweb_serial;        // optional serial override
+  String flexitweb_auth_url;      // auth endpoint
+  String flexitweb_device_url;    // device-list endpoint
+  String flexitweb_datapoint_url; // datapoints endpoint
+  uint8_t flexitweb_poll_minutes; // 5..60
 
   String ui_language; // no, da, sv, fi, en, uk
 

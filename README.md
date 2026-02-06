@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v3.7.0)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.0.0)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -6,6 +6,11 @@ It provides local ePaper display, local web admin, and Homey/Home Assistant inte
 Default behavior is read-only monitoring. Modbus write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.0.0
+- New optional data source: `FlexitWeb Cloud` (read-only) as an alternative to local Modbus.
+- New cloud settings in wizard/admin: login, optional serial, endpoint overrides, and polling `5-60 min`.
+- Control writes are now allowed only when data source is `Modbus`.
 
 ### v3.7.0
 - Setup wizard step 3 now requires explicit enable/disable selection for `Homey/API` and `Home Assistant/API`.
@@ -49,6 +54,9 @@ Wizard has 3 steps:
 Step 3 now requires explicit selection for both:
 - `Homey/API`: Enable or Disable
 - `Home Assistant/API`: Enable or Disable
+- Data source:
+  - `Modbus (local)`
+  - `FlexitWeb Cloud (read-only)` with separate cloud polling interval (`5-60 min`)
 
 Press **Complete & restart** to persist settings and reboot.
 
@@ -58,6 +66,20 @@ After setup is complete:
 - ePaper shows live values.
 - Admin is available on device IP (`/admin`).
 - API availability follows your module selections.
+- Active data source is visible in public status/admin.
+
+## FlexitWeb Cloud source (optional)
+
+If you do not want Modbus wiring, select `FlexitWeb Cloud (read-only)` as data source.
+
+Required:
+1. Flexit app username/email.
+2. Flexit app password.
+3. Cloud polling interval (`5-60 min`).
+
+Optional:
+1. Device serial override (otherwise first cloud device is auto-discovered).
+2. Endpoint override fields under advanced settings.
 
 ## Quick start: Homey
 
@@ -80,9 +102,10 @@ After setup is complete:
 
 ## Mode/setpoint writes (optional)
 
-Requires both enabled in admin:
-1. `Modbus`
-2. `Enable remote control writes (experimental)`
+Requires all enabled in admin:
+1. Data source = `Modbus`
+2. `Modbus`
+3. `Enable remote control writes (experimental)`
 
 When enabled:
 - Admin quick control becomes available.
@@ -136,7 +159,7 @@ Detailed guides:
 Status payload includes:
 - Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
 - Aggregates: `fan`, `heat`, `efficiency`
-- Metadata: `mode`, `modbus`, `model`, `time`, `ts_epoch_ms`, `ts_iso`, `stale`
+- Metadata: `mode`, `modbus`, `model`, `time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`
 
 ### History
 - `GET /status/history?token=<TOKEN>&limit=120`
@@ -149,7 +172,7 @@ Status payload includes:
 - `GET /status/storage?token=<TOKEN>`
 
 ### Control (experimental)
-Requires both `Modbus` and `Enable remote control writes`:
+Requires data source `Modbus`, `Modbus` enabled, and `Enable remote control writes`:
 - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
 - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
 

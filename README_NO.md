@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v3.7.0)
+# VentReader – Brukerveiledning (v4.0.0)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -6,6 +6,12 @@ VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.0.0
+
+- Ny valgfri datakilde: `FlexitWeb Cloud` (kun lesing) som alternativ til lokal Modbus.
+- Nye cloud-innstillinger i wizard/admin: login, valgfritt serienummer, endpoint-overstyring og polling `5-60 min`.
+- Styringsskriving er nå kun tilgjengelig når datakilde er `Modbus`.
 
 ### v3.7.0
 
@@ -68,6 +74,7 @@ Oppsettet består av 3 steg:
 1. Velg nytt admin-passord
 2. Koble enheten til ditt WiFi
 3. Velg modell og funksjoner (Modbus, Homey/API, Home Assistant/API)
+   samt datakilde (`Modbus` eller `FlexitWeb Cloud`).
 
 Når du trykker **Fullfør og restart**, lagres alt og enheten starter på nytt.
 
@@ -80,6 +87,22 @@ Når oppsett er fullført:
 - Skjermen viser ventilasjonsdata
 - Nettgrensesnitt er tilgjengelig på enhetens IP
 - Enheten oppdaterer seg automatisk
+- Aktiv datakilde vises i offentlig status/admin.
+
+---
+
+## FlexitWeb Cloud-datakilde (valgfritt)
+
+Brukes når du vil hente data uten Modbus-kabling.
+
+Påkrevd:
+- Flexit-bruker/e-post
+- Flexit-passord
+- Cloud polling-intervall (`5-60 min`)
+
+Valgfritt:
+- Serienummer (ellers auto-finnes første enhet)
+- Endpoint-overstyring i avanserte felt
 
 ---
 
@@ -114,7 +137,7 @@ Full steg-for-steg guider:
 - Diagnostikk:
   - `GET /status/diag?token=<TOKEN>`
   - `GET /status/storage?token=<TOKEN>`
-- Styring (eksperimentelt, krever både `Modbus` + `Control writes` aktivert):
+- Styring (eksperimentelt, krever datakilde=`Modbus`, `Modbus` + `Control writes` aktivert):
   - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
   - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
 
@@ -146,7 +169,7 @@ Alt slettes og enheten starter på nytt som ny.
 
 - Standardpassord brukes kun før oppsett
 - Etter oppsett må eget passord brukes
-- Ingen data sendes til sky automatisk
+- Ingen data sendes til sky automatisk med mindre du aktivt velger `FlexitWeb Cloud` som datakilde
 
 ---
 

@@ -17,6 +17,7 @@
 // - GET  /ha/history.csv?token=... [&limit=120] -> CSV history export
 // - POST /api/control/mode?token=...&mode=AWAY|HOME|HIGH|FIRE
 // - POST /api/control/setpoint?token=...&profile=home|away&value=18.5
+//   (control endpoints require data source=Modbus and control writes enabled)
 // - Admin UI (Basic Auth):
 //     GET  /admin
 //     GET  /admin/setup        (forced on first login until password changed)

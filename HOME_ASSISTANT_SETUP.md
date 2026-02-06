@@ -10,11 +10,14 @@ You get:
 ## Quick start (recommended)
 
 1. Verify `Home Assistant/API` is enabled in VentReader admin.
-2. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
-3. Add REST sensor in `configuration.yaml`.
-4. Add template sensors.
-5. Restart Home Assistant.
-6. Verify values in Entities/History.
+2. Verify data source is configured:
+   - `Modbus (local)`, or
+   - `FlexitWeb Cloud (read-only)` with valid cloud login.
+3. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
+4. Add REST sensor in `configuration.yaml`.
+5. Add template sensors.
+6. Restart Home Assistant.
+7. Verify values in Entities/History.
 
 ## Required vs optional
 
@@ -32,8 +35,9 @@ You get:
 
 In VentReader admin (`/admin`):
 1. Enable `Home Assistant/API`.
-2. Keep a strong API token.
-3. Note local IP address.
+2. Choose data source (`Modbus` or `FlexitWeb Cloud`).
+3. Keep a strong API token.
+4. Note local IP address.
 
 Test in browser:
 - `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`
@@ -117,8 +121,9 @@ Add entities and history graph cards for the created sensors.
 ## 4) Optional write control (mode + setpoint)
 
 In VentReader admin (`/admin`), enable:
-1. `Modbus`
-2. `Enable remote control writes (experimental)`
+1. Data source = `Modbus`
+2. `Modbus`
+3. `Enable remote control writes (experimental)`
 
 REST commands:
 
