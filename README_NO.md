@@ -1,14 +1,15 @@
-# VentReader – Brukerveiledning (v3.2.5)
+# VentReader – Brukerveiledning (v3.5.0)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
 
 Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
 
-### v3.2.5 høydepunkter
+### v3.5.0 høydepunkter
 
 - Språkvalg gjelder nå også admin-undersider og ePaper-tekster
 - Dashboardets modusverdier oversettes nå etter valgt språk
+- Status-JSON inkluderer nå tidsfeltene `ts_epoch_ms` og `ts_iso` for logging/grafer
 - Ny manual/changelog-side i admin (`/admin/manual`)
 - Mer konsistente kvitteringssider i admin (lagre/restart/OTA)
 
@@ -87,6 +88,7 @@ Full steg-for-steg guider:
 - Status:
   - `GET /status?token=<TOKEN>`
   - `GET /ha/status?token=<TOKEN>` (krever `Home Assistant/API` aktivert)
+  - Inkluderer `ts_epoch_ms` og `ts_iso` i hver datapakke for tidsserier/grafer
 - Styring (eksperimentelt, krever både `Modbus` + `Control writes` aktivert):
   - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
   - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`

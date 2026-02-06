@@ -1,6 +1,8 @@
 #include "homey_http.h"
 
 #include <cstring>
+#include <time.h>
+#include <sys/time.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
@@ -193,6 +195,29 @@ static String buildStatusJson(bool pretty)
   String model = jsonEscape(g_data.device_model);
   String fw = jsonEscape(String(FW_VERSION));
 
+  uint64_t tsEpochMs = 0;
+  {
+    struct timeval tv;
+    if (gettimeofday(&tv, nullptr) == 0)
+    {
+      tsEpochMs = ((uint64_t)tv.tv_sec * 1000ULL) + ((uint64_t)tv.tv_usec / 1000ULL);
+    }
+  }
+
+  String tsIso = "";
+  {
+    time_t now = time(nullptr);
+    if (now > 100000)
+    {
+      struct tm tmv;
+      localtime_r(&now, &tmv);
+      char b[40];
+      strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S%z", &tmv);
+      tsIso = b;
+    }
+  }
+  tsIso = jsonEscape(tsIso);
+
   auto fOrNull = [](float v) -> String {
     if (isnan(v)) return "null";
     char t[24];
@@ -205,12 +230,14 @@ static String buildStatusJson(bool pretty)
   String av = fOrNull(g_data.avtrekk);
   String ak = fOrNull(g_data.avkast);
 
-  char buf[700];
+  char buf[900];
 
   if (!pretty)
   {
     snprintf(buf, sizeof(buf),
       "{"
+        "\"ts_epoch_ms\":%llu,"
+        "\"ts_iso\":\"%s\","
         "\"time\":\"%s\","
         "\"mode\":\"%s\","
         "\"uteluft\":%s,"
@@ -226,6 +253,8 @@ static String buildStatusJson(bool pretty)
         "\"ip\":\"%s\","
         "\"modbus\":\"%s\""
       "}",
+      (unsigned long long)tsEpochMs,
+      tsIso.c_str(),
       time.c_str(),
       mode.c_str(),
       ut.c_str(),
@@ -246,6 +275,8 @@ static String buildStatusJson(bool pretty)
 
   snprintf(buf, sizeof(buf),
     "{\n"
+    "  \"ts_epoch_ms\": %llu,\n"
+    "  \"ts_iso\": \"%s\",\n"
     "  \"time\": \"%s\",\n"
     "  \"mode\": \"%s\",\n"
     "  \"uteluft\": %s,\n"
@@ -261,6 +292,8 @@ static String buildStatusJson(bool pretty)
     "  \"ip\": \"%s\",\n"
     "  \"modbus\": \"%s\"\n"
     "}\n",
+    (unsigned long long)tsEpochMs,
+    tsIso.c_str(),
     time.c_str(),
     mode.c_str(),
     ut.c_str(),
@@ -819,12 +852,12 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
-  s += "<div><strong>v3.2.5</strong></div>";
+  s += "<div><strong>v3.5.0</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Språkstyring er utvidet til manual, lagre/restart/OTA-sider og ePaper-visning.";
+    s += "Status-JSON har nå ts_epoch_ms/ts_iso for grafer, samt forbedret språkstyring i admin og ePaper.";
   else
-    s += "Language control now also applies to manual, save/restart/OTA pages and ePaper texts.";
+    s += "Status JSON now includes ts_epoch_ms/ts_iso for graphing, plus improved language coverage in admin and ePaper.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>v3.1.0</strong></div>";

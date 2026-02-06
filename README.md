@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v3.2.5)
+# VentReader – Flexit Modbus Reader with ePaper UI (v3.5.0)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems
 (Nordic S3 / S4 + selected experimental variants), featuring:
@@ -37,10 +37,11 @@ The name “Flexit” is used only to describe supported equipment.
 - OTA firmware updates (after setup), including web upload in admin
 - Web API for Homey / Home Assistant / integrations
 
-### v3.2.5 highlights
+### v3.5.0 highlights
 
 - Language selection now applies to admin sub-pages and ePaper texts
 - Dashboard mode values are now translated per selected language
+- Status JSON now includes machine-friendly timestamps (`ts_epoch_ms`, `ts_iso`) for logging/graph pipelines
 - New admin manual/changelog page (`/admin/manual`)
 - More consistent admin response pages (save/restart/OTA)
 
@@ -116,6 +117,7 @@ Step-by-step Home Assistant guides:
 - Status:
   - `GET /status?token=<TOKEN>`
   - `GET /ha/status?token=<TOKEN>` (requires `Home Assistant/API` enabled)
+  - Includes `ts_epoch_ms` and `ts_iso` in each payload for time-series use
 - Control (experimental, requires both `Modbus` + `Control writes` enabled):
   - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
   - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
