@@ -28,6 +28,12 @@ static bool is_supported_model(const String& model)
          model == "CL4_EXP";
 }
 
+static String normalize_lang(const String& in)
+{
+  if (in == "no" || in == "da" || in == "sv" || in == "fi" || in == "en" || in == "uk") return in;
+  return "no";
+}
+
 void config_begin() {
   prefs.begin("flexit", false);
 }
@@ -86,6 +92,9 @@ DeviceConfig config_load() {
 
   c.modbus_enabled = prefs.getBool("modbus", false);
   c.homey_enabled  = prefs.getBool("homey", true);
+  c.ha_enabled     = prefs.getBool("ha", true);
+  c.control_enabled = prefs.getBool("ctrl", false);
+  c.ui_language = normalize_lang(prefs.getString("lang", "no"));
   c.modbus_transport_mode = prefs.getString("mbtr", "");
   if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")
     c.modbus_transport_mode = "";
@@ -127,6 +136,9 @@ void config_save(const DeviceConfig& c) {
 
   prefs.putBool("modbus", c.modbus_enabled);
   prefs.putBool("homey", c.homey_enabled);
+  prefs.putBool("ha", c.ha_enabled);
+  prefs.putBool("ctrl", c.control_enabled);
+  prefs.putString("lang", normalize_lang(c.ui_language));
   prefs.putString("mbtr", c.modbus_transport_mode);
   prefs.putString("mbser", c.modbus_serial_format);
   prefs.putUInt("mbbaud", c.modbus_baud);

@@ -4,10 +4,13 @@
 #include "config_store.h"
 
 // =========================================================
-// WEB PORTAL (Product Admin + Homey Read-only API)
+// WEB PORTAL (Product Admin + Homey/HA API)
 // ---------------------------------------------------------
 // - GET  /health -> ok (no auth)
 // - GET  /status?token=... [&pretty=1] -> JSON (token required)
+// - GET  /ha/status?token=... [&pretty=1] -> JSON (token required + HA enabled)
+// - POST /api/control/mode?token=...&mode=AWAY|HOME|HIGH|FIRE
+// - POST /api/control/setpoint?token=...&profile=home|away&value=18.5
 // - Admin UI (Basic Auth):
 //     GET  /admin
 //     GET  /admin/setup        (forced on first login until password changed)

@@ -148,3 +148,34 @@ For enklest mulig sluttbrukeropplevelse: lag en dedikert Homey-app (LAN-driver) 
 - innebygde flowcards og Insights
 
 Per i dag er VentReader-API-et klart for dette.
+
+## 9) Valgfri styring fra Homey (modus + setpunkt)
+
+I VentReader admin (`/admin`), aktiver:
+1. `Modbus`
+2. `Enable remote control writes (experimental)`
+
+Styrings-endepunkt:
+1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+2. `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+
+Eksempel HomeyScript handling:
+
+```javascript
+const BASE = 'http://192.168.1.50';
+const TOKEN = 'REPLACE_TOKEN';
+
+// Sett modus HOME
+let res = await fetch(`${BASE}/api/control/mode?token=${TOKEN}&mode=HOME`, { method: 'POST' });
+if (!res.ok) throw new Error(`Mode write failed: HTTP ${res.status}`);
+
+// Sett HOME setpunkt til 20.5 C
+res = await fetch(`${BASE}/api/control/setpoint?token=${TOKEN}&profile=home&value=20.5`, { method: 'POST' });
+if (!res.ok) throw new Error(`Setpoint write failed: HTTP ${res.status}`);
+
+return 'Control writes OK';
+```
+
+Sikkerhet:
+1. Hold skrivestyring avskrudd når den ikke trengs.
+2. Del kun API-token med lokale, pålitelige automasjoner.

@@ -1,9 +1,12 @@
 #include "homey_http.h"
 
+#include <cstring>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <Update.h>
+#include "version.h"
+#include "flexit_modbus.h"
 
 static WebServer server(80);
 
@@ -43,6 +46,46 @@ static String normModel(const String& in)
   if (in == "CL3_EXP") return "CL3_EXP";
   if (in == "CL4_EXP") return "CL4_EXP";
   return "S3";
+}
+
+static String normLang(const String& in)
+{
+  if (in == "en" || in == "no" || in == "da" || in == "sv" || in == "fi" || in == "uk") return in;
+  return "no";
+}
+
+static String lang()
+{
+  if (!g_cfg) return "no";
+  return normLang(g_cfg->ui_language);
+}
+
+static String tr(const char* key)
+{
+  const String l = lang();
+  const bool en = (l == "en");
+  const bool no = (l == "no");
+  const bool da = (l == "da");
+  const bool sv = (l == "sv");
+  const bool fi = (l == "fi");
+  const bool uk = (l == "uk");
+
+  if (strcmp(key, "settings") == 0) return en ? "Settings" : no ? "Innstillinger" : da ? "Indstillinger" : sv ? "Inställningar" : fi ? "Asetukset" : "Налаштування";
+  if (strcmp(key, "wifi") == 0) return en ? "WiFi" : no ? "WiFi" : da ? "WiFi" : sv ? "WiFi" : fi ? "WiFi" : "WiFi";
+  if (strcmp(key, "model") == 0) return en ? "Device model" : no ? "Enhetsmodell" : da ? "Enhedsmodel" : sv ? "Enhetsmodell" : fi ? "Laitemalli" : "Модель пристрою";
+  if (strcmp(key, "homey_api") == 0) return en ? "Homey/API" : no ? "Homey/API" : da ? "Homey/API" : sv ? "Homey/API" : fi ? "Homey/API" : "Homey/API";
+  if (strcmp(key, "ha_api") == 0) return en ? "Home Assistant/API" : no ? "Home Assistant/API" : da ? "Home Assistant/API" : sv ? "Home Assistant/API" : fi ? "Home Assistant/API" : "Home Assistant/API";
+  if (strcmp(key, "modbus") == 0) return en ? "Modbus" : no ? "Modbus" : da ? "Modbus" : sv ? "Modbus" : fi ? "Modbus" : "Modbus";
+  if (strcmp(key, "advanced_modbus") == 0) return en ? "Advanced Modbus settings" : no ? "Avanserte Modbus-innstillinger" : da ? "Avancerede Modbus-indstillinger" : sv ? "Avancerade Modbus-inställningar" : fi ? "Edistyneet Modbus-asetukset" : "Розширені налаштування Modbus";
+  if (strcmp(key, "save") == 0) return en ? "Save" : no ? "Lagre" : da ? "Gem" : sv ? "Spara" : fi ? "Tallenna" : "Зберегти";
+  if (strcmp(key, "back") == 0) return en ? "Back" : no ? "Tilbake" : da ? "Tilbage" : sv ? "Tillbaka" : fi ? "Takaisin" : "Назад";
+  if (strcmp(key, "setup") == 0) return en ? "Setup" : no ? "Oppsett" : da ? "Opsætning" : sv ? "Installation" : fi ? "Asennus" : "Налаштування";
+  if (strcmp(key, "next") == 0) return en ? "Next" : no ? "Neste" : da ? "Næste" : sv ? "Nästa" : fi ? "Seuraava" : "Далі";
+  if (strcmp(key, "complete_restart") == 0) return en ? "Complete & restart" : no ? "Fullfør & restart" : da ? "Fuldfør & genstart" : sv ? "Slutför & starta om" : fi ? "Valmis & käynnistä uudelleen" : "Завершити та перезапустити";
+  if (strcmp(key, "poll_sec") == 0) return en ? "Update interval (sec)" : no ? "Oppdateringsintervall (sek)" : da ? "Opdateringsinterval (sek)" : sv ? "Uppdateringsintervall (sek)" : fi ? "Päivitysväli (s)" : "Інтервал оновлення (с)";
+  if (strcmp(key, "language") == 0) return en ? "Language" : no ? "Språk" : da ? "Sprog" : sv ? "Språk" : fi ? "Kieli" : "Мова";
+  if (strcmp(key, "control_enable") == 0) return en ? "Enable remote control writes (experimental)" : no ? "Aktiver fjernstyring med skriv (experimental)" : da ? "Aktivér fjernstyring med skriv (experimental)" : sv ? "Aktivera fjärrstyrning med skrivning (experimental)" : fi ? "Salli etäohjaus kirjoituksilla (experimental)" : "Увімкнути віддалене керування записом (experimental)";
+  return String(key);
 }
 
 static String normTransport(const String& in)
@@ -115,6 +158,7 @@ static String buildStatusJson(bool pretty)
   String time = jsonEscape(g_data.time);
   String mb   = jsonEscape(g_mb);
   String model = jsonEscape(g_data.device_model);
+  String fw = jsonEscape(String(FW_VERSION));
 
   auto fOrNull = [](float v) -> String {
     if (isnan(v)) return "null";
@@ -144,6 +188,7 @@ static String buildStatusJson(bool pretty)
         "\"heat\":%d,"
         "\"efficiency\":%d,"
         "\"model\":\"%s\","
+        "\"fw\":\"%s\","
         "\"wifi\":\"%s\","
         "\"ip\":\"%s\","
         "\"modbus\":\"%s\""
@@ -158,6 +203,7 @@ static String buildStatusJson(bool pretty)
       g_data.heat_element_percent,
       g_data.efficiency_percent,
       model.c_str(),
+      fw.c_str(),
       wifi.c_str(),
       ip.c_str(),
       mb.c_str()
@@ -177,6 +223,7 @@ static String buildStatusJson(bool pretty)
     "  \"heat\": %d,\n"
     "  \"efficiency\": %d,\n"
     "  \"model\": \"%s\",\n"
+    "  \"fw\": \"%s\",\n"
     "  \"wifi\": \"%s\",\n"
     "  \"ip\": \"%s\",\n"
     "  \"modbus\": \"%s\"\n"
@@ -191,6 +238,7 @@ static String buildStatusJson(bool pretty)
     g_data.heat_element_percent,
     g_data.efficiency_percent,
     model.c_str(),
+    fw.c_str(),
     wifi.c_str(),
     ip.c_str(),
     mb.c_str()
@@ -219,6 +267,69 @@ static void handleStatus()
   }
 
   server.send(200, "application/json", buildStatusJson(pretty));
+}
+
+static void applyModbusApiRuntime()
+{
+  FlexitModbusRuntimeConfig mcfg;
+  mcfg.model = g_cfg->model;
+  mcfg.baud = g_cfg->modbus_baud;
+  mcfg.slave_id = g_cfg->modbus_slave_id;
+  mcfg.addr_offset = g_cfg->modbus_addr_offset;
+  mcfg.serial_format = g_cfg->modbus_serial_format;
+  mcfg.transport_mode = g_cfg->modbus_transport_mode;
+  flexit_modbus_set_runtime_config(mcfg);
+  flexit_modbus_set_enabled(g_cfg->modbus_enabled);
+}
+
+static void handleHaStatus()
+{
+  if (!g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "home assistant/api disabled");
+    return;
+  }
+  handleStatus();
+}
+
+static void handleControlMode()
+{
+  if (!tokenOK()) { server.send(401, "text/plain", "missing/invalid token"); return; }
+  if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
+  if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
+  if (!server.hasArg("mode")) { server.send(400, "text/plain", "missing mode"); return; }
+
+  applyModbusApiRuntime();
+  if (!flexit_modbus_write_mode(server.arg("mode")))
+  {
+    server.send(500, "text/plain", String("write mode failed: ") + flexit_modbus_last_error());
+    return;
+  }
+
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleControlSetpoint()
+{
+  if (!tokenOK()) { server.send(401, "text/plain", "missing/invalid token"); return; }
+  if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
+  if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
+  if (!server.hasArg("profile") || !server.hasArg("value"))
+  {
+    server.send(400, "text/plain", "missing profile/value");
+    return;
+  }
+
+  const String profile = server.arg("profile");
+  const float value = server.arg("value").toFloat();
+  applyModbusApiRuntime();
+  if (!flexit_modbus_write_setpoint(profile, value))
+  {
+    server.send(500, "text/plain", String("write setpoint failed: ") + flexit_modbus_last_error());
+    return;
+  }
+
+  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 static String pageHeader(const String& title, const String& subtitle = "")
@@ -268,6 +379,7 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += ".kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}";
       s += ".kpi .v{font-size:16px;font-weight:700;margin-top:4px;}";
       s += ".sep-gold{height:1px;background:var(--accent);opacity:.65;margin:12px 0;}";
+      s += ".lang{padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);}";
       s += "a{color:var(--accent);text-decoration:none;}";
       s += "code{background:rgba(194,161,126,.18);padding:2px 6px;border-radius:8px;}";
       s += "</style>";
@@ -283,7 +395,23 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += "<div class='brand'><h1>" + title + "</h1>";
       if (subtitle.length()) s += "<small>" + subtitle + "</small>";
       s += "</div>";
+      s += "<div style='display:flex;gap:8px;align-items:center;'>";
+      if (g_cfg)
+      {
+        s += "<form method='POST' action='/admin/lang' style='margin:0'>";
+        s += "<label style='display:none'>" + tr("language") + "</label>";
+        s += "<select class='lang' name='lang' onchange='this.form.submit()'>";
+        const String cl = lang();
+        s += "<option value='no'" + String(cl == "no" ? " selected" : "") + ">NO</option>";
+        s += "<option value='da'" + String(cl == "da" ? " selected" : "") + ">DA</option>";
+        s += "<option value='sv'" + String(cl == "sv" ? " selected" : "") + ">SV</option>";
+        s += "<option value='fi'" + String(cl == "fi" ? " selected" : "") + ">FI</option>";
+        s += "<option value='en'" + String(cl == "en" ? " selected" : "") + ">EN</option>";
+        s += "<option value='uk'" + String(cl == "uk" ? " selected" : "") + ">UKR</option>";
+        s += "</select></form>";
+      }
       s += "<button class='btn secondary' type='button' onclick='toggleTheme()'>☾ / ☀</button>";
+      s += "</div>";
       s += "</div>";
       return s;
     }
@@ -318,6 +446,17 @@ static void handleRoot()
   s += "</div>"; // grid
   s += pageFooter();
   server.send(200, "text/html", s);
+}
+
+static void handleAdminLang()
+{
+  if (!checkAdminAuth()) return;
+  if (server.hasArg("lang"))
+  {
+    g_cfg->ui_language = normLang(server.arg("lang"));
+    config_save(*g_cfg);
+  }
+  redirectTo("/admin");
 }
 
 // Forced setup page (change admin pass on first login)
@@ -382,11 +521,13 @@ static void handleAdminSetup()
     s += "<div class='sep-gold'></div>";
     s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
     s += "<div class='sep-gold'></div>";
-    s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
+    s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
+    s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
     s += "<div class='sep-gold'></div>";
     s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
     s += "<div id='mb_adv_setup' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
     s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
+    s += "<label><input type='checkbox' name='ctrl' " + String(g_cfg->control_enabled ? "checked" : "") + "> " + tr("control_enable") + "</label>";
     s += "<select id='mbtr_setup' name='mbtr' class='input'>";
     s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
     s += "<option value='MANUAL'" + String(g_cfg->modbus_transport_mode == "MANUAL" ? " selected" : "") + ">MANUAL (DE/RE styres av GPIO)</option>";
@@ -415,7 +556,7 @@ static void handleAdminSetup()
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
          "u();})();</script>";
     s += "<div class='sep-gold'></div>";
-    s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
+    s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
     s += "</form>";
     s += "<div class='help'>Når du fullfører, blir oppsettet lagret og du kan gå til admin.</div>";
@@ -483,6 +624,9 @@ static void handleAdminSetupSave()
   g_cfg->api_token = server.arg("token");
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
+  g_cfg->ha_enabled     = server.hasArg("ha");
+  g_cfg->control_enabled = server.hasArg("ctrl");
+  if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
@@ -558,11 +702,13 @@ static void handleAdmin()
   s += "<div class='sep-gold'></div>";
   s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
   s += "<div class='sep-gold'></div>";
-  s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
+  s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
+  s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
   s += "<div class='sep-gold'></div>";
   s += "<label><input id='mb_toggle_admin' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
   s += "<div id='mb_adv_admin' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
   s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
+  s += "<label><input type='checkbox' name='ctrl' " + String(g_cfg->control_enabled ? "checked" : "") + "> " + tr("control_enable") + "</label>";
   s += "<label>Modbus transport</label>";
   s += "<select id='mbtr_admin' name='mbtr' class='input'>";
   s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
@@ -592,7 +738,7 @@ static void handleAdmin()
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
        "u();})();</script>";
   s += "<div class='sep-gold'></div>";
-  s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
+  s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
   s += "</div>";
 
@@ -651,6 +797,9 @@ static void handleAdminSave()
   // Modules
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
+  g_cfg->ha_enabled     = server.hasArg("ha");
+  g_cfg->control_enabled = server.hasArg("ctrl");
+  if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
 
   // Poll interval
@@ -809,16 +958,20 @@ void webportal_begin(DeviceConfig& cfg)
   server.on("/", HTTP_GET, handleRoot);
   server.on("/health", HTTP_GET, handleHealth);
   server.on("/status", HTTP_GET, [](){
-    if (!g_cfg->homey_enabled)
+    if (!g_cfg->homey_enabled && !g_cfg->ha_enabled)
     {
-      server.send(403, "text/plain", "homey/api disabled");
+      server.send(403, "text/plain", "api disabled");
       return;
     }
     handleStatus();
   });
+  server.on("/ha/status", HTTP_GET, handleHaStatus);
+  server.on("/api/control/mode", HTTP_POST, handleControlMode);
+  server.on("/api/control/setpoint", HTTP_POST, handleControlSetpoint);
 
   // Admin
   server.on("/admin", HTTP_GET, handleAdmin);
+  server.on("/admin/lang", HTTP_POST, handleAdminLang);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
   server.on("/admin/ota", HTTP_GET, handleAdminOta);
   server.on("/admin/ota_upload", HTTP_POST, handleAdminOtaUploadDone, handleAdminOtaUploadStream);

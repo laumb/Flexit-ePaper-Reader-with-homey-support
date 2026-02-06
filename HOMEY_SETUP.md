@@ -153,3 +153,34 @@ For the smoothest user experience, build a dedicated Homey app (LAN driver) for 
 - Built-in Insights and flow cards
 
 This project currently provides a stable local JSON API that is ready for that next step.
+
+## 9) Optional control from Homey (mode + setpoint)
+
+In VentReader admin (`/admin`), enable:
+1. `Modbus`
+2. `Enable remote control writes (experimental)`
+
+Control endpoints:
+1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+2. `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+
+Example HomeyScript action:
+
+```javascript
+const BASE = 'http://192.168.1.50';
+const TOKEN = 'REPLACE_TOKEN';
+
+// Set mode to HOME
+let res = await fetch(`${BASE}/api/control/mode?token=${TOKEN}&mode=HOME`, { method: 'POST' });
+if (!res.ok) throw new Error(`Mode write failed: HTTP ${res.status}`);
+
+// Set HOME setpoint to 20.5 C
+res = await fetch(`${BASE}/api/control/setpoint?token=${TOKEN}&profile=home&value=20.5`, { method: 'POST' });
+if (!res.ok) throw new Error(`Setpoint write failed: HTTP ${res.status}`);
+
+return 'Control writes OK';
+```
+
+Safety:
+1. Keep control writes disabled unless needed.
+2. Restrict API token access to trusted local automations.

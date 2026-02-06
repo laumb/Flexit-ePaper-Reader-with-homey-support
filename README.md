@@ -1,12 +1,13 @@
-# VentReader – Flexit Modbus Reader with ePaper UI
+# VentReader – Flexit Modbus Reader with ePaper UI (v3.1.0)
 
-VentReader is an ESP32-based read-only gateway for Flexit ventilation systems
-(Nordic S3 / S4), featuring:
+VentReader is an ESP32-based local gateway for Flexit ventilation systems
+(Nordic S3 / S4 + selected experimental variants), featuring:
 
 - Local ePaper display
 - Web-based admin & setup wizard
-- Modbus RTU (RS-485) read-only integration
-- Optional Homey integration
+- Modbus RTU (RS-485) integration
+- Optional Homey and Home Assistant integration
+- Optional experimental control writes (mode + setpoint)
 - OTA firmware updates
 - Commercial-friendly provisioning flow
 
@@ -19,14 +20,22 @@ The name “Flexit” is used only to describe supported equipment.
 
 - ESP32-S3 based
 - Waveshare / WeAct 4.2" ePaper display (SSD1683)
-- Modbus RTU via MAX3485 (read-only)
+- Modbus RTU via MAX3485
 - Setup wizard (3-step):
   1. Admin password
   2. WiFi credentials
   3. Feature & model selection
+- Language selector in admin/setup (`NO`, `DA`, `SV`, `FI`, `EN`, `UKR`)
+- Flexit model selector:
+  - `S3`
+  - `S4`
+  - `S2 (Experimental)`
+  - `S7 (Experimental)`
+  - `CL3 (Experimental)`
+  - `CL4 (Experimental)`
 - Factory reset via BOOT button
 - OTA firmware updates (after setup), including web upload in admin
-- Web API for Homey / integrations
+- Web API for Homey / Home Assistant / integrations
 
 ---
 
@@ -87,6 +96,23 @@ Step-by-step Homey guides:
 - English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP.md`
 - Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP_NO.md`
 
+## Home Assistant setup
+
+Step-by-step Home Assistant guides:
+- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP.md`
+- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP_NO.md`
+
+## API endpoints
+
+- Health:
+  - `GET /health`
+- Status:
+  - `GET /status?token=<TOKEN>`
+  - `GET /ha/status?token=<TOKEN>` (requires `Home Assistant/API` enabled)
+- Control (experimental, requires both `Modbus` + `Control writes` enabled):
+  - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+  - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+
 ---
 
 ## Factory reset
@@ -101,7 +127,7 @@ Hold the **BOOT (GPIO0)** button during power-on for ~6 seconds:
 
 ## Disclaimer
 
-This project is intended for **read-only monitoring**.
-No Modbus writes are performed.
+Default behavior is monitoring/read-only.
+Modbus writes are optional and disabled by default.
 
 Use at your own risk.

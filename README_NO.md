@@ -1,9 +1,9 @@
-# VentReader – Brukerveiledning
+# VentReader – Brukerveiledning (v3.1.0)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
-(Nordic S3 / S4) og viser informasjon på skjerm og i nettleser.
+(Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
 
-Enheten er kun lesende og kan ikke styre anlegget.
+Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
 
 ---
 
@@ -43,7 +43,7 @@ Oppsettet består av 3 steg:
 
 1. Velg nytt admin-passord
 2. Koble enheten til ditt WiFi
-3. Velg modell og funksjoner (S3 / S4, Modbus, Homey)
+3. Velg modell og funksjoner (Modbus, Homey/API, Home Assistant/API)
 
 Når du trykker **Fullfør og restart**, lagres alt og enheten starter på nytt.
 
@@ -65,6 +65,24 @@ Full steg-for-steg guider:
 
 - Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP_NO.md`
 - English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP.md`
+
+## Home Assistant-oppsett
+
+Full steg-for-steg guider:
+
+- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP_NO.md`
+- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP.md`
+
+## API-endepunkt
+
+- Helse:
+  - `GET /health`
+- Status:
+  - `GET /status?token=<TOKEN>`
+  - `GET /ha/status?token=<TOKEN>` (krever `Home Assistant/API` aktivert)
+- Styring (eksperimentelt, krever både `Modbus` + `Control writes` aktivert):
+  - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+  - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
 
 ---
 

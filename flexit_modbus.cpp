@@ -155,6 +155,26 @@ static bool readInput(uint16_t reg, uint16_t count, uint16_t* out)
   return true;
 }
 
+static bool writeHoldingSingle(uint16_t reg, uint16_t value)
+{
+  uint8_t result = node.writeSingleRegister(reg, value);
+  return (result == node.ku8MBSuccess);
+}
+
+static bool writeHoldingFloat32BE(uint16_t reg, float value)
+{
+  union { uint32_t u32; float f; } u;
+  u.f = value;
+  uint16_t hi = (uint16_t)((u.u32 >> 16) & 0xFFFF);
+  uint16_t lo = (uint16_t)(u.u32 & 0xFFFF);
+
+  node.clearTransmitBuffer();
+  node.setTransmitBuffer(0, hi);
+  node.setTransmitBuffer(1, lo);
+  uint8_t result = node.writeMultipleRegisters(reg, 2);
+  return (result == node.ku8MBSuccess);
+}
+
 // Float32 big-endian word order (hi word first)
 static float decodeFloat32_BE(uint16_t hi, uint16_t lo)
 {
@@ -227,6 +247,87 @@ bool flexit_modbus_poll(FlexitData& data)
   return true;
 }
 
+bool flexit_modbus_write_mode(const String& modeCmd)
+{
+  if (!g_enabled) { lastError = "MB OFF"; return false; }
+  if (!flexit_modbus_begin()) { lastError = "BEGIN"; return false; }
+
+  const int off = runtimeCfg.addr_offset;
+
+  String m = modeCmd;
+  m.toUpperCase();
+
+  // Ensure room mode register is active from comfort button logic.
+  if (!writeHoldingSingle((uint16_t)(FLEXIT_REG_COMFORT_BUTTON_HOLD + off), 1))
+  {
+    lastError = "COMFORT";
+    return false;
+  }
+
+  if (m == "AWAY")
+  {
+    if (!writeHoldingSingle((uint16_t)(FLEXIT_REG_ROOM_MODE_HOLD + off), 2)) { lastError = "MODE"; return false; }
+    lastError = "OK";
+    return true;
+  }
+  if (m == "HOME")
+  {
+    if (!writeHoldingSingle((uint16_t)(FLEXIT_REG_ROOM_MODE_HOLD + off), 3)) { lastError = "MODE"; return false; }
+    lastError = "OK";
+    return true;
+  }
+  if (m == "HIGH")
+  {
+    if (!writeHoldingSingle((uint16_t)(FLEXIT_REG_ROOM_MODE_HOLD + off), 4)) { lastError = "MODE"; return false; }
+    lastError = "OK";
+    return true;
+  }
+  if (m == "FIRE")
+  {
+    // Trigger temporary fireplace ventilation.
+    if (!writeHoldingSingle((uint16_t)(FLEXIT_REG_FIREPLACE_TRIG_HOLD + off), 2)) { lastError = "FIRE"; return false; }
+    lastError = "OK";
+    return true;
+  }
+
+  lastError = "MODE PARAM";
+  return false;
+}
+
+bool flexit_modbus_write_setpoint(const String& profile, float value)
+{
+  if (!g_enabled) { lastError = "MB OFF"; return false; }
+  if (!flexit_modbus_begin()) { lastError = "BEGIN"; return false; }
+
+  if (value < 10.0f || value > 30.0f)
+  {
+    lastError = "SETPOINT RANGE";
+    return false;
+  }
+
+  const int off = runtimeCfg.addr_offset;
+  String p = profile;
+  p.toLowerCase();
+
+  uint16_t reg = 0;
+  if (p == "home") reg = FLEXIT_REG_SETPOINT_HOME_HOLD;
+  else if (p == "away") reg = FLEXIT_REG_SETPOINT_AWAY_HOLD;
+  else
+  {
+    lastError = "SETPOINT PROFILE";
+    return false;
+  }
+
+  if (!writeHoldingFloat32BE((uint16_t)(reg + off), value))
+  {
+    lastError = "SETPOINT WRITE";
+    return false;
+  }
+
+  lastError = "OK";
+  return true;
+}
+
 #else
 
 static const char* lastError = "MODBUS DISABLED";
@@ -239,6 +340,8 @@ bool flexit_modbus_begin() { lastError = "MODBUS DISABLED"; return false; }
 bool flexit_modbus_poll(FlexitData& data) { (void)data; lastError = "MODBUS DISABLED"; return false; }
 const char* flexit_modbus_last_error() { return lastError; }
 const char* flexit_modbus_active_map() { return "DISABLED"; }
+bool flexit_modbus_write_mode(const String& modeCmd) { (void)modeCmd; lastError = "MODBUS DISABLED"; return false; }
+bool flexit_modbus_write_setpoint(const String& profile, float value) { (void)profile; (void)value; lastError = "MODBUS DISABLED"; return false; }
 const char* flexit_mode_to_text(uint16_t v) { (void)v; return "DISABLED"; }
 
 #endif

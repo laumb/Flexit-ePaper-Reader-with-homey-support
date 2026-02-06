@@ -73,6 +73,13 @@ struct FlexitModbusRuntimeConfig {
 // Mode/state (Input, Uint16, FC04)
 #define FLEXIT_REG_MODE_IN      3034 // 3x3034 Heat recovery ventilation state
 
+// Control / write registers (Holding)
+#define FLEXIT_REG_ROOM_MODE_HOLD        2013 // 4x2013 Room operating mode (RW)
+#define FLEXIT_REG_COMFORT_BUTTON_HOLD   2040 // 4x2040 Comfort button / mode gating
+#define FLEXIT_REG_FIREPLACE_TRIG_HOLD   3007 // 4x3007 Trigger temporary fireplace ventilation
+#define FLEXIT_REG_SETPOINT_HOME_HOLD    1155 // 4x1155 Setpoint when home (RW)
+#define FLEXIT_REG_SETPOINT_AWAY_HOLD    1163 // 4x1163 Setpoint when away (RW)
+
 // Public API
 bool flexit_modbus_is_enabled();
 void flexit_modbus_set_enabled(bool enabled);
@@ -82,6 +89,8 @@ bool flexit_modbus_begin();
 bool flexit_modbus_poll(FlexitData& data);
 const char* flexit_modbus_last_error();
 const char* flexit_modbus_active_map();
+bool flexit_modbus_write_mode(const String& modeCmd);
+bool flexit_modbus_write_setpoint(const String& profile, float value);
 
 // Mode mapping (from register list)
 const char* flexit_mode_to_text(uint16_t v);

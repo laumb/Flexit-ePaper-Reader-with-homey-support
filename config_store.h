@@ -23,6 +23,10 @@ struct DeviceConfig {
 
   bool modbus_enabled;
   bool homey_enabled;
+  bool ha_enabled;
+  bool control_enabled; // allows Modbus write actions via API (experimental)
+
+  String ui_language; // no, da, sv, fi, en, uk
 
   // Modbus runtime options
   String modbus_transport_mode; // "AUTO" or "MANUAL"
