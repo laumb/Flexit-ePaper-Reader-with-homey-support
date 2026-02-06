@@ -1,0 +1,76 @@
+#pragma once
+#include <Arduino.h>
+#include "flexit_types.h"
+
+// ============================================================================
+// FLEXIT MODBUS MODULE (Nordic Basic)
+// ----------------------------------------------------------------------------
+// Default: DISABLED (compiles without ModbusMaster).
+//
+// When MAX3485 arrives:
+//   1) Install library: ModbusMaster (Arduino Library Manager)
+//   2) Set FLEXIT_MODBUS_ENABLED to 1 below
+//   3) Upload and test; if no response, try FLEXIT_ADDR_OFFSET = -1
+// ============================================================================
+
+#ifndef FLEXIT_MODBUS_ENABLED
+#define FLEXIT_MODBUS_ENABLED 0
+#endif
+
+// RS485 pins (suggested, can be changed)
+#ifndef FLEXIT_RS485_RX
+#define FLEXIT_RS485_RX 16   // ESP32 RX <- RO
+#endif
+#ifndef FLEXIT_RS485_TX
+#define FLEXIT_RS485_TX 17   // ESP32 TX -> DI
+#endif
+#ifndef FLEXIT_RS485_EN
+#define FLEXIT_RS485_EN 18   // RE+DE tied together
+#endif
+
+// Modbus config (verify in Flexit settings if needed)
+#ifndef FLEXIT_MODBUS_BAUD
+#define FLEXIT_MODBUS_BAUD 19200
+#endif
+#ifndef FLEXIT_MODBUS_ID
+#define FLEXIT_MODBUS_ID 1
+#endif
+
+// Address offset (common Modbus gotcha: 0-based vs 1-based)
+// Start with 0. If you get timeouts, try -1.
+#ifndef FLEXIT_ADDR_OFFSET
+#define FLEXIT_ADDR_OFFSET 0
+#endif
+
+// ---------------------------------------------------------------------------
+// Registers from Flexit: modbus_nordic_basic_2883.xlsx
+// 3x = Input registers (FC04)
+// 4x = Holding registers (FC03)
+// Types are Float32 big-endian word order unless stated.
+// ---------------------------------------------------------------------------
+
+// Temperatures (Input, Float32, FC04) — each is 2 registers
+#define FLEXIT_REG_UTELUFT_IN   1   // 3x0001 Outside air temperature
+#define FLEXIT_REG_TILLUFT_IN   5   // 3x0005 Supply air temperature
+#define FLEXIT_REG_AVTREKK_IN   9   // 3x0009 Extract air temperature
+#define FLEXIT_REG_AVKAST_IN    13  // 3x0013 Exhaust air temperature
+
+// Fan speed % (Holding, Float32, FC03)
+#define FLEXIT_REG_FAN_PCT_HOLD 5   // 4x0005 Supply air fan speed
+
+// Heating coil electric position % (Holding, Float32, FC03)
+#define FLEXIT_REG_HEAT_PCT_HOLD 13 // 4x0013 Heating coil electric position
+
+// Mode/state (Input, Uint16, FC04)
+#define FLEXIT_REG_MODE_IN      3034 // 3x3034 Heat recovery ventilation state
+
+// Public API
+bool flexit_modbus_is_enabled();
+void flexit_modbus_set_enabled(bool enabled);
+
+bool flexit_modbus_begin();
+bool flexit_modbus_poll(FlexitData& data);
+const char* flexit_modbus_last_error();
+
+// Mode mapping (from register list)
+const char* flexit_mode_to_text(uint16_t v);
