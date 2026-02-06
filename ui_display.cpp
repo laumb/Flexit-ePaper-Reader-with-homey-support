@@ -119,7 +119,7 @@ static String fitTextToWidth(String txt, int maxW)
 
 static void drawChip(int x, int y, int w, int h, const String& rawTxt)
 {
-  String txt = fitTextToWidth(rawTxt, w - 18);
+  const String txt = rawTxt;
   display.fillRoundRect(x, y, w, h, 8, GxEPD_BLACK);
   setTextWhite();
   display.setFont(&FreeSans9pt7b);
@@ -127,7 +127,7 @@ static void drawChip(int x, int y, int w, int h, const String& rawTxt)
   uint16_t th;
   textWidth(txt, &x1, &y1, &th);
   const int baseY = y + (h + (int)th) / 2 - 2;
-  display.setCursor(x + 10 - x1, baseY);
+  display.setCursor(x + 8 - x1, baseY);
   display.print(txt);
   setTextBlack();
 }
@@ -136,23 +136,16 @@ static void drawIconV2(int x, int y, IconType t)
 {
   switch (t)
   {
-    case ICON_OUTDOOR: { // cloud + sun
-      display.fillCircle(x + 14, y + 13, 6, GxEPD_BLACK);
-      display.fillRect(x + 13, y + 3, 2, 5, GxEPD_BLACK);
-      display.fillRect(x + 7, y + 11, 5, 2, GxEPD_BLACK);
-      display.fillRect(x + 17, y + 11, 5, 2, GxEPD_BLACK);
-      display.fillCircle(x + 18, y + 24, 8, GxEPD_BLACK);
-      display.fillCircle(x + 29, y + 18, 10, GxEPD_BLACK);
-      display.fillCircle(x + 40, y + 24, 7, GxEPD_BLACK);
-      display.fillRect(x + 12, y + 25, 34, 11, GxEPD_BLACK);
+    case ICON_OUTDOOR: { // tree
+      display.fillRect(x + 20, y + 28, 6, 14, GxEPD_BLACK); // trunk
+      display.fillTriangle(x + 23, y + 6,  x + 10, y + 24, x + 36, y + 24, GxEPD_BLACK);
+      display.fillTriangle(x + 23, y + 12, x + 8,  y + 30, x + 38, y + 30, GxEPD_BLACK);
+      display.fillTriangle(x + 23, y + 18, x + 6,  y + 36, x + 40, y + 36, GxEPD_BLACK);
       break;
     }
-    case ICON_SUPPLY: { // right arrow + flow bars
-      display.fillTriangle(x + 16, y + 12, x + 16, y + 34, x + 36, y + 23, GxEPD_BLACK);
-      display.fillRect(x + 36, y + 18, 9, 10, GxEPD_BLACK);
-      display.fillRect(x + 8, y + 17, 5, 3, GxEPD_BLACK);
-      display.fillRect(x + 8, y + 22, 7, 3, GxEPD_BLACK);
-      display.fillRect(x + 8, y + 27, 5, 3, GxEPD_BLACK);
+    case ICON_SUPPLY: { // clean right arrow
+      display.fillRect(x + 8, y + 20, 18, 6, GxEPD_BLACK);
+      display.fillTriangle(x + 26, y + 12, x + 26, y + 34, x + 44, y + 23, GxEPD_BLACK);
       break;
     }
     case ICON_EXTRACT: { // up arrow
@@ -187,44 +180,21 @@ static void drawHeader(const FlexitData& d)
   display.print(d.time);
   setTextBlack();
 
-  // chips line (dynamic widths with fallback fitting)
-  display.setFont(&FreeSans9pt7b);
+  // chips line (fixed widths so full labels and % remain readable)
   const int y = 38;
   const int h = 22;
-  const int gap = 7;
-  const int startX = 10;
-  const int totalW = display.width() - startX * 2;
+  const int startX = 6;
+  const int gap = 6;
+  const int wMode = 170;
+  const int wFan  = 100;
+  const int wEff  = 100;
+  const int x1 = startX;
+  const int x2 = x1 + wMode + gap;
+  const int x3 = x2 + wFan + gap;
 
-  String c1 = tr("mode") + String(": ") + trModeValue(d.mode);
-  String c2 = tr("fan") + String(" ") + d.fan_percent + "%";
-  String c3 = tr("eff") + String(" ") + d.efficiency_percent + "%";
-
-  int w1 = textWidth(c1) + 20;
-  int w2 = textWidth(c2) + 20;
-  int w3 = textWidth(c3) + 20;
-  const int minW = 85;
-  if (w1 < minW) w1 = minW;
-  if (w2 < minW) w2 = minW;
-  if (w3 < minW) w3 = minW;
-
-  int sum = w1 + w2 + w3 + gap * 2;
-  if (sum > totalW)
-  {
-    const float ratio = (float)(totalW - gap * 2) / (float)(w1 + w2 + w3);
-    w1 = (int)(w1 * ratio);
-    w2 = (int)(w2 * ratio);
-    w3 = totalW - gap * 2 - w1 - w2;
-    if (w1 < minW) w1 = minW;
-    if (w2 < minW) w2 = minW;
-    w3 = totalW - gap * 2 - w1 - w2;
-  }
-
-  int x1 = startX;
-  int x2 = x1 + w1 + gap;
-  int x3 = x2 + w2 + gap;
-  drawChip(x1, y, w1, h, c1);
-  drawChip(x2, y, w2, h, c2);
-  drawChip(x3, y, w3, h, c3);
+  drawChip(x1, y, wMode, h, tr("mode") + String(": ") + trModeValue(d.mode));
+  drawChip(x2, y, wFan,  h, tr("fan") + String(" ") + d.fan_percent + "%");
+  drawChip(x3, y, wEff,  h, tr("eff") + String(" ") + d.efficiency_percent + "%");
 }
 
 static void drawTempCard(int x, int y, const char* label, float value, IconType icon, const FlexitData& d)
@@ -279,7 +249,7 @@ static void drawFooter(const FlexitData& d, const String& mbStatus)
 
   String left = tr("heat") + String(" ") + d.heat_element_percent + "%   " + mbStatus;
   left = fitTextToWidth(left, 218);
-  display.setCursor(10, y + 20);
+  display.setCursor(14, y + 20);
   display.print(left);
 
   // visual separator
