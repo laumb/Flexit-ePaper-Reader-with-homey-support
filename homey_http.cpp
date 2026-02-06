@@ -753,6 +753,7 @@ static void handleAdmin()
   s += "<div class='card'><h2>Lagre / handlinger</h2>";
   s += "<div class='actions'>";
   s += "<button class='btn' type='submit'>Lagre</button>";
+  s += "<a class='btn secondary' href='/admin/manual'>Brukermanual</a>";
   s += "<a class='btn secondary' href='/admin/ota'>OTA</a>";
   s += "<a class='btn secondary' href='/'>Til start</a>";
   s += "</div>";
@@ -767,6 +768,77 @@ static void handleAdmin()
   s += "</div>";
 
   s += "</div>"; // grid
+  s += pageFooter();
+  server.send(200, "text/html", s);
+}
+
+static void handleAdminManual()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed)
+  {
+    redirectTo("/admin/setup?step=1");
+    return;
+  }
+
+  String s = pageHeader("Brukermanual", "Kort changelog + enkel veiledning");
+  s += "<div class='grid'>";
+
+  s += "<div class='card'><h2>Changelog (kort)</h2>";
+  s += "<div><strong>v3.1.0</strong></div>";
+  s += "<div class='help'>";
+  s += "Språkvalg i admin/setup, Home Assistant-endepunkt, eksperimentell styring (modus/setpunkt), ";
+  s += "ekstra Flexit-modeller (S2/S7/CL3/CL4 som experimental), og forbedret dokumentasjon.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>v3.0.0</strong></div>";
+  s += "<div class='help'>Stabil base med setup wizard, adminpanel, Modbus-lesing, ePaper-dashboard og OTA.</div>";
+  s += "</div>";
+
+  s += "<div class='card'><h2>Brukermanual (forenklet)</h2>";
+  s += "<div><strong>1) Førstegangsoppsett</strong></div>";
+  s += "<div class='help'>";
+  s += "Logg inn p&aring; <code>/admin</code> med fabrikkpassord, fullf&oslash;r wizard (passord, WiFi, modell/funksjoner), ";
+  s += "og restart enheten.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>2) Daglig bruk</strong></div>";
+  s += "<div class='help'>";
+  s += "Skjermen viser live verdier. API-status leses fra <code>/status?token=...</code> ";
+  s += "(eller <code>/ha/status?token=...</code> for Home Assistant).";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>3) Modbus</strong></div>";
+  s += "<div class='help'>";
+  s += "Modbus er AV som standard. N&aring;r Modbus aktiveres, vises avanserte innstillinger automatisk under Modbus-valget. ";
+  s += "Anbefalt standard settes etter valgt Flexit-modell.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>4) Homey / Home Assistant</strong></div>";
+  s += "<div class='help'>";
+  s += "Aktiver Homey/API eller Home Assistant/API i admin. Bruk token-beskyttet API lokalt for sensorer, logger og dashboards.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>5) Fjernstyring (eksperimentell)</strong></div>";
+  s += "<div class='help'>";
+  s += "Kun aktiv n&aring;r <code>Modbus</code> og <code>Enable remote control writes</code> er p&aring;. ";
+  s += "Endepunkt: <code>POST /api/control/mode</code> og <code>POST /api/control/setpoint</code>.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>6) OTA-oppdatering</strong></div>";
+  s += "<div class='help'>";
+  s += "G&aring; til <code>/admin/ota</code>, last opp firmwarefil (.bin), og enheten restarter automatisk ved vellykket oppdatering.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>7) Feils&oslash;king</strong></div>";
+  s += "<div class='help'>";
+  s += "Sjekk <code>/health</code> og <code>/status?token=...&pretty=1</code>. ";
+  s += "Ved Modbus-feil brukes siste gyldige data n&aring;r Modbus er aktivert, og statusfeltet markerer avvik.";
+  s += "</div>";
+  s += "<div class='actions' style='margin-top:16px'><a class='btn' href='/admin'>Tilbake til admin</a></div>";
+  s += "</div>";
+
+  s += "</div>";
   s += pageFooter();
   server.send(200, "text/html", s);
 }
@@ -971,6 +1043,7 @@ void webportal_begin(DeviceConfig& cfg)
 
   // Admin
   server.on("/admin", HTTP_GET, handleAdmin);
+  server.on("/admin/manual", HTTP_GET, handleAdminManual);
   server.on("/admin/lang", HTTP_POST, handleAdminLang);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
   server.on("/admin/ota", HTTP_GET, handleAdminOta);
