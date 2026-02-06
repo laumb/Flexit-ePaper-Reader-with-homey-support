@@ -28,6 +28,8 @@ static bool   g_refresh_requested = false;
 static FlexitData g_data;
 static String g_mb = "MB OFF";
 
+static bool checkAdminAuth();
+
 static uint64_t nowEpochMs()
 {
   struct timeval tv;
