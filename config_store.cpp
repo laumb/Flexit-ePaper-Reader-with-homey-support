@@ -18,6 +18,16 @@ static String gen_token(size_t bytes_len = 16)
 
 static Preferences prefs;
 
+static bool is_supported_model(const String& model)
+{
+  return model == "S3" ||
+         model == "S4" ||
+         model == "S2_EXP" ||
+         model == "S7_EXP" ||
+         model == "CL3_EXP" ||
+         model == "CL4_EXP";
+}
+
 void config_begin() {
   prefs.begin("flexit", false);
 }
@@ -38,11 +48,8 @@ String DeviceConfig::ap_ssid() const {
 
 void config_apply_model_modbus_defaults(DeviceConfig& c, bool force)
 {
-  // Current recommended defaults for Nordic Basic Modbus on S3/S4.
+  // Current recommended defaults for Nordic Basic Modbus family.
   // Keep model switch explicit so future models can diverge safely.
-  const bool isS4 = (c.model == "S4");
-  (void)isS4;
-
   if (force || c.modbus_transport_mode.length() == 0) c.modbus_transport_mode = "AUTO";
   if (force || c.modbus_serial_format.length() == 0) c.modbus_serial_format = "8N1";
   if (force || c.modbus_baud == 0) c.modbus_baud = 19200;
@@ -75,7 +82,7 @@ DeviceConfig config_load() {
 
   // model selection (Modbus map)
   c.model = prefs.getString("model", "S3");
-  if (c.model != "S3" && c.model != "S4") c.model = "S3";
+  if (!is_supported_model(c.model)) c.model = "S3";
 
   c.modbus_enabled = prefs.getBool("modbus", false);
   c.homey_enabled  = prefs.getBool("homey", true);

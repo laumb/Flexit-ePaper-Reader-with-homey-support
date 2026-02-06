@@ -114,12 +114,22 @@ static bool hasLastGoodModbusData = false;
 static uint32_t UI_REFRESH_MS = 10UL * 60UL * 1000UL;
 static uint32_t lastRefresh = 0;
 
+static String modelLabel(const String& key)
+{
+  if (key == "S4") return "S4";
+  if (key == "S2_EXP") return "S2 EXP";
+  if (key == "S7_EXP") return "S7 EXP";
+  if (key == "CL3_EXP") return "CL3 EXP";
+  if (key == "CL4_EXP") return "CL4 EXP";
+  return "S3";
+}
+
 static void updateCommonMeta()
 {
   data.time = nowHHMM();
   data.wifi_status = (WiFi.status() == WL_CONNECTED) ? "OK" : "NO";
   data.ip = ipLastOctetDot();
-  data.device_model = cfg.model;
+  data.device_model = modelLabel(cfg.model);
 }
 
 static void applyRuntimeModbusConfig()

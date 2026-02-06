@@ -37,7 +37,11 @@ static String jsonEscape(const String& s)
 
 static String normModel(const String& in)
 {
+  if (in == "S2_EXP") return "S2_EXP";
   if (in == "S4") return "S4";
+  if (in == "S7_EXP") return "S7_EXP";
+  if (in == "CL3_EXP") return "CL3_EXP";
+  if (in == "CL4_EXP") return "CL4_EXP";
   return "S3";
 }
 
@@ -370,6 +374,10 @@ static void handleAdminSetup()
     s += "<select id='model_setup' name='model' class='input'>";
     s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
     s += "<option value='S4'" + String(g_cfg->model == "S4" ? " selected" : "") + ">Nordic S4</option>";
+    s += "<option value='S2_EXP'" + String(g_cfg->model == "S2_EXP" ? " selected" : "") + ">Nordic S2 (Experimental)</option>";
+    s += "<option value='S7_EXP'" + String(g_cfg->model == "S7_EXP" ? " selected" : "") + ">Nordic S7 (Experimental)</option>";
+    s += "<option value='CL3_EXP'" + String(g_cfg->model == "CL3_EXP" ? " selected" : "") + ">Nordic CL3 (Experimental)</option>";
+    s += "<option value='CL4_EXP'" + String(g_cfg->model == "CL4_EXP" ? " selected" : "") + ">Nordic CL4 (Experimental)</option>";
     s += "</select>";
     s += "<div class='sep-gold'></div>";
     s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
@@ -402,10 +410,7 @@ static void handleAdminSetup()
          "var id=document.getElementById('mbid_setup');var of=document.getElementById('mboff_setup');"
          "if(!t||!a)return;"
          "function u(){a.style.display=t.checked?'block':'none';}"
-         "function p(model){"
-           "if(model==='S4'){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';return;}"
-           "tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';"
-         "}"
+         "function p(model){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';}"
          "t.addEventListener('change',u);"
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
          "u();})();</script>";
@@ -545,6 +550,10 @@ static void handleAdmin()
   s += "<select id='model_admin' name='model' class='input'>";
   s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
   s += "<option value='S4'" + String(g_cfg->model == "S4" ? " selected" : "") + ">Nordic S4</option>";
+  s += "<option value='S2_EXP'" + String(g_cfg->model == "S2_EXP" ? " selected" : "") + ">Nordic S2 (Experimental)</option>";
+  s += "<option value='S7_EXP'" + String(g_cfg->model == "S7_EXP" ? " selected" : "") + ">Nordic S7 (Experimental)</option>";
+  s += "<option value='CL3_EXP'" + String(g_cfg->model == "CL3_EXP" ? " selected" : "") + ">Nordic CL3 (Experimental)</option>";
+  s += "<option value='CL4_EXP'" + String(g_cfg->model == "CL4_EXP" ? " selected" : "") + ">Nordic CL4 (Experimental)</option>";
   s += "</select>";
   s += "<div class='sep-gold'></div>";
   s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
@@ -578,10 +587,7 @@ static void handleAdmin()
        "var id=document.getElementById('mbid_admin');var of=document.getElementById('mboff_admin');"
        "if(!t||!a)return;"
        "function u(){a.style.display=t.checked?'block':'none';}"
-       "function p(model){"
-         "if(model==='S4'){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';return;}"
-         "tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';"
-       "}"
+       "function p(model){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';}"
        "t.addEventListener('change',u);"
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
        "u();})();</script>";

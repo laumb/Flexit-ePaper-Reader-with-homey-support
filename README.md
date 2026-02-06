@@ -25,7 +25,7 @@ The name “Flexit” is used only to describe supported equipment.
   2. WiFi credentials
   3. Feature & model selection
 - Factory reset via BOOT button
-- OTA firmware updates (after setup)
+- OTA firmware updates (after setup), including web upload in admin
 - Web API for Homey / integrations
 
 ---
@@ -34,7 +34,7 @@ The name “Flexit” is used only to describe supported equipment.
 
 ### Manufacturing / Factory state
 - All configuration erased (NVS empty)
-- `manufacturing_mode = true`
+- `setup_completed = false`
 - Setup wizard shown on display
 - Device starts WiFi AP
 - Default admin credentials active
@@ -71,11 +71,21 @@ User is forced to change admin password during setup.
 
 ## OTA updates
 
-OTA is enabled **only when**:
+Arduino OTA (IDE network upload) is enabled **only when**:
 - Setup is completed
 - STA WiFi is connected
 
-OTA does NOT erase configuration.
+Web OTA upload from admin (`/admin/ota`) is available when setup is completed and admin page is reachable.
+
+OTA does not erase configuration.
+
+---
+
+## Homey setup
+
+Step-by-step Homey guides:
+- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP.md`
+- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP_NO.md`
 
 ---
 

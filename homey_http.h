@@ -19,13 +19,13 @@
 // Fallback AP:
 // - If STA WiFi can't connect, device starts AP:
 //     SSID: Flexit-Setup-XXXX (XXXX = MAC suffix)
-//     PASS: (open by default; admin UI is still protected)
+//     PASS: product AP password (default: ventreader)
 //
 // First login:
 // - API token is auto-generated securely on first boot (stored in NVS).
 // Default admin creds are same for all units (as requested):
 //     user: admin
-//     pass: flexit123
+//     pass: ventreader
 // - On first login, user must change password (forced setup screen).
 //
 // Factory reset:

@@ -59,6 +59,26 @@ Når oppsett er fullført:
 
 ---
 
+## Homey-oppsett
+
+Full steg-for-steg guider:
+
+- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP_NO.md`
+- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP.md`
+
+---
+
+## OTA-oppdatering
+
+To måter:
+
+1. Nettleser-opplasting i admin (`/admin/ota`) med `.bin`-fil
+2. Arduino OTA via nettverksport (kun når STA WiFi er oppe)
+
+OTA sletter ikke konfigurasjon.
+
+---
+
 ## Tilbakestille til fabrikkinnstillinger
 
 1. Slå av strømmen

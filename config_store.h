@@ -18,7 +18,7 @@ struct DeviceConfig {
   bool setup_completed; // true after wizard is finished
 
   // Ventilation unit model (affects Modbus register map)
-  // Values: "S3" or "S4" (extend later)
+  // Values: "S3", "S4", and selected experimental variants
   String model;
 
   bool modbus_enabled;

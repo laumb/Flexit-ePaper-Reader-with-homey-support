@@ -20,17 +20,17 @@ Full wipe (factory):
 
 ## Manufacturing mode
 
-Enheten bruker et eksplisitt flagg:
+Enheten styres av setup-status:
 
-- `manufacturing_mode = true`
+- `setup_completed = false`
 
 Dette betyr:
 - Setup wizard vises
 - Dashboard vises ikke
 - Default admin-passord aktivt
-- OTA deaktivert
+- Arduino OTA deaktivert (STA + setup kreves)
 
-Flagget settes til `false` når setup fullføres.
+Status settes til `true` når setup fullføres.
 
 ---
 
@@ -38,7 +38,6 @@ Flagget settes til `false` når setup fullføres.
 
 | Parameter | Verdi |
 |--------|------|
-| manufacturing_mode | true |
 | setup_completed | false |
 | admin_pass | ventreader |
 | WiFi | AP aktiv |
