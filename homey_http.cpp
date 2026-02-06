@@ -54,6 +54,32 @@ static String normSerialFmt(const String& in)
   return "8N1";
 }
 
+static void applyPostedModbusSettings()
+{
+  if (server.hasArg("mbtr")) g_cfg->modbus_transport_mode = normTransport(server.arg("mbtr"));
+  if (server.hasArg("mbser")) g_cfg->modbus_serial_format = normSerialFmt(server.arg("mbser"));
+
+  if (server.hasArg("mbbaud"))
+  {
+    uint32_t mbBaud = (uint32_t)server.arg("mbbaud").toInt();
+    if (mbBaud >= 1200 && mbBaud <= 115200) g_cfg->modbus_baud = mbBaud;
+  }
+
+  if (server.hasArg("mbid"))
+  {
+    int mbId = server.arg("mbid").toInt();
+    if (mbId >= 1 && mbId <= 247) g_cfg->modbus_slave_id = (uint8_t)mbId;
+  }
+
+  if (server.hasArg("mboff"))
+  {
+    int mbOff = server.arg("mboff").toInt();
+    if (mbOff < -5) mbOff = -5;
+    if (mbOff > 5) mbOff = 5;
+    g_cfg->modbus_addr_offset = (int8_t)mbOff;
+  }
+}
+
 static bool tokenOK()
 {
   if (!server.hasArg("token")) return false;
@@ -341,7 +367,7 @@ static void handleAdminSetup()
     s += "<div class='card'><h2>Token + moduler</h2>";
     s += "<form method='POST' action='/admin/setup_save?step=3'>";
     s += "<label>Enhetsmodell</label>";
-    s += "<select name='model' class='input'>";
+    s += "<select id='model_setup' name='model' class='input'>";
     s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
     s += "<option value='S4'" + String(g_cfg->model == "S4" ? " selected" : "") + ">Nordic S4</option>";
     s += "</select>";
@@ -353,23 +379,36 @@ static void handleAdminSetup()
     s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
     s += "<div id='mb_adv_setup' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
     s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
-    s += "<select name='mbtr' class='input'>";
+    s += "<select id='mbtr_setup' name='mbtr' class='input'>";
     s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
     s += "<option value='MANUAL'" + String(g_cfg->modbus_transport_mode == "MANUAL" ? " selected" : "") + ">MANUAL (DE/RE styres av GPIO)</option>";
     s += "</select>";
     s += "<div class='row'>";
-    s += "<div><label>Modbus baud</label><input name='mbbaud' type='number' min='1200' max='115200' value='" + String(g_cfg->modbus_baud) + "'></div>";
-    s += "<div><label>Slave ID</label><input name='mbid' type='number' min='1' max='247' value='" + String((int)g_cfg->modbus_slave_id) + "'></div>";
-    s += "<div><label>Addr offset</label><input name='mboff' type='number' min='-5' max='5' value='" + String((int)g_cfg->modbus_addr_offset) + "'></div>";
+    s += "<div><label>Modbus baud</label><input id='mbbaud_setup' name='mbbaud' type='number' min='1200' max='115200' value='" + String(g_cfg->modbus_baud) + "'></div>";
+    s += "<div><label>Slave ID</label><input id='mbid_setup' name='mbid' type='number' min='1' max='247' value='" + String((int)g_cfg->modbus_slave_id) + "'></div>";
+    s += "<div><label>Addr offset</label><input id='mboff_setup' name='mboff' type='number' min='-5' max='5' value='" + String((int)g_cfg->modbus_addr_offset) + "'></div>";
     s += "</div>";
     s += "<label>Serial format</label>";
-    s += "<select name='mbser' class='input'>";
+    s += "<select id='mbser_setup' name='mbser' class='input'>";
     s += "<option value='8N1'" + String(g_cfg->modbus_serial_format == "8N1" ? " selected" : "") + ">8N1</option>";
     s += "<option value='8E1'" + String(g_cfg->modbus_serial_format == "8E1" ? " selected" : "") + ">8E1</option>";
     s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
     s += "</select>";
     s += "</div>";
-    s += "<script>(function(){var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');if(!t||!a)return;function u(){a.style.display=t.checked?'block':'none';}t.addEventListener('change',u);u();})();</script>";
+    s += "<script>(function(){"
+         "var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');"
+         "var m=document.getElementById('model_setup');var tr=document.getElementById('mbtr_setup');"
+         "var sf=document.getElementById('mbser_setup');var bd=document.getElementById('mbbaud_setup');"
+         "var id=document.getElementById('mbid_setup');var of=document.getElementById('mboff_setup');"
+         "if(!t||!a)return;"
+         "function u(){a.style.display=t.checked?'block':'none';}"
+         "function p(model){"
+           "if(model==='S4'){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';return;}"
+           "tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';"
+         "}"
+         "t.addEventListener('change',u);"
+         "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
+         "u();})();</script>";
     s += "<div class='sep-gold'></div>";
     s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
@@ -427,29 +466,19 @@ static void handleAdminSetupSave()
   }
 
   // step 3
+  bool modelChanged = false;
   if (server.hasArg("model"))
   {
-    g_cfg->model = normModel(server.arg("model"));
+    String nm = normModel(server.arg("model"));
+    modelChanged = (nm != g_cfg->model);
+    g_cfg->model = nm;
   }
+  if (modelChanged) config_apply_model_modbus_defaults(*g_cfg, true);
 
   g_cfg->api_token = server.arg("token");
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
-  g_cfg->modbus_transport_mode = normTransport(server.arg("mbtr"));
-  g_cfg->modbus_serial_format = normSerialFmt(server.arg("mbser"));
-
-  uint32_t mbBaud = (uint32_t)server.arg("mbbaud").toInt();
-  if (mbBaud < 1200 || mbBaud > 115200) mbBaud = 19200;
-  g_cfg->modbus_baud = mbBaud;
-
-  int mbId = server.arg("mbid").toInt();
-  if (mbId < 1 || mbId > 247) mbId = 1;
-  g_cfg->modbus_slave_id = (uint8_t)mbId;
-
-  int mbOff = server.arg("mboff").toInt();
-  if (mbOff < -5) mbOff = -5;
-  if (mbOff > 5) mbOff = 5;
-  g_cfg->modbus_addr_offset = (int8_t)mbOff;
+  applyPostedModbusSettings();
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
   if (pollSec < 30) pollSec = 30;
@@ -513,7 +542,7 @@ static void handleAdmin()
   // API + modules
   s += "<div class='card'><h2>API + moduler</h2>";
   s += "<label>Enhetsmodell</label>";
-  s += "<select name='model' class='input'>";
+  s += "<select id='model_admin' name='model' class='input'>";
   s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
   s += "<option value='S4'" + String(g_cfg->model == "S4" ? " selected" : "") + ">Nordic S4</option>";
   s += "</select>";
@@ -526,23 +555,36 @@ static void handleAdmin()
   s += "<div id='mb_adv_admin' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
   s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
   s += "<label>Modbus transport</label>";
-  s += "<select name='mbtr' class='input'>";
+  s += "<select id='mbtr_admin' name='mbtr' class='input'>";
   s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
   s += "<option value='MANUAL'" + String(g_cfg->modbus_transport_mode == "MANUAL" ? " selected" : "") + ">MANUAL (DE/RE styres av GPIO)</option>";
   s += "</select>";
   s += "<div class='row'>";
-  s += "<div><label>Modbus baud</label><input name='mbbaud' type='number' min='1200' max='115200' value='" + String(g_cfg->modbus_baud) + "'></div>";
-  s += "<div><label>Slave ID</label><input name='mbid' type='number' min='1' max='247' value='" + String((int)g_cfg->modbus_slave_id) + "'></div>";
-  s += "<div><label>Addr offset</label><input name='mboff' type='number' min='-5' max='5' value='" + String((int)g_cfg->modbus_addr_offset) + "'></div>";
+  s += "<div><label>Modbus baud</label><input id='mbbaud_admin' name='mbbaud' type='number' min='1200' max='115200' value='" + String(g_cfg->modbus_baud) + "'></div>";
+  s += "<div><label>Slave ID</label><input id='mbid_admin' name='mbid' type='number' min='1' max='247' value='" + String((int)g_cfg->modbus_slave_id) + "'></div>";
+  s += "<div><label>Addr offset</label><input id='mboff_admin' name='mboff' type='number' min='-5' max='5' value='" + String((int)g_cfg->modbus_addr_offset) + "'></div>";
   s += "</div>";
   s += "<label>Serial format</label>";
-  s += "<select name='mbser' class='input'>";
+  s += "<select id='mbser_admin' name='mbser' class='input'>";
   s += "<option value='8N1'" + String(g_cfg->modbus_serial_format == "8N1" ? " selected" : "") + ">8N1</option>";
   s += "<option value='8E1'" + String(g_cfg->modbus_serial_format == "8E1" ? " selected" : "") + ">8E1</option>";
   s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
   s += "</select>";
   s += "</div>";
-  s += "<script>(function(){var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');if(!t||!a)return;function u(){a.style.display=t.checked?'block':'none';}t.addEventListener('change',u);u();})();</script>";
+  s += "<script>(function(){"
+       "var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');"
+       "var m=document.getElementById('model_admin');var tr=document.getElementById('mbtr_admin');"
+       "var sf=document.getElementById('mbser_admin');var bd=document.getElementById('mbbaud_admin');"
+       "var id=document.getElementById('mbid_admin');var of=document.getElementById('mboff_admin');"
+       "if(!t||!a)return;"
+       "function u(){a.style.display=t.checked?'block':'none';}"
+       "function p(model){"
+         "if(model==='S4'){tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';return;}"
+         "tr.value='AUTO';sf.value='8N1';bd.value='19200';id.value='1';of.value='0';"
+       "}"
+       "t.addEventListener('change',u);"
+       "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
+       "u();})();</script>";
   s += "<div class='sep-gold'></div>";
   s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
@@ -591,29 +633,19 @@ static void handleAdminSave()
   g_cfg->api_token = server.arg("token");
 
   // Model
+  bool modelChanged = false;
   if (server.hasArg("model"))
   {
-    g_cfg->model = normModel(server.arg("model"));
+    String nm = normModel(server.arg("model"));
+    modelChanged = (nm != g_cfg->model);
+    g_cfg->model = nm;
   }
+  if (modelChanged) config_apply_model_modbus_defaults(*g_cfg, true);
 
   // Modules
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
-  g_cfg->modbus_transport_mode = normTransport(server.arg("mbtr"));
-  g_cfg->modbus_serial_format = normSerialFmt(server.arg("mbser"));
-
-  uint32_t mbBaud = (uint32_t)server.arg("mbbaud").toInt();
-  if (mbBaud < 1200 || mbBaud > 115200) mbBaud = 19200;
-  g_cfg->modbus_baud = mbBaud;
-
-  int mbId = server.arg("mbid").toInt();
-  if (mbId < 1 || mbId > 247) mbId = 1;
-  g_cfg->modbus_slave_id = (uint8_t)mbId;
-
-  int mbOff = server.arg("mboff").toInt();
-  if (mbOff < -5) mbOff = -5;
-  if (mbOff > 5) mbOff = 5;
-  g_cfg->modbus_addr_offset = (int8_t)mbOff;
+  applyPostedModbusSettings();
 
   // Poll interval
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();

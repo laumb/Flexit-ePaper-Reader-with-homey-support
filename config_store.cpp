@@ -36,6 +36,20 @@ String DeviceConfig::ap_ssid() const {
   return String("VentReader-Setup-") + chip_suffix4();
 }
 
+void config_apply_model_modbus_defaults(DeviceConfig& c, bool force)
+{
+  // Current recommended defaults for Nordic Basic Modbus on S3/S4.
+  // Keep model switch explicit so future models can diverge safely.
+  const bool isS4 = (c.model == "S4");
+  (void)isS4;
+
+  if (force || c.modbus_transport_mode.length() == 0) c.modbus_transport_mode = "AUTO";
+  if (force || c.modbus_serial_format.length() == 0) c.modbus_serial_format = "8N1";
+  if (force || c.modbus_baud == 0) c.modbus_baud = 19200;
+  if (force || c.modbus_slave_id == 0) c.modbus_slave_id = 1;
+  if (force) c.modbus_addr_offset = 0;
+}
+
 DeviceConfig config_load() {
   DeviceConfig c;
 
@@ -61,27 +75,31 @@ DeviceConfig config_load() {
 
   // model selection (Modbus map)
   c.model = prefs.getString("model", "S3");
+  if (c.model != "S3" && c.model != "S4") c.model = "S3";
 
   c.modbus_enabled = prefs.getBool("modbus", false);
   c.homey_enabled  = prefs.getBool("homey", true);
-  c.modbus_transport_mode = prefs.getString("mbtr", "AUTO");
+  c.modbus_transport_mode = prefs.getString("mbtr", "");
   if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")
-    c.modbus_transport_mode = "AUTO";
+    c.modbus_transport_mode = "";
 
-  c.modbus_serial_format = prefs.getString("mbser", "8N1");
+  c.modbus_serial_format = prefs.getString("mbser", "");
   if (c.modbus_serial_format != "8N1" &&
       c.modbus_serial_format != "8E1" &&
       c.modbus_serial_format != "8O1")
-    c.modbus_serial_format = "8N1";
+    c.modbus_serial_format = "";
 
-  c.modbus_baud = prefs.getUInt("mbbaud", 19200);
-  if (c.modbus_baud < 1200 || c.modbus_baud > 115200) c.modbus_baud = 19200;
+  c.modbus_baud = prefs.getUInt("mbbaud", 0);
+  if (c.modbus_baud != 0 && (c.modbus_baud < 1200 || c.modbus_baud > 115200)) c.modbus_baud = 0;
 
-  c.modbus_slave_id = (uint8_t)prefs.getUChar("mbid", 1);
-  if (c.modbus_slave_id < 1 || c.modbus_slave_id > 247) c.modbus_slave_id = 1;
+  c.modbus_slave_id = (uint8_t)prefs.getUChar("mbid", 0);
+  if (c.modbus_slave_id != 0 && (c.modbus_slave_id < 1 || c.modbus_slave_id > 247)) c.modbus_slave_id = 0;
 
   c.modbus_addr_offset = (int8_t)prefs.getChar("mboff", 0);
   if (c.modbus_addr_offset < -5 || c.modbus_addr_offset > 5) c.modbus_addr_offset = 0;
+
+  // Fill missing values with model defaults.
+  config_apply_model_modbus_defaults(c, false);
 
   c.poll_interval_ms = prefs.getULong("pollms", 10UL * 60UL * 1000UL);
 

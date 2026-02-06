@@ -42,3 +42,4 @@ DeviceConfig config_load();
 void config_save(const DeviceConfig& cfg);
 void config_factory_reset();        // wipes config namespace
 String config_chip_suffix4();       // last 4 hex of MAC (for SSID)
+void config_apply_model_modbus_defaults(DeviceConfig& cfg, bool force = false);
