@@ -1,38 +1,82 @@
 # Homey-oppsett (steg for steg)
 
-Denne guiden viser hvordan du kobler VentReader til Homey Pro og får:
-- live data i Homey
-- historiske grafer (Insights)
+Mål med denne guiden:
+- Gjøre Homey-oppsett raskt og forutsigbart for sluttbruker
+- Minimere manuell kopiering av script og mapping
+- Sikre at alle nødvendige data følger med fra VentReader
 
-Metoden under bruker:
-- VentReader `/status` API
-- HomeyScript
-- Virtuelle sensorer i Homey (fra en virtual devices-app)
+## Quick start (anbefalt)
+
+1. Verifiser i VentReader admin at `Homey/API` er aktivert.
+2. Trykk **Eksporter Homey-oppsett**.
+3. Mobil: bruk **Del fil (mobil)** og send fil til din e-post.
+4. Desktop: last ned filen direkte.
+5. Opprett virtuelle enheter i Homey etter mapping i filen.
+6. Lim inn `homey_script_js` i HomeyScript.
+7. Lag polling-flow (1-2 min).
+
+## Må gjøres vs valgfritt
+
+### Må gjøres
+1. Aktiv `Homey/API`.
+2. Korrekt token i URL/script.
+3. Opprett nødvendige virtuelle enheter med riktige capability IDs.
+4. Opprett flow som kjører script periodisk.
+
+### Valgfritt
+1. Alarm-enhet (`VentReader - Modbus Alarm`).
+2. Status-tekst-enhet.
+3. Kontrollskriving (modus/setpunkt).
+
+## Anbefalt standardflyt: Eksportfil fra VentReader
+
+For HomeyScript og tilhørende oppsett skal bruker få en knapp i VentReader admin:
+- **Eksporter Homey-oppsett**
+
+Knappen genererer en ferdig oppsettfil med:
+1. VentReader-base URL (`http://<ip>`)
+2. Token
+3. Ferdig HomeyScript-mal
+4. Mappingtabell for anbefalte virtuelle enheter/capabilities
+5. Forslag til polling-flow
+6. Valgfri kontrollseksjon (hvis styring er aktivert)
+
+Distribusjon av fil:
+1. Mobil/nettbrett: del/send til e-post.
+2. Ikke-mobil enhet: last ned fil lokalt.
+
+---
 
 ## 1) Klargjør VentReader
 
 I VentReader admin (`/admin`):
-1. Aktiver `Homey/API`.
-2. Sett/bruk en sterk API-token.
-3. Noter lokal IP-adresse til enheten.
+1. Verifiser at `Homey/API` er aktivert.
+2. Verifiser/oppdater API-token.
+3. Bekreft lokal IP-adresse/hostname.
 
-Test i nettleser:
+Hurtigtest:
 - `http://<VENTREADER_IP>/status?token=<TOKEN>&pretty=1`
 
-Du skal få JSON med felter som:
-- `uteluft`, `tilluft`, `avtrekk`, `avkast`
-- `fan`, `heat`, `efficiency`
-- `mode`, `modbus`, `model`, `time`
+## 2) Eksporter Homey-oppsettfil
 
-## 2) Installer apper i Homey Pro
+1. Åpne VentReader admin.
+2. Trykk **Eksporter Homey-oppsett**.
+3. Del eller last ned filen.
+
+Anbefalt filinnhold:
+- `homey_script_js`
+- mapping for virtuelle enheter
+- flow-notater
+
+## 3) Installer nødvendige Homey-apper
 
 Installer:
-1. `HomeyScript` (offisiell Athom-app)
-2. En virtual devices-app som kan lage temperatur-/tallsensorer med Insights
+1. `HomeyScript`
+2. En virtual devices-app som støtter numeriske/temperatur-sensorer med Insights
 
-## 3) Lag virtuelle enheter i Homey
+## 4) Opprett virtuelle enheter i Homey
 
-Lag én virtuell sensor per verdi du vil logge:
+Minimum:
 1. `VentReader - Uteluft` (temperatur)
 2. `VentReader - Tilluft` (temperatur)
 3. `VentReader - Avtrekk` (temperatur)
@@ -40,142 +84,53 @@ Lag én virtuell sensor per verdi du vil logge:
 5. `VentReader - Fan %` (prosent/tall)
 6. `VentReader - Heat %` (prosent/tall)
 7. `VentReader - Gjenvinning %` (prosent/tall)
-8. `VentReader - Modbus Alarm` (bool/alarm, valgfri)
-9. `VentReader - Status tekst` (tekst, valgfri)
 
-Viktig:
-- Bruk capabilities som støtter Insights hvis du vil ha grafer.
+Valgfritt:
+1. `VentReader - Modbus Alarm`
+2. `VentReader - Status tekst`
 
-## 4) Lag HomeyScript
+## 5) Importer script fra eksportfil
 
-Lag et script i HomeyScript, f.eks. `VentReader Poll`.
+1. Kopier `homey_script_js` fra eksportfilen.
+2. Opprett script, f.eks. `VentReader Poll`.
+3. Lim inn script uten manuell omskriving av logikk.
 
-Lim inn og rediger:
+## 6) Lag polling-flow i Homey
 
-```javascript
-// VentReader -> Homey virtuelle enheter
-const VENTREADER_URL = 'http://192.168.1.50/status?token=REPLACE_TOKEN';
-
-// Mapping: Homey enhetsnavn -> capability id
-const MAP = {
-  'VentReader - Uteluft': { field: 'uteluft', cap: 'measure_temperature' },
-  'VentReader - Tilluft': { field: 'tilluft', cap: 'measure_temperature' },
-  'VentReader - Avtrekk': { field: 'avtrekk', cap: 'measure_temperature' },
-  'VentReader - Avkast':  { field: 'avkast',  cap: 'measure_temperature' },
-  'VentReader - Fan %':   { field: 'fan', cap: 'measure_percentage' },
-  'VentReader - Heat %':  { field: 'heat', cap: 'measure_percentage' },
-  'VentReader - Gjenvinning %': { field: 'efficiency', cap: 'measure_percentage' },
-};
-
-const ALARM_DEVICE = 'VentReader - Modbus Alarm'; // valgfri
-const ALARM_CAP = 'alarm_generic'; // juster ved behov
-
-const STATUS_DEVICE = 'VentReader - Status tekst'; // valgfri
-const STATUS_CAP = 'measure_text'; // juster ved behov
-
-function num(v) {
-  if (v === null || v === undefined) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-async function setByName(devices, name, capability, value) {
-  const d = Object.values(devices).find(x => x.name === name);
-  if (!d) return;
-  if (!d.capabilitiesObj || !d.capabilitiesObj[capability]) return;
-  await d.setCapabilityValue(capability, value);
-}
-
-const res = await fetch(VENTREADER_URL);
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
-const s = await res.json();
-
-const devices = await Homey.devices.getDevices();
-
-for (const [name, cfg] of Object.entries(MAP)) {
-  const v = num(s[cfg.field]);
-  if (v === null) continue; // behold forrige verdi hvis mangler
-  await setByName(devices, name, cfg.cap, v);
-}
-
-if (ALARM_DEVICE) {
-  const modbusStr = String(s.modbus || '');
-  const bad = !(modbusStr.startsWith('MB OK'));
-  await setByName(devices, ALARM_DEVICE, ALARM_CAP, bad);
-}
-
-if (STATUS_DEVICE) {
-  const status = `${s.model || 'N/A'} | ${s.mode || 'N/A'} | ${s.modbus || 'N/A'} | ${s.time || '--:--'}`;
-  await setByName(devices, STATUS_DEVICE, STATUS_CAP, status);
-}
-
-return `VentReader OK: ${s.time || '--:--'} ${s.modbus || ''}`;
-```
-
-## 5) Lag polling-flow i Homey
-
-Flow:
-1. `Når`: Hvert 1. minutt (eller 2-5 min for mindre last)
+1. `Når`: Hvert 1-2 minutt
 2. `Så`: Kjør script `VentReader Poll`
 
-Valgfri alarm-flow:
-1. `Når`: Script feiler / alarm-enhet går aktiv
-2. `Så`: Send push-varsel
+Valgfritt:
+1. Push-varsel ved script-feil/alarm.
 
-## 6) Verifiser grafer
+## 7) Verifiser drift
 
-Etter noen sykluser:
-1. Åpne hver virtuell sensor i Homey.
-2. Bekreft at verdier oppdateres.
-3. Bekreft at Insights-graf bygger seg opp.
+1. Verdier oppdateres i virtuelle enheter.
+2. Insights-grafer bygges over tid.
+3. Alarmen reagerer ved feil (hvis konfigurert).
 
-## 7) Anbefalt intervall og drift
+## 8) Valgfri styring fra Homey (modus + setpunkt)
 
-Anbefalt:
-- Homey polling: 1-2 min
-- VentReader poll interval: 30-120 sek for responsivitet
-
-Stabilitetstips:
-1. Gi VentReader fast IP (DHCP-reservasjon).
-2. Hold Homey og VentReader på samme LAN/subnett.
-3. Bruk alarm-flow når `modbus` viser feil/stale.
-
-## 8) Alternativ senere
-
-For enklest mulig sluttbrukeropplevelse: lag en dedikert Homey-app (LAN-driver) for VentReader med:
-- pairing via IP/token
-- native capabilities
-- innebygde flowcards og Insights
-
-Per i dag er VentReader-API-et klart for dette.
-
-## 9) Valgfri styring fra Homey (modus + setpunkt)
-
-I VentReader admin (`/admin`), aktiver:
+Krever i VentReader:
 1. `Modbus`
 2. `Enable remote control writes (experimental)`
 
-Styrings-endepunkt:
+Endepunkt:
 1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
 2. `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
 
-Eksempel HomeyScript handling:
+## 9) Feilsøking
 
-```javascript
-const BASE = 'http://192.168.1.50';
-const TOKEN = 'REPLACE_TOKEN';
+- `401 missing/invalid token`: feil token i script/URL.
+- `403 api disabled`: `Homey/API` er av.
+- `403 control disabled`: `Enable remote control writes` er av.
+- `409 modbus disabled`: `Modbus` er av ved skrivekall.
+- `500 write ... failed`: Modbus-innstillinger/busproblem.
+- Ingen oppdatering i Homey: sjekk flow-trigger og capability IDs.
 
-// Sett modus HOME
-let res = await fetch(`${BASE}/api/control/mode?token=${TOKEN}&mode=HOME`, { method: 'POST' });
-if (!res.ok) throw new Error(`Mode write failed: HTTP ${res.status}`);
+## 10) Drift og sikkerhet
 
-// Sett HOME setpunkt til 20.5 C
-res = await fetch(`${BASE}/api/control/setpoint?token=${TOKEN}&profile=home&value=20.5`, { method: 'POST' });
-if (!res.ok) throw new Error(`Setpoint write failed: HTTP ${res.status}`);
-
-return 'Control writes OK';
-```
-
-Sikkerhet:
-1. Hold skrivestyring avskrudd når den ikke trengs.
-2. Del kun API-token med lokale, pålitelige automasjoner.
+1. Bruk DHCP-reservasjon for stabil IP.
+2. Hold Homey og VentReader på samme LAN/subnett.
+3. Del token kun med betrodde lokale automasjoner.
+4. Hold skrivestyring avskrudd når den ikke trengs.

@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v3.6.0)
+# VentReader – Flexit Modbus Reader with ePaper UI (v3.7.0)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems
 (Nordic S3 / S4 + selected experimental variants), featuring:
@@ -36,6 +36,10 @@ The name “Flexit” is used only to describe supported equipment.
 - Factory reset via BOOT button
 - OTA firmware updates (after setup), including web upload in admin
 - Web API for Homey / Home Assistant / integrations
+
+### v3.7.0 highlights
+
+- Setup wizard step 3 now requires explicit enable/disable choice for `Homey/API` and `Home Assistant/API`
 
 ### v3.6.0 highlights
 

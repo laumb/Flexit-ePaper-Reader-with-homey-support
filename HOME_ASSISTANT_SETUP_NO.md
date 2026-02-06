@@ -7,12 +7,33 @@ Du får:
 - historiske grafer
 - valgfri skrivestyring (modus + setpunkt)
 
+## Quick start (anbefalt)
+
+1. Verifiser i VentReader admin at `Home Assistant/API` er aktivert.
+2. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
+3. Legg inn REST-sensor i `configuration.yaml`.
+4. Legg inn templatesensorer.
+5. Restart Home Assistant.
+6. Sjekk Entities/History.
+
+## Må gjøres vs valgfritt
+
+### Må gjøres
+1. Aktiv `Home Assistant/API`.
+2. Korrekt token i `resource`-URL.
+3. Minst én REST-sensor + relevante templatesensorer.
+
+### Valgfritt
+1. REST-kommandoer for skrivestyring.
+2. Automasjoner for modus/setpunkt.
+3. Egne alarm/varslingsregler.
+
 ## 1) Klargjør VentReader
 
 I VentReader admin (`/admin`):
 1. Aktiver `Home Assistant/API`.
 2. Bruk en sterk API-token.
-3. Noter lokal IP-adresse til VentReader.
+3. Noter lokal IP-adresse.
 
 Test i nettleser:
 - `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`
@@ -42,7 +63,7 @@ sensor:
       - time
 ```
 
-Lag deretter templatesensorer for grafer:
+Templatesensorer:
 
 ```yaml
 template:
@@ -91,7 +112,7 @@ Restart Home Assistant.
 
 ## 3) Dashboard (Lovelace)
 
-Legg til entities-kort og historikk-grafkort for sensorene over.
+Legg til entities-kort og historikk-kort for sensorene.
 
 ## 4) Valgfri skrivestyring (modus + setpunkt)
 
@@ -99,7 +120,7 @@ I VentReader admin (`/admin`), aktiver:
 1. `Modbus`
 2. `Enable remote control writes (experimental)`
 
-Legg til REST-kommandoer:
+REST-kommandoer:
 
 ```yaml
 rest_command:
@@ -112,36 +133,21 @@ rest_command:
     method: POST
 ```
 
-Lag helpers i UI:
-1. `input_select.vent_mode` med valg `AWAY`, `HOME`, `HIGH`, `FIRE`
-2. `input_number.vent_setpoint_home` (f.eks. område 10-30)
+Helpers:
+1. `input_select.vent_mode` med `AWAY`, `HOME`, `HIGH`, `FIRE`
+2. `input_number.vent_setpoint_home` (10-30)
 
-Eksempel automasjoner:
+## 5) Feilsøking
 
-```yaml
-automation:
-  - alias: VentReader sett modus
-    trigger:
-      - platform: state
-        entity_id: input_select.vent_mode
-    action:
-      - service: rest_command.ventreader_mode
-        data:
-          mode: "{{ states('input_select.vent_mode') }}"
+- `401 missing/invalid token`: feil token i URL.
+- `403 home assistant/api disabled`: `Home Assistant/API` er av.
+- `403 control disabled`: control writes er av.
+- `409 modbus disabled`: `Modbus` er av.
+- `500 write ... failed`: Modbus-transport/innstillinger eller fysisk busproblem.
+- Ingen verdier i HA: sjekk `resource`-URL, restart, og template-navn.
 
-  - alias: VentReader sett home setpunkt
-    trigger:
-      - platform: state
-        entity_id: input_number.vent_setpoint_home
-    action:
-      - service: rest_command.ventreader_setpoint
-        data:
-          profile: home
-          value: "{{ states('input_number.vent_setpoint_home') }}"
-```
-
-## 5) Merknader
+## 6) Merknader
 
 - API-kall er lokale (LAN) som standard.
 - Hold token privat.
-- Hvis Modbus er av, vil skrive-endepunkt returnere forventet feilstatus.
+- Hold skrivestyring deaktivert når den ikke trengs.
