@@ -1,11 +1,20 @@
-# VentReader – Brukerveiledning (v3.6.0)
+# VentReader – Brukerveiledning (v3.7.0)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
 
 Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
 
-### v3.6.0 høydepunkter
+## Changelog (kort)
+
+### v3.7.0
+
+- Oppsettguide steg 3 krever nå eksplisitt valg av `Aktiver` eller `Deaktiver` for både `Homey/API` og `Home Assistant/API`.
+- Ny Homey-eksport i admin: ferdig `.json`/`.txt` med script, mapping og endepunkter.
+- Mobil-knapp for deling via e-post (`mailto`) med ferdig utfylt innhold.
+- Forside og admin har tydeligere statuskort og bedre handlingslayout.
+
+### v3.6.0
 
 - Språkvalg gjelder nå også admin-undersider og ePaper-tekster
 - Dashboardets modusverdier oversettes nå etter valgt språk

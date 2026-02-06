@@ -9,10 +9,18 @@ Metoden under bruker:
 - HomeyScript
 - Virtuelle sensorer i Homey (fra en virtual devices-app)
 
+## Hurtigstart (anbefalt)
+
+1. I VentReader admin (`/admin`), bekreft at `Homey/API` er aktivert.
+2. Klikk **Eksporter Homey-oppsett**.
+3. Mobil/nettbrett: trykk **Send til e-post (mobil)** for å åpne mailklient med ferdig utfylt innhold.
+4. PC: last ned `.json` eller `.txt` og åpne filen lokalt.
+5. I Homey: lag virtuelle enheter og lim inn scriptet fra eksporten.
+
 ## 1) Klargjør VentReader
 
 I VentReader admin (`/admin`):
-1. Aktiver `Homey/API`.
+1. Aktiver `Homey/API` (wizard steg 3 krever eksplisitt aktiver/deaktiver).
 2. Sett/bruk en sterk API-token.
 3. Noter lokal IP-adresse til enheten.
 

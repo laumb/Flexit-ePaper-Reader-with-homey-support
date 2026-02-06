@@ -103,20 +103,29 @@ static void drawChip(int x, int y, int w, int h, const String& txt)
   setTextBlack();
 }
 
+static int textPixelWidth(const String& txt)
+{
+  int16_t x1 = 0, y1 = 0;
+  uint16_t w = 0, h = 0;
+  display.setFont(&FreeSans9pt7b);
+  display.getTextBounds(txt, 0, 0, &x1, &y1, &w, &h);
+  return (int)w;
+}
+
 static void drawIconV2(int x, int y, IconType t)
 {
   switch (t)
   {
-    case ICON_OUTDOOR: { // cloud
-      display.fillCircle(x+16, y+22, 8, GxEPD_BLACK);
-      display.fillCircle(x+27, y+16, 10, GxEPD_BLACK);
-      display.fillCircle(x+38, y+23, 7, GxEPD_BLACK);
-      display.fillRect(x+10, y+24, 34, 12, GxEPD_BLACK);
+    case ICON_OUTDOOR: { // tree
+      display.fillRect(x + 20, y + 28, 6, 14, GxEPD_BLACK); // trunk
+      display.fillTriangle(x + 23, y + 6,  x + 10, y + 24, x + 36, y + 24, GxEPD_BLACK);
+      display.fillTriangle(x + 23, y + 12, x + 8,  y + 30, x + 38, y + 30, GxEPD_BLACK);
+      display.fillTriangle(x + 23, y + 18, x + 6,  y + 36, x + 40, y + 36, GxEPD_BLACK);
       break;
     }
-    case ICON_SUPPLY: { // right arrow
-      display.fillTriangle(x+10, y+12, x+10, y+34, x+32, y+23, GxEPD_BLACK);
-      display.fillRect(x+32, y+19, 10, 8, GxEPD_BLACK);
+    case ICON_SUPPLY: { // clean right arrow
+      display.fillRect(x + 8, y + 20, 18, 6, GxEPD_BLACK);
+      display.fillTriangle(x + 26, y + 12, x + 26, y + 34, x + 44, y + 23, GxEPD_BLACK);
       break;
     }
     case ICON_EXTRACT: { // up arrow
@@ -151,11 +160,53 @@ static void drawHeader(const FlexitData& d)
   display.print(d.time);
   setTextBlack();
 
-  // chips line
-  drawChip(10, 38, 150, 22, tr("mode") + String(": ") + trModeValue(d.mode));
-  // FAN chip width fixed for 0-100%
-  drawChip(170, 38, 105, 22, tr("fan") + String(" ") + d.fan_percent + "%");
-  drawChip(282, 38, 108, 22, tr("eff") + String(" ") + d.efficiency_percent + "%");
+  // chips line (stable widths so percentages are always visible)
+  const int y = 38;
+  const int h = 22;
+  const int startX = 6;
+  const int gap = 6;
+  const int avail = display.width() - (startX * 2) - (gap * 2);
+  const int minMode = 140;
+  const int minFan = 96;
+  const int minEff = 96;
+  const String modeTxt = tr("mode") + String(": ") + trModeValue(d.mode);
+  const String fanTxt = tr("fan") + String(" ") + d.fan_percent + "%";
+  const String effTxt = tr("eff") + String(" ") + d.efficiency_percent + "%";
+
+  int wFan = textPixelWidth(fanTxt) + 20;
+  int wEff = textPixelWidth(effTxt) + 20;
+  if (wFan < minFan) wFan = minFan;
+  if (wEff < minEff) wEff = minEff;
+
+  int wMode = avail - wFan - wEff;
+  if (wMode < minMode)
+  {
+    int need = minMode - wMode;
+    int fanHeadroom = wFan - minFan;
+    int effHeadroom = wEff - minEff;
+    int totalHeadroom = fanHeadroom + effHeadroom;
+    if (totalHeadroom > 0)
+    {
+      int takeFan = (need * fanHeadroom) / totalHeadroom;
+      int takeEff = need - takeFan;
+      if (takeFan > fanHeadroom) takeFan = fanHeadroom;
+      if (takeEff > effHeadroom) takeEff = effHeadroom;
+      wFan -= takeFan;
+      wEff -= takeEff;
+    }
+    if (wFan < minFan) wFan = minFan;
+    if (wEff < minEff) wEff = minEff;
+    wMode = avail - wFan - wEff;
+    if (wMode < minMode) wMode = minMode;
+  }
+
+  const int x1 = startX;
+  const int x2 = x1 + wMode + gap;
+  const int x3 = x2 + wFan + gap;
+
+  drawChip(x1, y, wMode, h, modeTxt);
+  drawChip(x2, y, wFan,  h, fanTxt);
+  drawChip(x3, y, wEff,  h, effTxt);
 }
 
 static void drawTempCard(int x, int y, const char* label, float value, IconType icon, const FlexitData& d)
@@ -194,18 +245,23 @@ static void drawFooter(const FlexitData& d, const String& mbStatus)
 {
   const int h = 30;
   const int y = display.height() - h;
+  const int col1X = 10;
+  const int col2X = 132;
+  const int col3X = 258;
 
   display.fillRect(-2, y, display.width()+4, h, GxEPD_BLACK);
+  display.drawFastVLine(124, y + 5, h - 10, GxEPD_WHITE);
+  display.drawFastVLine(248, y + 5, h - 10, GxEPD_WHITE);
   setTextWhite();
   display.setFont(&FreeSans9pt7b);
 
-  display.setCursor(10, y + 20);
+  display.setCursor(col1X, y + 20);
   display.print(tr("heat") + String(" ") + d.heat_element_percent + "%");
 
-  display.setCursor(120, y + 20);
+  display.setCursor(col2X, y + 20);
   display.print(mbStatus);
 
-  display.setCursor(240, y + 20);
+  display.setCursor(col3X, y + 20);
   display.print(String("WiFi ") + d.wifi_status + d.ip);
 
   setTextBlack();

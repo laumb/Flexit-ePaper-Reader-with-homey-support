@@ -10,7 +10,7 @@ Du får:
 ## 1) Klargjør VentReader
 
 I VentReader admin (`/admin`):
-1. Aktiver `Home Assistant/API`.
+1. Aktiver `Home Assistant/API` (wizard steg 3 krever eksplisitt aktiver/deaktiver).
 2. Bruk en sterk API-token.
 3. Noter lokal IP-adresse til VentReader.
 

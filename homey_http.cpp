@@ -400,11 +400,124 @@ static String buildStatusJson(bool pretty)
   return String(buf);
 }
 
+static String boolLabel(bool v)
+{
+  return v ? "ON" : "OFF";
+}
+
 static String currentBaseUrl()
 {
   if (WiFi.status() == WL_CONNECTED) return String("http://") + WiFi.localIP().toString();
   if (g_data.ip.length() > 0) return String("http://") + g_data.ip;
   return "http://ventreader.local";
+}
+
+static String buildHomeyExportJson()
+{
+  const String base = currentBaseUrl();
+  const String statusUrl = base + "/status?token=" + g_cfg->api_token;
+  const bool controlActive = (g_cfg->modbus_enabled && g_cfg->control_enabled);
+  const uint64_t ts = nowEpochMs();
+  const String tsIso = isoFromEpochMs(ts);
+  const String tsStr = u64ToString(ts);
+  const String ctrlModeUrl = base + "/api/control/mode?token=" + g_cfg->api_token + "&mode=HOME";
+  const String ctrlSetpointUrl = base + "/api/control/setpoint?token=" + g_cfg->api_token + "&profile=home&value=20.5";
+
+  String script;
+  script.reserve(2600);
+  script += "// VentReader -> Homey virtual devices\n";
+  script += "const VENTREADER_URL = '";
+  script += statusUrl;
+  script += "';\n\n";
+  script += "const MAP = {\n";
+  script += "  'VentReader - Uteluft': { field: 'uteluft', cap: 'measure_temperature' },\n";
+  script += "  'VentReader - Tilluft': { field: 'tilluft', cap: 'measure_temperature' },\n";
+  script += "  'VentReader - Avtrekk': { field: 'avtrekk', cap: 'measure_temperature' },\n";
+  script += "  'VentReader - Avkast':  { field: 'avkast',  cap: 'measure_temperature' },\n";
+  script += "  'VentReader - Fan %':   { field: 'fan', cap: 'measure_percentage' },\n";
+  script += "  'VentReader - Heat %':  { field: 'heat', cap: 'measure_percentage' },\n";
+  script += "  'VentReader - Gjenvinning %': { field: 'efficiency', cap: 'measure_percentage' }\n";
+  script += "};\n\n";
+  script += "const ALARM_DEVICE = 'VentReader - Modbus Alarm'; // optional\n";
+  script += "const ALARM_CAP = 'alarm_generic';\n";
+  script += "const STATUS_DEVICE = 'VentReader - Status tekst'; // optional\n";
+  script += "const STATUS_CAP = 'measure_text';\n\n";
+  script += "function num(v){ if(v===null||v===undefined) return null; const n=Number(v); return Number.isFinite(n)?n:null; }\n";
+  script += "async function setByName(devices,name,capability,value){\n";
+  script += "  const d=Object.values(devices).find(x=>x.name===name);\n";
+  script += "  if(!d||!d.capabilitiesObj||!d.capabilitiesObj[capability]) return;\n";
+  script += "  await d.setCapabilityValue(capability,value);\n";
+  script += "}\n\n";
+  script += "const res = await fetch(VENTREADER_URL);\n";
+  script += "if(!res.ok) throw new Error(`HTTP ${res.status}`);\n";
+  script += "const s = await res.json();\n";
+  script += "const devices = await Homey.devices.getDevices();\n\n";
+  script += "for (const [name,cfg] of Object.entries(MAP)) {\n";
+  script += "  const v=num(s[cfg.field]); if(v===null) continue;\n";
+  script += "  await setByName(devices,name,cfg.cap,v);\n";
+  script += "}\n\n";
+  script += "if (ALARM_DEVICE) {\n";
+  script += "  const bad = !String(s.modbus || '').startsWith('MB OK');\n";
+  script += "  await setByName(devices,ALARM_DEVICE,ALARM_CAP,bad);\n";
+  script += "}\n\n";
+  script += "if (STATUS_DEVICE) {\n";
+  script += "  const status = `${s.model||'N/A'} | ${s.mode||'N/A'} | ${s.modbus||'N/A'} | ${s.time||'--:--'}`;\n";
+  script += "  await setByName(devices,STATUS_DEVICE,STATUS_CAP,status);\n";
+  script += "}\n\n";
+  script += "return `VentReader OK: ${s.time||'--:--'} ${s.modbus||''}`;\n";
+
+  String out;
+  out.reserve(7800);
+  out += "{";
+  out += "\"export_version\":\"1\",";
+  out += "\"generated_at_epoch_ms\":";
+  out += tsStr;
+  out += ",";
+  out += "\"generated_at_iso\":\"";
+  out += jsonEscape(tsIso);
+  out += "\",";
+  out += "\"device\":{";
+  out += "\"model\":\"" + jsonEscape(g_cfg->model) + "\",";
+  out += "\"fw\":\"" + jsonEscape(String(FW_VERSION)) + "\",";
+  out += "\"base_url\":\"" + jsonEscape(base) + "\",";
+  out += "\"api_token\":\"" + jsonEscape(g_cfg->api_token) + "\"";
+  out += "},";
+  out += "\"modules\":{";
+  out += "\"homey_api\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
+  out += "\"home_assistant_api\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
+  out += "\"modbus\":" + String(g_cfg->modbus_enabled ? "true" : "false") + ",";
+  out += "\"control_writes\":" + String(g_cfg->control_enabled ? "true" : "false");
+  out += "},";
+  out += "\"endpoints\":{";
+  out += "\"status\":\"" + jsonEscape(statusUrl) + "\",";
+  out += "\"mode_write_example\":\"" + jsonEscape(ctrlModeUrl) + "\",";
+  out += "\"setpoint_write_example\":\"" + jsonEscape(ctrlSetpointUrl) + "\"";
+  out += "},";
+  out += "\"recommended_poll_interval_seconds\":60,";
+  out += "\"flow_notes\":[";
+  out += "\"Trigger: every 1-2 minutes\",";
+  out += "\"Action: run HomeyScript VentReader Poll\",";
+  out += "\"Optional: alarm/push notification on script failure\"";
+  out += "],";
+  out += "\"recommended_virtual_devices\":[";
+  out += "{\"name\":\"VentReader - Uteluft\",\"capability\":\"measure_temperature\"},";
+  out += "{\"name\":\"VentReader - Tilluft\",\"capability\":\"measure_temperature\"},";
+  out += "{\"name\":\"VentReader - Avtrekk\",\"capability\":\"measure_temperature\"},";
+  out += "{\"name\":\"VentReader - Avkast\",\"capability\":\"measure_temperature\"},";
+  out += "{\"name\":\"VentReader - Fan %\",\"capability\":\"measure_percentage\"},";
+  out += "{\"name\":\"VentReader - Heat %\",\"capability\":\"measure_percentage\"},";
+  out += "{\"name\":\"VentReader - Gjenvinning %\",\"capability\":\"measure_percentage\"},";
+  out += "{\"name\":\"VentReader - Modbus Alarm\",\"capability\":\"alarm_generic\",\"optional\":true},";
+  out += "{\"name\":\"VentReader - Status tekst\",\"capability\":\"measure_text\",\"optional\":true}";
+  out += "],";
+  out += "\"control_ready\":";
+  out += (controlActive ? "true" : "false");
+  out += ",";
+  out += "\"homey_script_js\":\"";
+  out += jsonEscape(script);
+  out += "\"";
+  out += "}";
+  return out;
 }
 
 static String buildHomeyExportText()
@@ -474,6 +587,90 @@ static void handleAdminHomeyExportText()
   server.sendHeader("Cache-Control", "no-store");
   server.sendHeader("Content-Disposition", "attachment; filename=ventreader_homey_setup.txt");
   server.send(200, "text/plain; charset=utf-8", out);
+}
+
+static void handleAdminHomeyExport()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed)
+  {
+    redirectTo("/admin/setup?step=1");
+    return;
+  }
+
+  String out = buildHomeyExportJson();
+  server.sendHeader("Cache-Control", "no-store");
+  server.sendHeader("Content-Disposition", "attachment; filename=ventreader_homey_setup.json");
+  server.send(200, "application/json", out);
+}
+
+static String buildAdminManualText(bool noLang)
+{
+  String out;
+  out.reserve(4600);
+  if (noLang)
+  {
+    out += "VentReader Manual (kort)\n";
+    out += "========================\n\n";
+    out += "Quick start\n";
+    out += "1) Logg inn pa /admin.\n";
+    out += "2) Fullfor setup wizard.\n";
+    out += "3) Verifiser /status?token=... svar.\n";
+    out += "4) For Homey: bruk Eksporter Homey-oppsett.\n";
+    out += "5) For HA: konfigurer REST sensor mot /ha/status.\n\n";
+    out += "Modbus skriv (valgfritt)\n";
+    out += "- Aktiver Modbus\n";
+    out += "- Aktiver Enable remote control writes (experimental)\n";
+    out += "- API mode: POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE\n";
+    out += "- API setpoint: POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5\n\n";
+    out += "Feilsoking\n";
+    out += "- 401: ugyldig eller manglende token\n";
+    out += "- 403 api disabled: modul er av\n";
+    out += "- 403 control disabled: control writes er av\n";
+    out += "- 409 modbus disabled: Modbus er av ved skrivekall\n";
+    out += "- 500 write failed: Modbus-transport eller fysisk bus-feil\n\n";
+    out += "Sikkerhet\n";
+    out += "- Endre fabrikkpassord\n";
+    out += "- Del token kun med lokale, betrodde integrasjoner\n";
+    out += "- Hold skrivestyring avskrudd nar den ikke trengs\n";
+  }
+  else
+  {
+    out += "VentReader Manual (short)\n";
+    out += "========================\n\n";
+    out += "Quick start\n";
+    out += "1) Log in at /admin.\n";
+    out += "2) Complete setup wizard.\n";
+    out += "3) Verify /status?token=... returns data.\n";
+    out += "4) For Homey: use Export Homey setup.\n";
+    out += "5) For HA: configure REST sensor to /ha/status.\n\n";
+    out += "Modbus writes (optional)\n";
+    out += "- Enable Modbus\n";
+    out += "- Enable remote control writes (experimental)\n";
+    out += "- API mode: POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE\n";
+    out += "- API setpoint: POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5\n\n";
+    out += "Troubleshooting\n";
+    out += "- 401: invalid/missing token\n";
+    out += "- 403 api disabled: module is disabled\n";
+    out += "- 403 control disabled: control writes disabled\n";
+    out += "- 409 modbus disabled: Modbus disabled for write call\n";
+    out += "- 500 write failed: Modbus transport or physical bus issue\n\n";
+    out += "Security\n";
+    out += "- Change default admin password\n";
+    out += "- Share token only with trusted local integrations\n";
+    out += "- Keep writes disabled unless needed\n";
+  }
+  return out;
+}
+
+static void handleAdminManualText()
+{
+  if (!checkAdminAuth()) return;
+  const bool noLang = (lang() == "no");
+  String txt = buildAdminManualText(noLang);
+  server.sendHeader("Cache-Control", "no-store");
+  server.sendHeader("Content-Disposition", "attachment; filename=ventreader_manual.txt");
+  server.send(200, "text/plain; charset=utf-8", txt);
 }
 
 static void handleStatus()
@@ -835,6 +1032,9 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += ".btn.secondary{background:transparent;color:var(--text);}";
       s += ".btn.danger{background:#ef4444;border-color:#ef4444;color:#fff;}";
       s += ".actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}";
+      s += ".action-grid{display:grid;grid-template-columns:1fr;gap:10px;}";
+      s += "@media(min-width:620px){.action-grid{grid-template-columns:1fr 1fr;}}";
+      s += ".muted-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.10em;margin:0 0 6px 0;}";
       s += ".help{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.35;}";
       s += ".progress{display:flex;gap:8px;align-items:center;margin-top:10px;}";
       s += ".step{height:8px;flex:1;border-radius:999px;background:var(--border);overflow:hidden;}";
@@ -881,7 +1081,7 @@ static String pageHeader(const String& title, const String& subtitle = "")
       return s;
     }
 
-static String pageFooter(){ return "</div><div style='margin-top:20px'><form method='POST' action='/admin/reboot'><button class=\"btn\">" + tr("restart_now") + "</button></form></div></body></html>"; }
+static String pageFooter(){ return "</div></body></html>"; }
 
 static void handleRoot()
 {
@@ -896,8 +1096,36 @@ static void handleRoot()
   s += "<div class='kv'><div class='k'>STA WiFi</div><div class='v'>" + String(staOn ? "Connected" : "Offline") + "</div></div>";
   s += "<div class='kv'><div class='k'>Fallback AP</div><div class='v'>" + String(apOn ? "ON" : "OFF") + "</div></div>";
   s += "<div class='kv'><div class='k'>mDNS</div><div class='v'>ventreader.local</div></div>";
+  s += "<div class='kv'><div class='k'>Firmware</div><div class='v'>" + String(FW_VERSION) + "</div></div>";
   s += "</div>";
   s += "<div class='help'>API: <code>/status?token=...</code> (Homey polling). Debug: <code>&pretty=1</code></div>";
+  s += "</div>";
+
+  auto fOrDash = [](float v) -> String {
+    if (isnan(v)) return "-";
+    char t[16];
+    snprintf(t, sizeof(t), "%.1f", v);
+    return String(t);
+  };
+
+  s += "<div class='card'><h2>Moduler (offentlig)</h2>";
+  s += "<div class='kpi'>";
+  s += "<div class='kv'><div class='k'>Homey/API</div><div class='v'>" + boolLabel(g_cfg->homey_enabled) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Home Assistant/API</div><div class='v'>" + boolLabel(g_cfg->ha_enabled) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Modbus</div><div class='v'>" + boolLabel(g_cfg->modbus_enabled) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Control writes</div><div class='v'>" + boolLabel(g_cfg->control_enabled) + "</div></div>";
+  s += "</div>";
+  s += "<div class='help'>Dette er lesbar oversikt uten innlogging. Konfigurasjon krever admin-login.</div>";
+  s += "</div>";
+
+  s += "<div class='card'><h2>Live data (offentlig)</h2>";
+  s += "<div class='kpi'>";
+  s += "<div class='kv'><div class='k'>Model</div><div class='v'>" + jsonEscape(g_data.device_model) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Mode</div><div class='v'>" + jsonEscape(g_data.mode) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Modbus status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Ute / Tilluft</div><div class='v'>" + fOrDash(g_data.uteluft) + " / " + fOrDash(g_data.tilluft) + " C</div></div>";
+  s += "</div>";
+  s += "<div class='help'>Siste sample fra enheten. Full JSON krever token.</div>";
   s += "</div>";
 
   s += "<div class='card'><h2>" + tr("actions") + "</h2>";
@@ -972,6 +1200,8 @@ static void handleAdminSetup()
   }
   else // step 3
   {
+    const bool forceApiDecision = !g_cfg->setup_completed;
+    const bool apiChoiceError = server.hasArg("api_choice_error");
     s += "<div class='card'><h2>Token + moduler</h2>";
     s += "<form method='POST' action='/admin/setup_save?step=3'>";
     s += "<label>Enhetsmodell</label>";
@@ -986,8 +1216,26 @@ static void handleAdminSetup()
     s += "<div class='sep-gold'></div>";
     s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
     s += "<div class='sep-gold'></div>";
-    s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
-    s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
+    s += "<div class='help'>Velg eksplisitt om Homey/API og Home Assistant/API skal v&aelig;re aktivert eller deaktivert.</div>";
+    if (apiChoiceError)
+      s += "<div class='help' style='color:#b91c1c'>Du m&aring; velge enten Aktiver eller Deaktiver for b&aring;de Homey/API og Home Assistant/API.</div>";
+    s += "<div><strong>" + tr("homey_api") + "</strong></div>";
+    s += "<label><input type='radio' name='homey_mode' value='enable'"
+         + String((!forceApiDecision && g_cfg->homey_enabled) ? " checked" : "")
+         + String(forceApiDecision ? " required" : "")
+         + "> Aktiver</label>";
+    s += "<label><input type='radio' name='homey_mode' value='disable'"
+         + String((!forceApiDecision && !g_cfg->homey_enabled) ? " checked" : "")
+         + "> Deaktiver</label>";
+    s += "<div class='sep-gold'></div>";
+    s += "<div><strong>" + tr("ha_api") + "</strong></div>";
+    s += "<label><input type='radio' name='ha_mode' value='enable'"
+         + String((!forceApiDecision && g_cfg->ha_enabled) ? " checked" : "")
+         + String(forceApiDecision ? " required" : "")
+         + "> Aktiver</label>";
+    s += "<label><input type='radio' name='ha_mode' value='disable'"
+         + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
+         + "> Deaktiver</label>";
     s += "<div class='sep-gold'></div>";
     s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
     s += "<div id='mb_adv_setup' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
@@ -1088,8 +1336,17 @@ static void handleAdminSetupSave()
 
   g_cfg->api_token = server.arg("token");
   g_cfg->modbus_enabled = server.hasArg("modbus");
-  g_cfg->homey_enabled  = server.hasArg("homey");
-  g_cfg->ha_enabled     = server.hasArg("ha");
+  String homeyMode = server.arg("homey_mode");
+  String haMode = server.arg("ha_mode");
+  bool homeyModeValid = (homeyMode == "enable" || homeyMode == "disable");
+  bool haModeValid = (haMode == "enable" || haMode == "disable");
+  if (!homeyModeValid || !haModeValid)
+  {
+    redirectTo("/admin/setup?step=3&api_choice_error=1");
+    return;
+  }
+  g_cfg->homey_enabled  = (homeyMode == "enable");
+  g_cfg->ha_enabled     = (haMode == "enable");
   g_cfg->control_enabled = server.hasArg("ctrl");
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
@@ -1213,6 +1470,17 @@ static void handleAdmin()
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
   s += "</div>";
 
+  // Homey export helper
+  s += "<div class='card'><h2>Homey eksport</h2>";
+  s += "<div class='help'>Eksporter ferdig oppsettfil med script, mapping og endpoint-data.</div>";
+  s += "<div class='actions'>";
+  s += "<a class='btn secondary' href='/admin/export/homey'>Eksporter Homey-oppsett (.json)</a>";
+  s += "<a class='btn secondary' href='/admin/export/homey.txt'>Eksporter Homey-oppsett (.txt)</a>";
+  s += "<button class='btn secondary' type='button' onclick='emailHomeySetup()'>Send til e-post (mobil)</button>";
+  s += "</div>";
+  s += "<div class='help'>Mobilknappen åpner e-postklient med oppsetttekst i ny e-post.</div>";
+  s += "</div>";
+
   // Quick control panel (next-level UX)
   s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
   if (g_cfg->modbus_enabled && g_cfg->control_enabled)
@@ -1248,15 +1516,22 @@ static void handleAdmin()
 
   // Actions
   s += "<div class='card'><h2>Lagre / handlinger</h2>";
-  s += "<div class='actions'>";
+  s += "<p class='muted-title'>Lagre</p>";
+  s += "<div class='actions' style='margin-top:8px'>";
   s += "<button class='btn' type='submit'>Lagre</button>";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<p class='muted-title'>Navigasjon</p>";
+  s += "<div class='action-grid'>";
   s += "<a class='btn secondary' href='/admin/manual'>" + tr("manual") + "</a>";
   s += "<a class='btn secondary' href='/admin/graphs'>" + tr("graphs") + "</a>";
   s += "<a class='btn secondary' href='/admin/ota'>" + tr("ota") + "</a>";
   s += "<a class='btn secondary' href='/'>" + tr("back_home") + "</a>";
   s += "</div>";
+  s += "<div class='help'>Tips: bruk eksportknappen over for HomeyScript og mapping i stedet for manuell kopiering.</div>";
   s += "</form>";
-  s += "<hr style='border:none;border-top:1px solid var(--border);margin:14px 0'>";
+  s += "<div class='sep-gold'></div>";
+  s += "<p class='muted-title'>System</p>";
   s += "<div class='actions'>";
   s += "<form method='POST' action='/admin/reboot' style='margin:0'><button class='btn secondary' type='submit'>Restart</button></form>";
   s += "<form method='POST' action='/admin/factory_reset' style='margin:0' onsubmit='return confirm(\"Fabrikkreset? Dette sletter alt.\");'>"
@@ -1296,12 +1571,12 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
-  s += "<div><strong>v3.6.0</strong></div>";
+  s += "<div><strong>v3.7.0</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Status/History/Diag API, hurtigstyring i admin, graf-side i admin og bedre språkstyring i admin/ePaper.";
+    s += "Setup-wizard krever n&aring; eksplisitt valg (aktiver/deaktiver) for Homey/API og Home Assistant/API.";
   else
-    s += "Status/History/Diag APIs, quick control and graphs page in admin, plus improved language coverage in admin/ePaper.";
+    s += "Setup wizard now requires an explicit enable/disable choice for Homey/API and Home Assistant/API.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>v3.1.0</strong></div>";
@@ -1370,8 +1645,33 @@ static void handleAdminManual()
   else
     s += "Check <code>/health</code> and <code>/status?token=...&pretty=1</code>. On Modbus errors, last good data is used.";
   s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>" + String(noLang ? "Del manual" : "Share manual") + "</strong></div>";
+  s += "<div class='help'>" + String(noLang ? "Du kan sende manualteksten til egen e-post eller laste den ned som tekstfil." : "You can send the manual text to your own email or download it as a text file.") + "</div>";
+  s += "<div class='actions'>";
+  s += "<a class='btn secondary' href='/admin/manual.txt'>" + String(noLang ? "Last ned manual (.txt)" : "Download manual (.txt)") + "</a>";
+  s += "<button class='btn secondary' type='button' onclick='emailManualText()'>" + String(noLang ? "Send til e-post" : "Send via email") + "</button>";
+  s += "</div>";
   s += "<div class='actions' style='margin-top:16px'><a class='btn' href='/admin'>" + tr("to_admin_page") + "</a></div>";
   s += "</div>";
+
+  s += "<script>(function(){"
+       "window.emailManualText=async function(){"
+       "try{"
+       "const r=await fetch('/admin/manual.txt',{credentials:'same-origin'});"
+       "if(!r.ok) throw new Error('HTTP '+r.status);"
+       "const txt=await r.text();"
+       "const subject='VentReader manual';"
+       "const body=encodeURIComponent(txt);"
+       "if(body.length<14000){window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+body;return;}"
+       "const blob=new Blob([txt],{type:'text/plain;charset=utf-8'});"
+       "const url=URL.createObjectURL(blob);"
+       "const a=document.createElement('a');a.href=url;a.download='ventreader_manual.txt';document.body.appendChild(a);a.click();"
+       "setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);"
+       "alert('" + String(noLang ? "Manualen er lang; tekstfil ble lastet ned for videresending på e-post." : "Manual is long; a text file was downloaded for email forwarding.") + "');"
+       "}catch(e){alert('Manual export failed: '+e.message);}"
+       "};"
+       "})();</script>";
 
   s += "</div>";
   s += pageFooter();
@@ -1689,7 +1989,9 @@ void webportal_begin(DeviceConfig& cfg)
   // Admin
   server.on("/admin", HTTP_GET, handleAdmin);
   server.on("/admin/manual", HTTP_GET, handleAdminManual);
+  server.on("/admin/manual.txt", HTTP_GET, handleAdminManualText);
   server.on("/admin/graphs", HTTP_GET, handleAdminGraphs);
+  server.on("/admin/export/homey", HTTP_GET, handleAdminHomeyExport);
   server.on("/admin/export/homey.txt", HTTP_GET, handleAdminHomeyExportText);
   server.on("/admin/lang", HTTP_POST, handleAdminLang);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
