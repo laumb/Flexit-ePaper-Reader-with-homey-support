@@ -8,7 +8,13 @@
 // ---------------------------------------------------------
 // - GET  /health -> ok (no auth)
 // - GET  /status?token=... [&pretty=1] -> JSON (token required)
+// - GET  /status/history?token=... [&limit=120] -> JSON history buffer
+// - GET  /status/history.csv?token=... [&limit=120] -> CSV history export
+// - GET  /status/diag?token=... -> JSON diagnostics counters
+// - GET  /status/storage?token=... -> JSON storage/heap status
 // - GET  /ha/status?token=... [&pretty=1] -> JSON (token required + HA enabled)
+// - GET  /ha/history?token=... [&limit=120] -> JSON history buffer
+// - GET  /ha/history.csv?token=... [&limit=120] -> CSV history export
 // - POST /api/control/mode?token=...&mode=AWAY|HOME|HIGH|FIRE
 // - POST /api/control/setpoint?token=...&profile=home|away&value=18.5
 // - Admin UI (Basic Auth):

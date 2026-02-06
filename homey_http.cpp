@@ -26,6 +26,76 @@ static uint32_t g_restart_at_ms = 0;
 static FlexitData g_data;
 static String g_mb = "MB OFF";
 
+static uint64_t nowEpochMs()
+{
+  struct timeval tv;
+  if (gettimeofday(&tv, nullptr) != 0) return 0;
+  return ((uint64_t)tv.tv_sec * 1000ULL) + ((uint64_t)tv.tv_usec / 1000ULL);
+}
+
+static String isoFromEpochMs(uint64_t ms)
+{
+  if (ms < 1000ULL) return "";
+  time_t sec = (time_t)(ms / 1000ULL);
+  struct tm tmv;
+  localtime_r(&sec, &tmv);
+  char b[40];
+  strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S%z", &tmv);
+  return String(b);
+}
+
+struct StatusSnapshot
+{
+  uint64_t ts_epoch_ms = 0;
+  float uteluft = NAN;
+  float tilluft = NAN;
+  float avtrekk = NAN;
+  float avkast = NAN;
+  int fan = 0;
+  int heat = 0;
+  int efficiency = 0;
+  char mode[16] = {0};
+  char modbus[32] = {0};
+  bool stale = false;
+};
+
+static const size_t HISTORY_CAP = 720; // up to 12h at 60s polling, more at longer intervals
+static StatusSnapshot g_hist[HISTORY_CAP];
+static size_t g_hist_head = 0;
+static size_t g_hist_count = 0;
+static uint32_t g_diag_total_updates = 0;
+static uint32_t g_diag_mb_ok = 0;
+static uint32_t g_diag_mb_err = 0;
+static uint32_t g_diag_mb_off = 0;
+static uint32_t g_diag_stale = 0;
+static String g_diag_last_mb = "MB OFF";
+static uint64_t g_diag_last_sample_ms = 0;
+
+static uint32_t historyMemoryBytes()
+{
+  return (uint32_t)(sizeof(StatusSnapshot) * HISTORY_CAP);
+}
+
+static void historyPush(const FlexitData& d, const String& mbStatus)
+{
+  StatusSnapshot s;
+  s.ts_epoch_ms = nowEpochMs();
+  s.uteluft = d.uteluft;
+  s.tilluft = d.tilluft;
+  s.avtrekk = d.avtrekk;
+  s.avkast = d.avkast;
+  s.fan = d.fan_percent;
+  s.heat = d.heat_element_percent;
+  s.efficiency = d.efficiency_percent;
+  strncpy(s.mode, d.mode.c_str(), sizeof(s.mode) - 1);
+  strncpy(s.modbus, mbStatus.c_str(), sizeof(s.modbus) - 1);
+  s.stale = (mbStatus.indexOf("stale") >= 0);
+
+  g_hist[g_hist_head] = s;
+  g_hist_head = (g_hist_head + 1) % HISTORY_CAP;
+  if (g_hist_count < HISTORY_CAP) g_hist_count++;
+}
+
 
 static String jsonEscape(const String& s)
 {
@@ -38,6 +108,13 @@ static String jsonEscape(const String& s)
     out += c;
   }
   return out;
+}
+
+static String u64ToString(uint64_t v)
+{
+  char b[24];
+  snprintf(b, sizeof(b), "%llu", (unsigned long long)v);
+  return String(b);
 }
 
 static String normModel(const String& in)
@@ -120,6 +197,32 @@ static String tr(const char* key)
   if (strcmp(key, "changelog_short") == 0) return en ? "Changelog (short)" : no ? "Changelog (kort)" : da ? "Changelog (kort)" : sv ? "Changelog (kort)" : fi ? "Changelog (lyhyt)" : "Changelog (коротко)";
   if (strcmp(key, "manual_simple") == 0) return en ? "Manual (simple)" : no ? "Brukermanual (forenklet)" : da ? "Brugermanual (forenklet)" : sv ? "Manual (forenklad)" : fi ? "Kayttoopas (yksinkertainen)" : "Інструкція (спрощено)";
   if (strcmp(key, "to_admin_page") == 0) return en ? "Back to admin" : no ? "Tilbake til admin" : da ? "Tilbage til admin" : sv ? "Tillbaka till admin" : fi ? "Takaisin adminiin" : "До адмін";
+  if (strcmp(key, "graphs") == 0) return en ? "Graphs" : no ? "Grafer" : da ? "Grafer" : sv ? "Grafer" : fi ? "Kaaviot" : "Графіки";
+  if (strcmp(key, "quick_control") == 0) return en ? "Quick control" : no ? "Hurtigstyring" : da ? "Hurtigstyring" : sv ? "Snabbstyrning" : fi ? "Pikaohjaus" : "Швидке керування";
+  if (strcmp(key, "quick_control_help") == 0) return en ? "Writes mode and setpoint directly over Modbus." : no ? "Skriver modus og settpunkt direkte over Modbus." : da ? "Skriver tilstand og setpunkt direkte over Modbus." : sv ? "Skriver lage och borvarde direkt over Modbus." : fi ? "Kirjoittaa tilan ja asetusarvon suoraan Modbusiin." : "Записує режим і уставку безпосередньо через Modbus.";
+  if (strcmp(key, "enable_control_hint") == 0) return en ? "Enable both Modbus and remote control writes to use quick control." : no ? "Aktiver både Modbus og fjernstyring med skriv for å bruke hurtigstyring." : da ? "Aktiver bade Modbus og fjernstyring med skriv for at bruge hurtigstyring." : sv ? "Aktivera bade Modbus och fjarrstyrning med skrivning for att anvanda snabbstyrning." : fi ? "Ota kayttoon Modbus ja etakirjoitus kayttaaksesi pikaohjausta." : "Увімкніть Modbus і віддалений запис для швидкого керування.";
+  if (strcmp(key, "mode_away") == 0) return en ? "Away" : no ? "Borte" : da ? "Ude" : sv ? "Borta" : fi ? "Poissa" : "Away";
+  if (strcmp(key, "mode_home") == 0) return en ? "Home" : no ? "Hjemme" : da ? "Hjemme" : sv ? "Hemma" : fi ? "Koti" : "Home";
+  if (strcmp(key, "mode_high") == 0) return en ? "High" : no ? "Hoy" : da ? "Hoj" : sv ? "Hog" : fi ? "Teho" : "High";
+  if (strcmp(key, "mode_fire") == 0) return en ? "Fireplace" : no ? "Peis" : da ? "Pejs" : sv ? "Kamin" : fi ? "Takka" : "Fireplace";
+  if (strcmp(key, "profile") == 0) return en ? "Profile" : no ? "Profil" : da ? "Profil" : sv ? "Profil" : fi ? "Profiili" : "Профіль";
+  if (strcmp(key, "setpoint") == 0) return en ? "Setpoint (10..30 C)" : no ? "Settpunkt (10..30 C)" : da ? "Setpunkt (10..30 C)" : sv ? "Borvarde (10..30 C)" : fi ? "Asetusarvo (10..30 C)" : "Уставка (10..30 C)";
+  if (strcmp(key, "apply_setpoint") == 0) return en ? "Apply setpoint" : no ? "Bruk settpunkt" : da ? "Anvend setpunkt" : sv ? "Applicera borvarde" : fi ? "Aseta arvo" : "Застосувати уставку";
+  if (strcmp(key, "history_graphs_title") == 0) return en ? "History graphs" : no ? "Historikk-grafer" : da ? "Historik-grafer" : sv ? "Historik-grafer" : fi ? "Historia-kaaviot" : "Графіки історії";
+  if (strcmp(key, "history_graphs_subtitle") == 0) return en ? "Local trends from /status/history" : no ? "Lokale trender fra /status/history" : da ? "Lokale trends fra /status/history" : sv ? "Lokala trender fran /status/history" : fi ? "Paikalliset trendit /status/history:sta" : "Локальні тренди з /status/history";
+  if (strcmp(key, "refresh") == 0) return en ? "Refresh" : no ? "Oppdater" : da ? "Opdater" : sv ? "Uppdatera" : fi ? "Paivita" : "Оновити";
+  if (strcmp(key, "history_limit") == 0) return en ? "Points" : no ? "Punkter" : da ? "Punkter" : sv ? "Punkter" : fi ? "Pisteet" : "Точки";
+  if (strcmp(key, "loading") == 0) return en ? "Loading..." : no ? "Laster..." : da ? "Indlaeser..." : sv ? "Laddar..." : fi ? "Ladataan..." : "Завантаження...";
+  if (strcmp(key, "temp_graph") == 0) return en ? "Temperatures" : no ? "Temperaturer" : da ? "Temperaturer" : sv ? "Temperaturer" : fi ? "Lampotilat" : "Температури";
+  if (strcmp(key, "perf_graph") == 0) return en ? "Performance" : no ? "Ytelse" : da ? "Ydelse" : sv ? "Prestanda" : fi ? "Suorituskyky" : "Продуктивність";
+  if (strcmp(key, "export_csv") == 0) return en ? "Export CSV" : no ? "Eksporter CSV" : da ? "Eksporter CSV" : sv ? "Exportera CSV" : fi ? "Vie CSV" : "Експорт CSV";
+  if (strcmp(key, "storage_status") == 0) return en ? "Storage status" : no ? "Lagringsstatus" : da ? "Lagerstatus" : sv ? "Lagringsstatus" : fi ? "Tallennustila" : "Стан сховища";
+  if (strcmp(key, "history_ram_only") == 0) return en ? "History uses fixed RAM ring-buffer only (no flash writes)." : no ? "Historikk bruker kun fast RAM-ringbuffer (ingen flash-skriving)." : da ? "Historik bruger kun fast RAM-ringbuffer (ingen flash-skrivning)." : sv ? "Historik anvander endast fast RAM-ringbuffert (ingen flash-skrivning)." : fi ? "Historia kayttaa vain kiinteaa RAM-rengaspuskuria (ei flash-kirjoitusta)." : "Історія використовує лише фіксований RAM-буфер (без запису у flash).";
+  if (strcmp(key, "history_points") == 0) return en ? "History points" : no ? "Historikkpunkter" : da ? "Historikpunkter" : sv ? "Historikpunkter" : fi ? "Historian pisteet" : "Точки історії";
+  if (strcmp(key, "history_mem") == 0) return en ? "History memory" : no ? "Historikkminne" : da ? "Historikhukommelse" : sv ? "Historikminne" : fi ? "Historiamuisti" : "Пам'ять історії";
+  if (strcmp(key, "heap_free") == 0) return en ? "Free heap" : no ? "Ledig heap" : da ? "Ledig heap" : sv ? "Ledigt heap" : fi ? "Vapaa heap" : "Вільна heap";
+  if (strcmp(key, "heap_min") == 0) return en ? "Min free heap" : no ? "Min ledig heap" : da ? "Min ledig heap" : sv ? "Min ledigt heap" : fi ? "Min vapaa heap" : "Мін. вільна heap";
+  if (strcmp(key, "legend") == 0) return en ? "Legend (click to toggle)" : no ? "Forklaring (klikk for av/på)" : da ? "Forklaring (klik for til/fra)" : sv ? "Forklaring (klicka for pa/av)" : fi ? "Selite (napsauta paalle/pois)" : "Легенда (натисніть для вкл/викл)";
   return String(key);
 }
 
@@ -195,28 +298,9 @@ static String buildStatusJson(bool pretty)
   String model = jsonEscape(g_data.device_model);
   String fw = jsonEscape(String(FW_VERSION));
 
-  uint64_t tsEpochMs = 0;
-  {
-    struct timeval tv;
-    if (gettimeofday(&tv, nullptr) == 0)
-    {
-      tsEpochMs = ((uint64_t)tv.tv_sec * 1000ULL) + ((uint64_t)tv.tv_usec / 1000ULL);
-    }
-  }
-
-  String tsIso = "";
-  {
-    time_t now = time(nullptr);
-    if (now > 100000)
-    {
-      struct tm tmv;
-      localtime_r(&now, &tmv);
-      char b[40];
-      strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S%z", &tmv);
-      tsIso = b;
-    }
-  }
-  tsIso = jsonEscape(tsIso);
+  const uint64_t tsEpochMs = nowEpochMs();
+  String tsIso = jsonEscape(isoFromEpochMs(tsEpochMs));
+  const bool stale = (g_mb.indexOf("stale") >= 0);
 
   auto fOrNull = [](float v) -> String {
     if (isnan(v)) return "null";
@@ -238,6 +322,7 @@ static String buildStatusJson(bool pretty)
       "{"
         "\"ts_epoch_ms\":%llu,"
         "\"ts_iso\":\"%s\","
+        "\"stale\":%s,"
         "\"time\":\"%s\","
         "\"mode\":\"%s\","
         "\"uteluft\":%s,"
@@ -255,6 +340,7 @@ static String buildStatusJson(bool pretty)
       "}",
       (unsigned long long)tsEpochMs,
       tsIso.c_str(),
+      stale ? "true" : "false",
       time.c_str(),
       mode.c_str(),
       ut.c_str(),
@@ -277,6 +363,7 @@ static String buildStatusJson(bool pretty)
     "{\n"
     "  \"ts_epoch_ms\": %llu,\n"
     "  \"ts_iso\": \"%s\",\n"
+    "  \"stale\": %s,\n"
     "  \"time\": \"%s\",\n"
     "  \"mode\": \"%s\",\n"
     "  \"uteluft\": %s,\n"
@@ -294,6 +381,7 @@ static String buildStatusJson(bool pretty)
     "}\n",
     (unsigned long long)tsEpochMs,
     tsIso.c_str(),
+    stale ? "true" : "false",
     time.c_str(),
     mode.c_str(),
     ut.c_str(),
@@ -335,6 +423,189 @@ static void handleStatus()
   server.send(200, "application/json", buildStatusJson(pretty));
 }
 
+static void handleStatusHistory()
+{
+  if (!g_cfg->homey_enabled && !g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "api disabled");
+    return;
+  }
+  if (!tokenOK())
+  {
+    server.send(401, "text/plain", "missing/invalid token");
+    return;
+  }
+
+  int limit = 120;
+  if (server.hasArg("limit")) limit = server.arg("limit").toInt();
+  if (limit < 1) limit = 1;
+  if (limit > (int)HISTORY_CAP) limit = (int)HISTORY_CAP;
+  if (limit > (int)g_hist_count) limit = (int)g_hist_count;
+
+  String out;
+  out.reserve((size_t)limit * 180 + 256);
+  out += "{\"count\":";
+  out += String(limit);
+  out += ",\"items\":[";
+
+  const size_t start = g_hist_count - (size_t)limit;
+  for (size_t i = 0; i < (size_t)limit; i++)
+  {
+    const size_t logical = start + i;
+    const size_t idx = (g_hist_head + HISTORY_CAP - g_hist_count + logical) % HISTORY_CAP;
+    const StatusSnapshot& s = g_hist[idx];
+
+    auto fOrNull = [](float v) -> String {
+      if (isnan(v)) return "null";
+      char t[24];
+      snprintf(t, sizeof(t), "%.1f", v);
+      return String(t);
+    };
+
+    if (i) out += ",";
+    out += "{";
+    out += "\"ts_epoch_ms\":";
+    out += u64ToString(s.ts_epoch_ms);
+    out += ",\"ts_iso\":\"";
+    out += jsonEscape(isoFromEpochMs(s.ts_epoch_ms));
+    out += "\",\"mode\":\"";
+    out += jsonEscape(String(s.mode));
+    out += "\",\"uteluft\":";
+    out += fOrNull(s.uteluft);
+    out += ",\"tilluft\":";
+    out += fOrNull(s.tilluft);
+    out += ",\"avtrekk\":";
+    out += fOrNull(s.avtrekk);
+    out += ",\"avkast\":";
+    out += fOrNull(s.avkast);
+    out += ",\"fan\":";
+    out += String(s.fan);
+    out += ",\"heat\":";
+    out += String(s.heat);
+    out += ",\"efficiency\":";
+    out += String(s.efficiency);
+    out += ",\"modbus\":\"";
+    out += jsonEscape(String(s.modbus));
+    out += "\",\"stale\":";
+    out += (s.stale ? "true" : "false");
+    out += "}";
+  }
+
+  out += "]}";
+  server.send(200, "application/json", out);
+}
+
+static void handleStatusDiag()
+{
+  if (!g_cfg->homey_enabled && !g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "api disabled");
+    return;
+  }
+  if (!tokenOK())
+  {
+    server.send(401, "text/plain", "missing/invalid token");
+    return;
+  }
+
+  String out;
+  out.reserve(420);
+  out += "{";
+  out += "\"fw\":\"" + jsonEscape(String(FW_VERSION)) + "\",";
+  out += "\"total_updates\":" + String(g_diag_total_updates) + ",";
+  out += "\"mb_ok\":" + String(g_diag_mb_ok) + ",";
+  out += "\"mb_err\":" + String(g_diag_mb_err) + ",";
+  out += "\"mb_off\":" + String(g_diag_mb_off) + ",";
+  out += "\"stale\":" + String(g_diag_stale) + ",";
+  out += "\"last_mb\":\"" + jsonEscape(g_diag_last_mb) + "\",";
+  out += "\"last_sample_epoch_ms\":" + u64ToString(g_diag_last_sample_ms);
+  out += "}";
+  server.send(200, "application/json", out);
+}
+
+static void handleStatusStorage()
+{
+  if (!g_cfg->homey_enabled && !g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "api disabled");
+    return;
+  }
+  if (!tokenOK())
+  {
+    server.send(401, "text/plain", "missing/invalid token");
+    return;
+  }
+
+  String out;
+  out.reserve(360);
+  out += "{";
+  out += "\"history_cap\":" + String((unsigned long)HISTORY_CAP) + ",";
+  out += "\"history_count\":" + String((unsigned long)g_hist_count) + ",";
+  out += "\"history_memory_bytes\":" + String(historyMemoryBytes()) + ",";
+  out += "\"history_storage\":\"ram_only\",";
+  out += "\"free_heap_bytes\":" + String(ESP.getFreeHeap()) + ",";
+  out += "\"min_free_heap_bytes\":" + String(ESP.getMinFreeHeap()) + ",";
+  out += "\"free_psram_bytes\":" + String(ESP.getFreePsram());
+  out += "}";
+  server.send(200, "application/json", out);
+}
+
+static void handleStatusHistoryCsv()
+{
+  if (!g_cfg->homey_enabled && !g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "api disabled");
+    return;
+  }
+  if (!tokenOK())
+  {
+    server.send(401, "text/plain", "missing/invalid token");
+    return;
+  }
+
+  int limit = 240;
+  if (server.hasArg("limit")) limit = server.arg("limit").toInt();
+  if (limit < 1) limit = 1;
+  if (limit > (int)HISTORY_CAP) limit = (int)HISTORY_CAP;
+  if (limit > (int)g_hist_count) limit = (int)g_hist_count;
+
+  String out;
+  out.reserve((size_t)limit * 110 + 200);
+  out += "ts_epoch_ms,ts_iso,mode,uteluft,tilluft,avtrekk,avkast,fan,heat,efficiency,modbus,stale\n";
+
+  const size_t start = g_hist_count - (size_t)limit;
+  for (size_t i = 0; i < (size_t)limit; i++)
+  {
+    const size_t logical = start + i;
+    const size_t idx = (g_hist_head + HISTORY_CAP - g_hist_count + logical) % HISTORY_CAP;
+    const StatusSnapshot& s = g_hist[idx];
+
+    auto fCsv = [](float v) -> String {
+      if (isnan(v)) return "";
+      char t[24];
+      snprintf(t, sizeof(t), "%.1f", v);
+      return String(t);
+    };
+
+    out += u64ToString(s.ts_epoch_ms) + ",";
+    out += isoFromEpochMs(s.ts_epoch_ms) + ",";
+    out += String(s.mode) + ",";
+    out += fCsv(s.uteluft) + ",";
+    out += fCsv(s.tilluft) + ",";
+    out += fCsv(s.avtrekk) + ",";
+    out += fCsv(s.avkast) + ",";
+    out += String(s.fan) + ",";
+    out += String(s.heat) + ",";
+    out += String(s.efficiency) + ",";
+    out += String(s.modbus) + ",";
+    out += (s.stale ? "1" : "0");
+    out += "\n";
+  }
+
+  server.sendHeader("Content-Disposition", "attachment; filename=ventreader_history.csv");
+  server.send(200, "text/csv", out);
+}
+
 static void applyModbusApiRuntime()
 {
   FlexitModbusRuntimeConfig mcfg;
@@ -356,6 +627,26 @@ static void handleHaStatus()
     return;
   }
   handleStatus();
+}
+
+static void handleHaHistory()
+{
+  if (!g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "home assistant/api disabled");
+    return;
+  }
+  handleStatusHistory();
+}
+
+static void handleHaHistoryCsv()
+{
+  if (!g_cfg->ha_enabled)
+  {
+    server.send(403, "text/plain", "home assistant/api disabled");
+    return;
+  }
+  handleStatusHistoryCsv();
 }
 
 static void handleControlMode()
@@ -396,6 +687,43 @@ static void handleControlSetpoint()
   }
 
   server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleAdminControlMode()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled || !server.hasArg("mode"))
+  {
+    redirectTo("/admin");
+    return;
+  }
+
+  applyModbusApiRuntime();
+  if (!flexit_modbus_write_mode(server.arg("mode")))
+  {
+    server.send(500, "text/plain", String("control mode failed: ") + flexit_modbus_last_error());
+    return;
+  }
+  redirectTo("/admin");
+}
+
+static void handleAdminControlSetpoint()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled ||
+      !server.hasArg("profile") || !server.hasArg("value"))
+  {
+    redirectTo("/admin");
+    return;
+  }
+
+  applyModbusApiRuntime();
+  if (!flexit_modbus_write_setpoint(server.arg("profile"), server.arg("value").toFloat()))
+  {
+    server.send(500, "text/plain", String("control setpoint failed: ") + flexit_modbus_last_error());
+    return;
+  }
+  redirectTo("/admin");
 }
 
 static String pageHeader(const String& title, const String& subtitle = "")
@@ -808,6 +1136,32 @@ static void handleAdmin()
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
   s += "</div>";
 
+  // Quick control panel (next-level UX)
+  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
+  if (g_cfg->modbus_enabled && g_cfg->control_enabled)
+  {
+    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
+    s += "<div class='actions'>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
+    s += "</div>";
+    s += "<div class='sep-gold'></div>";
+    s += "<form method='POST' action='/admin/control/setpoint'>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
+    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
+    s += "</div>";
+    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
+    s += "</form>";
+  }
+  else
+  {
+    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
+  }
+  s += "</div>";
+
   // Admin password
   s += "<div class='card'><h2>Sikkerhet</h2>";
   s += "<label>Nytt admin-passord</label><input name='np1' type='password'>";
@@ -820,6 +1174,7 @@ static void handleAdmin()
   s += "<div class='actions'>";
   s += "<button class='btn' type='submit'>Lagre</button>";
   s += "<a class='btn secondary' href='/admin/manual'>" + tr("manual") + "</a>";
+  s += "<a class='btn secondary' href='/admin/graphs'>" + tr("graphs") + "</a>";
   s += "<a class='btn secondary' href='/admin/ota'>" + tr("ota") + "</a>";
   s += "<a class='btn secondary' href='/'>" + tr("back_home") + "</a>";
   s += "</div>";
@@ -852,12 +1207,12 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
-  s += "<div><strong>v3.5.0</strong></div>";
+  s += "<div><strong>v3.6.0</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Status-JSON har nå ts_epoch_ms/ts_iso for grafer, samt forbedret språkstyring i admin og ePaper.";
+    s += "Status/History/Diag API, hurtigstyring i admin, graf-side i admin og bedre språkstyring i admin/ePaper.";
   else
-    s += "Status JSON now includes ts_epoch_ms/ts_iso for graphing, plus improved language coverage in admin and ePaper.";
+    s += "Status/History/Diag APIs, quick control and graphs page in admin, plus improved language coverage in admin/ePaper.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>v3.1.0</strong></div>";
@@ -930,6 +1285,76 @@ static void handleAdminManual()
   s += "</div>";
 
   s += "</div>";
+  s += pageFooter();
+  server.send(200, "text/html", s);
+}
+
+static void handleAdminGraphs()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed)
+  {
+    redirectTo("/admin/setup?step=1");
+    return;
+  }
+
+  String s = pageHeader(tr("graphs"), tr("history_graphs_subtitle"));
+  s += "<div class='grid'>";
+  s += "<div class='card'><h2>" + tr("history_graphs_title") + "</h2>";
+  s += "<div class='row'>";
+  s += "<div><label>" + tr("history_limit") + "</label><input id='limit' type='number' min='20' max='720' value='240'></div>";
+  s += "<div style='display:flex;align-items:end'><button class='btn secondary' type='button' onclick='loadHist()'>" + tr("refresh") + "</button></div>";
+  s += "<div style='display:flex;align-items:end'><button class='btn secondary' type='button' onclick='downloadCsv()'>" + tr("export_csv") + "</button></div>";
+  s += "</div>";
+  s += "<div class='help' id='state'>" + tr("loading") + "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div class='help'><strong>" + tr("legend") + "</strong></div>";
+  s += "<div id='legend' class='actions' style='margin-top:8px'></div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><div class='help'><strong>" + tr("temp_graph") + "</strong></div><canvas id='temp' width='860' height='260' style='width:100%;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(194,161,126,.10), rgba(194,161,126,.02));box-shadow:inset 0 0 0 1px rgba(194,161,126,.18)'></canvas></div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><div class='help'><strong>" + tr("perf_graph") + "</strong></div><canvas id='perf' width='860' height='220' style='width:100%;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(194,161,126,.10), rgba(194,161,126,.02));box-shadow:inset 0 0 0 1px rgba(194,161,126,.18)'></canvas></div>";
+  s += "</div>";
+
+  s += "<div class='card'><h2>" + tr("storage_status") + "</h2>";
+  s += "<div class='kpi'>";
+  s += "<div class='kv'><div class='k'>" + tr("history_points") + "</div><div id='st_points' class='v'>-</div></div>";
+  s += "<div class='kv'><div class='k'>" + tr("history_mem") + "</div><div id='st_mem' class='v'>-</div></div>";
+  s += "<div class='kv'><div class='k'>" + tr("heap_free") + "</div><div id='st_heap' class='v'>-</div></div>";
+  s += "<div class='kv'><div class='k'>" + tr("heap_min") + "</div><div id='st_heap_min' class='v'>-</div></div>";
+  s += "</div>";
+  s += "<div class='help'>" + tr("history_ram_only") + "</div>";
+  s += "<div class='actions'><a class='btn' href='/admin'>" + tr("to_admin_page") + "</a></div>";
+  s += "</div>";
+  s += "</div>";
+
+  const String token = jsonEscape(g_cfg->api_token);
+  s += "<script>";
+  s += "const API_TOKEN='" + token + "';";
+  s += "const SERIES=["
+       "{k:'uteluft',c:'#0ea5e9',g:'temp',n:'UTELUFT',on:true},"
+       "{k:'tilluft',c:'#22c55e',g:'temp',n:'TILLUFT',on:true},"
+       "{k:'avtrekk',c:'#f59e0b',g:'temp',n:'AVTREKK',on:true},"
+       "{k:'avkast',c:'#6366f1',g:'temp',n:'AVKAST',on:true},"
+       "{k:'fan',c:'#111827',g:'perf',n:'FAN %',on:true},"
+       "{k:'heat',c:'#ef4444',g:'perf',n:'HEAT %',on:true},"
+       "{k:'efficiency',c:'#16a34a',g:'perf',n:'EFF %',on:true}"
+       "];";
+  s += "let LAST=[];";
+  s += "function drawLine(ctx,pts,color){if(pts.length<2)return;ctx.strokeStyle=color;ctx.lineWidth=2.25;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();}";
+  s += "function scale(v,min,max,h,pad){if(v===null||isNaN(v))return null; if(max<=min) return h/2; return pad + (h-pad*2) * (1 - ((v-min)/(max-min)));}";
+  s += "function paintGrid(ctx,w,h,p){ctx.strokeStyle='rgba(107,114,128,.35)';ctx.lineWidth=1;for(let i=0;i<5;i++){const y=p + (h-p*2)*i/4;ctx.beginPath();ctx.moveTo(p,y);ctx.lineTo(w-p,y);ctx.stroke();}}";
+  s += "function drawSeries(canvasId,items,series){const c=document.getElementById(canvasId);const ctx=c.getContext('2d');const w=c.width,h=c.height,p=20;ctx.clearRect(0,0,w,h);ctx.fillStyle='rgba(255,255,255,0.86)';ctx.fillRect(0,0,w,h);paintGrid(ctx,w,h,p);const active=series.filter(s=>s.on);if(!items.length||!active.length)return;let mn=Infinity,mx=-Infinity;for(const it of items){for(const s of active){const v=it[s.k];if(v!==null&&Number.isFinite(v)){mn=Math.min(mn,v);mx=Math.max(mx,v);}}}if(!Number.isFinite(mn)||!Number.isFinite(mx)){mn=0;mx=1;}if(mx-mn<1)mx=mn+1;for(const s of active){const pts=[];for(let n=0;n<items.length;n++){const x=p + (items.length===1?0:((w-p*2)*n/(items.length-1)));const y=scale(items[n][s.k],mn,mx,h,p);if(y!==null)pts.push([x,y]);}drawLine(ctx,pts,s.c);}ctx.fillStyle='#52525b';ctx.font='12px sans-serif';ctx.fillText(mn.toFixed(1),4,h-6);ctx.fillText(mx.toFixed(1),4,14);}";
+  s += "function renderLegend(){const host=document.getElementById('legend');host.innerHTML='';for(const s of SERIES){const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.borderColor=s.c;b.style.color=s.on?s.c:'#6b7280';b.style.background=s.on?'rgba(194,161,126,.12)':'transparent';b.style.padding='7px 10px';b.style.fontSize='12px';b.textContent=s.n;b.onclick=()=>{s.on=!s.on;renderLegend();renderCharts();};host.appendChild(b);}}";
+  s += "function renderCharts(){drawSeries('temp',LAST,SERIES.filter(s=>s.g==='temp'));drawSeries('perf',LAST,SERIES.filter(s=>s.g==='perf'));}";
+  s += "function fmtBytes(v){if(!Number.isFinite(v))return '-'; if(v>1024*1024)return (v/1048576).toFixed(2)+' MB'; if(v>1024)return (v/1024).toFixed(1)+' KB'; return v+' B';}";
+  s += "async function loadStorage(){try{const r=await fetch('/status/storage?token='+encodeURIComponent(API_TOKEN));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();document.getElementById('st_points').textContent=(j.history_count||0)+' / '+(j.history_cap||0);document.getElementById('st_mem').textContent=fmtBytes(j.history_memory_bytes||0);document.getElementById('st_heap').textContent=fmtBytes(j.free_heap_bytes||0);document.getElementById('st_heap_min').textContent=fmtBytes(j.min_free_heap_bytes||0);}catch(e){document.getElementById('st_points').textContent='ERR';}}";
+  s += "function downloadCsv(){const lim=document.getElementById('limit').value||240;window.location='/status/history.csv?token='+encodeURIComponent(API_TOKEN)+'&limit='+encodeURIComponent(lim);}";
+  s += "async function loadHist(){const state=document.getElementById('state');const lim=document.getElementById('limit').value||240;state.textContent='" + tr("loading") + "';try{const r=await fetch('/status/history?token='+encodeURIComponent(API_TOKEN)+'&limit='+encodeURIComponent(lim));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();LAST=j.items||[];renderCharts();state.textContent='OK: '+LAST.length+' pts';}catch(e){state.textContent='ERR: '+e.message;}}";
+  s += "renderLegend();";
+  s += "loadStorage();";
+  s += "loadHist();";
+  s += "</script>";
   s += pageFooter();
   server.send(200, "text/html", s);
 }
@@ -1124,6 +1549,15 @@ void webportal_set_data(const FlexitData& data, const String& mbStatus)
 {
   g_data = data;
   g_mb = mbStatus;
+  historyPush(data, mbStatus);
+
+  g_diag_total_updates++;
+  g_diag_last_mb = mbStatus;
+  g_diag_last_sample_ms = nowEpochMs();
+  if (mbStatus == "MB OFF") g_diag_mb_off++;
+  else if (mbStatus.startsWith("MB OK")) g_diag_mb_ok++;
+  else g_diag_mb_err++;
+  if (mbStatus.indexOf("stale") >= 0) g_diag_stale++;
 }
 
 bool webportal_sta_connected() { return (WiFi.status() == WL_CONNECTED); }
@@ -1153,15 +1587,24 @@ void webportal_begin(DeviceConfig& cfg)
     }
     handleStatus();
   });
+  server.on("/status/history", HTTP_GET, handleStatusHistory);
+  server.on("/status/history.csv", HTTP_GET, handleStatusHistoryCsv);
+  server.on("/status/diag", HTTP_GET, handleStatusDiag);
+  server.on("/status/storage", HTTP_GET, handleStatusStorage);
   server.on("/ha/status", HTTP_GET, handleHaStatus);
+  server.on("/ha/history", HTTP_GET, handleHaHistory);
+  server.on("/ha/history.csv", HTTP_GET, handleHaHistoryCsv);
   server.on("/api/control/mode", HTTP_POST, handleControlMode);
   server.on("/api/control/setpoint", HTTP_POST, handleControlSetpoint);
 
   // Admin
   server.on("/admin", HTTP_GET, handleAdmin);
   server.on("/admin/manual", HTTP_GET, handleAdminManual);
+  server.on("/admin/graphs", HTTP_GET, handleAdminGraphs);
   server.on("/admin/lang", HTTP_POST, handleAdminLang);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
+  server.on("/admin/control/mode", HTTP_POST, handleAdminControlMode);
+  server.on("/admin/control/setpoint", HTTP_POST, handleAdminControlSetpoint);
   server.on("/admin/ota", HTTP_GET, handleAdminOta);
   server.on("/admin/ota_upload", HTTP_POST, handleAdminOtaUploadDone, handleAdminOtaUploadStream);
   server.on("/admin/reboot", HTTP_POST, handleReboot);
