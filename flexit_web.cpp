@@ -23,6 +23,11 @@ static bool startsWithHttp(const String& s)
   return s.startsWith("http://") || s.startsWith("https://");
 }
 
+static void setErr(const String& stage, const String& msg)
+{
+  g_last_error = stage + ": " + msg;
+}
+
 static int findKeyPos(const String& json, const String& key)
 {
   int k = json.indexOf(String("\"") + key + "\"");
@@ -114,37 +119,45 @@ static bool jsonGetDataPointString(const String& json, int pointId, String& out)
   return jsonGetDataPointRaw(json, pointId, out);
 }
 
-static bool httpPostJson(const String& url, const String& body, String& resp, int& httpCode)
+static bool httpPostJson(const String& stage, const String& url, const String& body, String& resp, int& httpCode)
 {
   WiFiClientSecure cli;
   cli.setInsecure();
   HTTPClient http;
   if (!http.begin(cli, url))
   {
-    g_last_error = "auth begin failed";
+    setErr(stage, "begin failed");
     return false;
   }
   http.addHeader("Content-Type", "application/json");
   httpCode = http.POST(body);
   resp = http.getString();
   http.end();
+  if (httpCode <= 0)
+  {
+    setErr(stage, String("transport ") + HTTPClient::errorToString(httpCode) + " (" + String(httpCode) + ")");
+  }
   return (httpCode > 0);
 }
 
-static bool httpGetAuth(const String& url, const String& bearer, String& resp, int& httpCode)
+static bool httpGetAuth(const String& stage, const String& url, const String& bearer, String& resp, int& httpCode)
 {
   WiFiClientSecure cli;
   cli.setInsecure();
   HTTPClient http;
   if (!http.begin(cli, url))
   {
-    g_last_error = "get begin failed";
+    setErr(stage, "begin failed");
     return false;
   }
   if (bearer.length() > 0) http.addHeader("Authorization", String("Bearer ") + bearer);
   httpCode = http.GET();
   resp = http.getString();
   http.end();
+  if (httpCode <= 0)
+  {
+    setErr(stage, String("transport ") + HTTPClient::errorToString(httpCode) + " (" + String(httpCode) + ")");
+  }
   return (httpCode > 0);
 }
 
@@ -155,12 +168,12 @@ static bool authenticate()
   const String authUrl = trimCopy(g_cfg_web.flexitweb_auth_url);
   if (user.length() == 0 || pass.length() == 0)
   {
-    g_last_error = "missing credentials";
+    setErr("CFG", "missing credentials");
     return false;
   }
   if (!startsWithHttp(authUrl))
   {
-    g_last_error = "bad auth URL";
+    setErr("CFG", "bad auth URL");
     return false;
   }
 
@@ -168,11 +181,11 @@ static bool authenticate()
   int code = 0;
 
   String body = String("{\"Email\":\"") + user + "\",\"Password\":\"" + pass + "\"}";
-  if (!httpPostJson(authUrl, body, resp, code))
+  if (!httpPostJson("AUTH", authUrl, body, resp, code))
     return false;
   if (code < 200 || code >= 300)
   {
-    g_last_error = String("auth HTTP ") + code;
+    setErr("AUTH", String("HTTP ") + code);
     return false;
   }
 
@@ -181,7 +194,7 @@ static bool authenticate()
   if (token.length() == 0) token = jsonGetString(resp, "access_token");
   if (token.length() == 0)
   {
-    g_last_error = "auth token missing";
+    setErr("AUTH", "token missing in response");
     return false;
   }
 
@@ -205,7 +218,7 @@ static bool ensureSerial()
   String serial = trimCopy(g_cfg_web.flexitweb_serial);
   if (serial.length() == 0)
   {
-    g_last_error = "serial required";
+    setErr("CFG", "serial required");
     return false;
   }
   g_cached_serial = serial;
@@ -245,12 +258,12 @@ bool flexit_web_poll(FlexitData& out)
 {
   if (WiFi.status() != WL_CONNECTED)
   {
-    g_last_error = "no WiFi";
+    setErr("NET", "no WiFi");
     return false;
   }
   if (!flexit_web_is_ready())
   {
-    g_last_error = "not configured";
+    setErr("CFG", "not configured");
     return false;
   }
   if (!ensureToken()) return false;
@@ -259,22 +272,22 @@ bool flexit_web_poll(FlexitData& out)
   String url = buildDatapointUrl(g_cached_serial);
   if (!startsWithHttp(url))
   {
-    g_last_error = "bad datapoint URL";
+    setErr("CFG", "bad datapoint URL");
     return false;
   }
 
   String resp;
   int code = 0;
-  if (!httpGetAuth(url, g_token, resp, code))
+  if (!httpGetAuth("DATA", url, g_token, resp, code))
     return false;
   if (code == 401 || code == 403)
   {
     if (!authenticate()) return false;
-    if (!httpGetAuth(url, g_token, resp, code)) return false;
+    if (!httpGetAuth("DATA", url, g_token, resp, code)) return false;
   }
   if (code < 200 || code >= 300)
   {
-    g_last_error = String("datapoint HTTP ") + code;
+    setErr("DATA", String("HTTP ") + code);
     return false;
   }
 
@@ -298,7 +311,7 @@ bool flexit_web_poll(FlexitData& out)
 
   if (!any)
   {
-    g_last_error = "datapoints missing";
+    setErr("DATA", "datapoints missing/mismatch");
     return false;
   }
 

@@ -404,7 +404,13 @@ static void handleAdminFlexitWebTest()
   FlexitData t = g_data;
   if (!runFlexitWebPreflight(tmp, &t, &why))
   {
-    server.send(200, "application/json", String("{\"ok\":false,\"error\":\"") + jsonEscape(why) + "\"}");
+    String out = "{\"ok\":false";
+    out += ",\"error\":\"" + jsonEscape(why) + "\"";
+    out += ",\"serial\":\"" + jsonEscape(tmp.flexitweb_serial) + "\"";
+    out += ",\"auth_url\":\"" + jsonEscape(tmp.flexitweb_auth_url) + "\"";
+    out += ",\"data_url\":\"" + jsonEscape(tmp.flexitweb_datapoint_url) + "\"";
+    out += "}";
+    server.send(200, "application/json", out);
     return;
   }
 
@@ -1479,7 +1485,7 @@ static void handleAdminSetup()
          "fd.forEach(function(v,k){if(typeof v==='string')body.append(k,v);});"
          "var r=await fetch('/admin/test_flexitweb',{method:'POST',credentials:'same-origin',body:body});"
          "var j=await r.json();"
-         "if(!j.ok){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+(j.error||'ukjent feil');}return;}"
+         "if(!j.ok){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+(j.error||'ukjent feil')+(j.serial?(' | serial='+j.serial):'');}return;}"
          "if(target){target.style.color='#166534';target.textContent='FlexitWeb OK. Modus '+(j.data&&j.data.mode?j.data.mode:'N/A')+', tilluft '+(j.data&&j.data.tilluft!==null?j.data.tilluft:'-')+' C.';}"
          "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+e.message;}}"
          "};"
@@ -1732,7 +1738,7 @@ static void handleAdmin()
        "fd.forEach(function(v,k){if(typeof v==='string')body.append(k,v);});"
        "var r=await fetch('/admin/test_flexitweb',{method:'POST',credentials:'same-origin',body:body});"
        "var j=await r.json();"
-       "if(!j.ok){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+(j.error||'ukjent feil');}return;}"
+       "if(!j.ok){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+(j.error||'ukjent feil')+(j.serial?(' | serial='+j.serial):'');}return;}"
        "if(target){target.style.color='#166534';target.textContent='FlexitWeb OK. Modus '+(j.data&&j.data.mode?j.data.mode:'N/A')+', tilluft '+(j.data&&j.data.tilluft!==null?j.data.tilluft:'-')+' C.';}"
        "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+e.message;}}"
        "};"
