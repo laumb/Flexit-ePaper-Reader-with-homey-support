@@ -27,6 +27,39 @@ GxEPD2_BW<GxEPD2_420_GDEY042T81, GxEPD2_420_GDEY042T81::HEIGHT> display(
 );
 
 static uint32_t refreshCount = 0;
+static String g_ui_lang = "no";
+
+static String normLang(const String& in)
+{
+  if (in == "no" || in == "da" || in == "sv" || in == "fi" || in == "en" || in == "uk") return in;
+  return "no";
+}
+
+static String tr(const char* key)
+{
+  String k = String(key);
+  const String l = g_ui_lang;
+  const bool en = (l == "en");
+  const bool no = (l == "no");
+  const bool da = (l == "da");
+  const bool sv = (l == "sv");
+  const bool fi = (l == "fi");
+  const bool uk = (l == "uk");
+
+  if (k == "mode") return en ? "MODE" : no ? "MODUS" : da ? "TILSTAND" : sv ? "LAGE" : fi ? "TILA" : "MODE";
+  if (k == "fan") return en ? "FAN" : no ? "VIFTE" : da ? "BLAES" : sv ? "FLAKT" : fi ? "PUHALLIN" : "FAN";
+  if (k == "eff") return en ? "EFF" : no ? "GJENV" : da ? "GENV" : sv ? "ATERV" : fi ? "HYOTY" : "EFF";
+  if (k == "outdoor") return en ? "OUTSIDE" : no ? "UTELUFT" : da ? "UDELUFT" : sv ? "UTELUFT" : fi ? "ULKOILMA" : "OUTSIDE";
+  if (k == "supply") return en ? "SUPPLY" : no ? "TILLUFT" : da ? "TILLUFT" : sv ? "TILLUFT" : fi ? "TULOILMA" : "SUPPLY";
+  if (k == "extract") return en ? "EXTRACT" : no ? "AVTREKK" : da ? "AFTRAEK" : sv ? "FRANLUFT" : fi ? "POISTOILMA" : "EXTRACT";
+  if (k == "exhaust") return en ? "EXHAUST" : no ? "AVKAST" : da ? "AFKAST" : sv ? "AVLUFT" : fi ? "JATEILMA" : "EXHAUST";
+  if (k == "updated") return en ? "upd" : no ? "siste" : da ? "sidst" : sv ? "senast" : fi ? "paiv" : "upd";
+  if (k == "heat") return en ? "HEAT" : no ? "VARME" : da ? "VARME" : sv ? "VARME" : fi ? "LAMPO" : "HEAT";
+  if (k == "setup") return en ? "Setup" : no ? "Oppsett" : da ? "Opsaetning" : sv ? "Installation" : fi ? "Asennus" : "Setup";
+  if (k == "shipping_msg") return en ? "Device shipped without support." : no ? "Enheten leveres uten support." : da ? "Enheden leveres uden support." : sv ? "Enheten levereras utan support." : fi ? "Laite toimitetaan ilman tukea." : "Device shipped without support.";
+  if (k == "onboard_hint") return en ? "Connect WiFi and open URL in browser" : no ? "Koble til WiFi og apne URL i nettleser" : da ? "Tilslut WiFi og abn URL i browser" : sv ? "Anslut WiFi och oppna URL i webblasare" : fi ? "Yhdista WiFiin ja avaa URL selaimessa" : "Connect WiFi and open URL in browser";
+  return k;
+}
 
 static inline void setTextBlack() { display.setTextColor(GxEPD_BLACK); }
 static inline void setTextWhite() { display.setTextColor(GxEPD_WHITE); }
@@ -92,10 +125,10 @@ static void drawHeader(const FlexitData& d)
   setTextBlack();
 
   // chips line
-  drawChip(10, 38, 150, 22, String("MODE: ") + d.mode);
+  drawChip(10, 38, 150, 22, tr("mode") + String(": ") + d.mode);
   // FAN chip width fixed for 0-100%
-  drawChip(170, 38, 105, 22, String("FAN ") + d.fan_percent + "%");
-  drawChip(282, 38, 108, 22, String("GJENV ") + d.efficiency_percent + "%");
+  drawChip(170, 38, 105, 22, tr("fan") + String(" ") + d.fan_percent + "%");
+  drawChip(282, 38, 108, 22, tr("eff") + String(" ") + d.efficiency_percent + "%");
 }
 
 static void drawTempCard(int x, int y, const char* label, float value, IconType icon, const FlexitData& d)
@@ -125,7 +158,8 @@ static void drawTempCard(int x, int y, const char* label, float value, IconType 
 
   display.setFont(&FreeSans9pt7b);
   display.setCursor(x + 62, y + 84);
-  display.print("siste ");
+  display.print(tr("updated"));
+  display.print(" ");
   display.print(d.time);
 }
 
@@ -139,7 +173,7 @@ static void drawFooter(const FlexitData& d, const String& mbStatus)
   display.setFont(&FreeSans9pt7b);
 
   display.setCursor(10, y + 20);
-  display.print(String("HEAT ") + d.heat_element_percent + "%");
+  display.print(tr("heat") + String(" ") + d.heat_element_percent + "%");
 
   display.setCursor(120, y + 20);
   display.print(mbStatus);
@@ -155,6 +189,11 @@ void ui_init()
   SPI.begin(PIN_SCK, -1, PIN_MOSI, PIN_CS);
   display.init(115200);
   display.setRotation(2);
+}
+
+void ui_set_language(const String& lang)
+{
+  g_ui_lang = normLang(lang);
 }
 
 void ui_render(const FlexitData& d, const String& mbStatus)
@@ -175,10 +214,10 @@ void ui_render(const FlexitData& d, const String& mbStatus)
 
     drawHeader(d);
 
-    drawTempCard(5,   70,  "UTELUFT", d.uteluft, ICON_OUTDOOR, d);
-    drawTempCard(205, 70,  "TILLUFT", d.tilluft, ICON_SUPPLY,  d);
-    drawTempCard(5,   168, "AVTREKK", d.avtrekk, ICON_EXTRACT, d);
-    drawTempCard(205, 168, "AVKAST",  d.avkast,  ICON_EXHAUST, d);
+    drawTempCard(5,   70,  tr("outdoor").c_str(), d.uteluft, ICON_OUTDOOR, d);
+    drawTempCard(205, 70,  tr("supply").c_str(),  d.tilluft, ICON_SUPPLY,  d);
+    drawTempCard(5,   168, tr("extract").c_str(), d.avtrekk, ICON_EXTRACT, d);
+    drawTempCard(205, 168, tr("exhaust").c_str(), d.avkast,  ICON_EXHAUST, d);
 
     drawFooter(d, mbStatus);
 
@@ -259,11 +298,11 @@ void ui_render_onboarding(const String& apSsid, const String& apPass, const Stri
     // Title
     display.setFont(&FreeSansBold18pt7b);
     display.setCursor(10, 60);
-    display.print("Setup");
+    display.print(tr("setup"));
 
     // Cards
     drawOnboardingCard(10, 75, 380, 68, "WiFi (AP)", String("SSID: ") + apSsid + "\nPASS: " + apPass);
-    drawOnboardingCard(10, 150, 380, 68, "Adresse",String("IP: ") + ip + "\nUSER: admin  PASS: ventreader");
+    drawOnboardingCard(10, 150, 380, 68, "Adresse", String("IP: ") + ip + "\nUSER: admin  PASS: ventreader");
 
 #if UI_HAS_QR
     display.setFont(&FreeSans9pt7b);
@@ -273,7 +312,7 @@ void ui_render_onboarding(const String& apSsid, const String& apPass, const Stri
 #else
     display.setFont(&FreeSans9pt7b);
     display.setCursor(10, 240);
-    display.print("Enheten leveres uten support.");
+    display.print(tr("shipping_msg"));
 #endif
 
     // Footer hint
@@ -281,7 +320,7 @@ void ui_render_onboarding(const String& apSsid, const String& apPass, const Stri
     setTextWhite();
     display.setFont(&FreeSans9pt7b);
     display.setCursor(10, display.height()-10);
-    display.print("Koble til WiFi og åpne URL i nettleser");
+    display.print(tr("onboard_hint"));
 
     setTextBlack();
   } while (display.nextPage());

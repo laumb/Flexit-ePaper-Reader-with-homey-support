@@ -4,6 +4,7 @@
 
 // Init ePaper + fonts
 void ui_init();
+void ui_set_language(const String& lang);
 
 // Render main dashboard
 void ui_render(const FlexitData& d, const String& mbStatus);

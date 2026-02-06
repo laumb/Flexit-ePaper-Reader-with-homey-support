@@ -113,6 +113,7 @@ static bool hasLastGoodModbusData = false;
 // UI refresh every 10 minutes
 static uint32_t UI_REFRESH_MS = 10UL * 60UL * 1000UL;
 static uint32_t lastRefresh = 0;
+static String lastUiLanguageApplied = "";
 
 static String modelLabel(const String& key)
 {
@@ -229,6 +230,8 @@ void setup()
 ui_epaper_hard_clear();
 
   ui_init();
+  ui_set_language(cfg.ui_language);
+  lastUiLanguageApplied = cfg.ui_language;
 
   // Apply poll interval from config
   UI_REFRESH_MS = cfg.poll_interval_ms;
@@ -287,6 +290,8 @@ webportal_begin(cfg);
   // Only show dashboard after wizard is completed
   if (setup_done)
   {
+    ui_set_language(cfg.ui_language);
+    lastUiLanguageApplied = cfg.ui_language;
     ui_render(data, mbStatus);
   }
   webportal_set_data(data, mbStatus);
@@ -302,6 +307,14 @@ void loop()
   // Arduino OTA (enabled when on network)
   ArduinoOTA.handle();
 
+  // Apply language changes from admin immediately on ePaper, without waiting for poll interval.
+  if (cfg.setup_completed && cfg.ui_language != lastUiLanguageApplied)
+  {
+    ui_set_language(cfg.ui_language);
+    lastUiLanguageApplied = cfg.ui_language;
+    ui_render(data, mbStatus);
+  }
+
   if (millis() - lastRefresh >= UI_REFRESH_MS)
   {
     lastRefresh = millis();
@@ -312,6 +325,8 @@ void loop()
     updateDataFromModbusOrFallback();
     if (cfg.setup_completed)
     {
+      ui_set_language(cfg.ui_language);
+      lastUiLanguageApplied = cfg.ui_language;
       ui_render(data, mbStatus);
     }
 

@@ -85,6 +85,39 @@ static String tr(const char* key)
   if (strcmp(key, "poll_sec") == 0) return en ? "Update interval (sec)" : no ? "Oppdateringsintervall (sek)" : da ? "Opdateringsinterval (sek)" : sv ? "Uppdateringsintervall (sek)" : fi ? "Päivitysväli (s)" : "Інтервал оновлення (с)";
   if (strcmp(key, "language") == 0) return en ? "Language" : no ? "Språk" : da ? "Sprog" : sv ? "Språk" : fi ? "Kieli" : "Мова";
   if (strcmp(key, "control_enable") == 0) return en ? "Enable remote control writes (experimental)" : no ? "Aktiver fjernstyring med skriv (experimental)" : da ? "Aktivér fjernstyring med skriv (experimental)" : sv ? "Aktivera fjärrstyrning med skrivning (experimental)" : fi ? "Salli etäohjaus kirjoituksilla (experimental)" : "Увімкнути віддалене керування записом (experimental)";
+  if (strcmp(key, "admin") == 0) return en ? "Admin" : no ? "Admin" : da ? "Admin" : sv ? "Admin" : fi ? "Admin" : "Адмін";
+  if (strcmp(key, "restart") == 0) return en ? "Restart" : no ? "Restart" : da ? "Genstart" : sv ? "Starta om" : fi ? "Kaynnista uudelleen" : "Перезапуск";
+  if (strcmp(key, "factory_reset") == 0) return en ? "Factory reset" : no ? "Factory reset" : da ? "Fabriksnulstilling" : sv ? "Fabriksaterstallning" : fi ? "Tehdasasetusten palautus" : "Скидання до заводських";
+  if (strcmp(key, "restart_now") == 0) return en ? "Restart device now" : no ? "Restart enheten nå" : da ? "Genstart enheden nu" : sv ? "Starta om enheten nu" : fi ? "Kaynnista laite uudelleen nyt" : "Перезапустити пристрій зараз";
+  if (strcmp(key, "admin_portal") == 0) return en ? "Admin portal" : no ? "Admin portal" : da ? "Admin portal" : sv ? "Adminportal" : fi ? "Yllapitoportaali" : "Адмін портал";
+  if (strcmp(key, "status") == 0) return en ? "Status" : no ? "Status" : da ? "Status" : sv ? "Status" : fi ? "Tila" : "Статус";
+  if (strcmp(key, "actions") == 0) return en ? "Actions" : no ? "Handlinger" : da ? "Handlinger" : sv ? "Atgarder" : fi ? "Toiminnot" : "Дії";
+  if (strcmp(key, "open_admin") == 0) return en ? "Open admin" : no ? "Åpne admin" : da ? "Aben admin" : sv ? "Oppna admin" : fi ? "Avaa admin" : "Відкрити адмін";
+  if (strcmp(key, "admin_protected") == 0) return en ? "Admin is password protected. On first login you must change password." : no ? "Admin er beskyttet med passord. Ved første innlogging må du endre passord." : da ? "Admin er adgangskodebeskyttet. Ved første login skal du ændre adgangskode." : sv ? "Admin ar losenskyddad. Vid forsta inloggning maste du byta losenord." : fi ? "Admin on suojattu salasanalla. Vaihda salasana ensimmaisella kirjautumisella." : "Адмін захищений паролем. Під час першого входу змініть пароль.";
+  if (strcmp(key, "manual") == 0) return en ? "Manual" : no ? "Brukermanual" : da ? "Brugermanual" : sv ? "Manual" : fi ? "Kayttoopas" : "Інструкція";
+  if (strcmp(key, "back_home") == 0) return en ? "Home" : no ? "Til start" : da ? "Til start" : sv ? "Till startsida" : fi ? "Etusivu" : "На головну";
+  if (strcmp(key, "saved") == 0) return en ? "Saved" : no ? "Lagret" : da ? "Gemt" : sv ? "Sparat" : fi ? "Tallennettu" : "Збережено";
+  if (strcmp(key, "password_updated") == 0) return en ? "Password updated. Log in again with your new password." : no ? "Passord er oppdatert. Logg inn på nytt med nytt passord." : da ? "Adgangskode opdateret. Log ind igen med ny adgangskode." : sv ? "Losenord uppdaterat. Logga in igen med nytt losenord." : fi ? "Salasana paivitetty. Kirjaudu uudelleen uudella salasanalla." : "Пароль оновлено. Увійдіть з новим паролем.";
+  if (strcmp(key, "settings_saved_restart_if_needed") == 0) return en ? "Settings saved. Restart the device if WiFi/network settings were changed." : no ? "Innstillinger er lagret. Restart enheten hvis WiFi eller nettverksvalg er endret." : da ? "Indstillinger gemt. Genstart enheden hvis WiFi/netværk er ændret." : sv ? "Installningar sparade. Starta om enheten om WiFi/natverk andrats." : fi ? "Asetukset tallennettu. Kaynnista laite uudelleen jos WiFi/verkko muuttui." : "Налаштування збережено. Перезапустіть пристрій, якщо змінено WiFi/мережу.";
+  if (strcmp(key, "to_admin") == 0) return en ? "Back to admin" : no ? "Til admin" : da ? "Til admin" : sv ? "Till admin" : fi ? "Takaisin adminiin" : "До адмін";
+  if (strcmp(key, "restarting_now") == 0) return en ? "Device is restarting now." : no ? "Enheten restarter nå." : da ? "Enheden genstarter nu." : sv ? "Enheten startar om nu." : fi ? "Laite kaynnistyy uudelleen nyt." : "Пристрій перезапускається.";
+  if (strcmp(key, "factory_reset_now") == 0) return en ? "Configuration is being erased. Device will restart now." : no ? "Konfigurasjon slettes. Enheten restarter nå." : da ? "Konfiguration slettes. Enheden genstarter nu." : sv ? "Konfiguration raderas. Enheten startar om nu." : fi ? "Asetukset poistetaan. Laite kaynnistyy uudelleen nyt." : "Конфігурацію видаляють. Пристрій перезапускається.";
+  if (strcmp(key, "ota") == 0) return en ? "OTA" : no ? "OTA" : da ? "OTA" : sv ? "OTA" : fi ? "OTA" : "OTA";
+  if (strcmp(key, "ota_upload_title") == 0) return en ? "OTA via file upload (.bin)" : no ? "OTA via filopplasting (.bin)" : da ? "OTA via filupload (.bin)" : sv ? "OTA via filuppladdning (.bin)" : fi ? "OTA tiedoston latauksella (.bin)" : "OTA через завантаження файлу (.bin)";
+  if (strcmp(key, "ota_upload_desc") == 0) return en ? "Upload ESP32 firmware file directly from browser." : no ? "Last opp firmwarefil for ESP32 direkte fra nettleser." : da ? "Upload firmwarefil til ESP32 direkte fra browser." : sv ? "Ladda upp firmwarefil for ESP32 direkt fran webblasare." : fi ? "Lataa ESP32-laiteohjelma selaimesta." : "Завантажте прошивку ESP32 з браузера.";
+  if (strcmp(key, "firmware_file") == 0) return en ? "Firmware file (.bin)" : no ? "Firmware-fil (.bin)" : da ? "Firmware-fil (.bin)" : sv ? "Firmware-fil (.bin)" : fi ? "Laiteohjelmatiedosto (.bin)" : "Файл прошивки (.bin)";
+  if (strcmp(key, "start_update") == 0) return en ? "Start update" : no ? "Start oppdatering" : da ? "Start opdatering" : sv ? "Starta uppdatering" : fi ? "Aloita paivitys" : "Почати оновлення";
+  if (strcmp(key, "ota_restart_done") == 0) return en ? "Device restarts automatically when update is done." : no ? "Enheten restarter automatisk når oppdateringen er ferdig." : da ? "Enheden genstarter automatisk nar opdatering er faerdig." : sv ? "Enheten startar om automatiskt nar uppdateringen ar klar." : fi ? "Laite kaynnistyy automaattisesti paivityksen jalkeen." : "Пристрій автоматично перезапуститься після оновлення.";
+  if (strcmp(key, "ota_alt_title") == 0) return en ? "Alternative: Arduino OTA" : no ? "Alternativ: Arduino OTA" : da ? "Alternativ: Arduino OTA" : sv ? "Alternativ: Arduino OTA" : fi ? "Vaihtoehto: Arduino OTA" : "Альтернатива: Arduino OTA";
+  if (strcmp(key, "ota_alt_desc") == 0) return en ? "You can still use Arduino IDE network port if preferred." : no ? "Du kan fortsatt bruke Arduino IDE nettverksport dersom ønskelig." : da ? "Du kan stadig bruge Arduino IDE netvaerksport, hvis onsket." : sv ? "Du kan fortfarande anvanda Arduino IDE natverksport om du vill." : fi ? "Voit edelleen kayttaa Arduino IDE -verkkoporttia halutessasi." : "За бажанням можна використовувати мережевий порт Arduino IDE.";
+  if (strcmp(key, "ota_failed") == 0) return en ? "OTA failed" : no ? "OTA feil" : da ? "OTA fejl" : sv ? "OTA fel" : fi ? "OTA virhe" : "Помилка OTA";
+  if (strcmp(key, "back_to_ota") == 0) return en ? "Back to OTA" : no ? "Tilbake til OTA" : da ? "Tilbage til OTA" : sv ? "Tillbaka till OTA" : fi ? "Takaisin OTA:han" : "Назад до OTA";
+  if (strcmp(key, "ota_ok") == 0) return en ? "OTA OK" : no ? "OTA OK" : da ? "OTA OK" : sv ? "OTA OK" : fi ? "OTA OK" : "OTA OK";
+  if (strcmp(key, "ota_ok_restart") == 0) return en ? "Firmware updated. Device is restarting now." : no ? "Firmware er oppdatert. Enheten restarter nå." : da ? "Firmware er opdateret. Enheden genstarter nu." : sv ? "Firmware ar uppdaterad. Enheten startar om nu." : fi ? "Laiteohjelma paivitetty. Laite kaynnistyy uudelleen nyt." : "Прошивку оновлено. Пристрій перезапускається.";
+  if (strcmp(key, "manual_subtitle") == 0) return en ? "Short changelog + simple guide" : no ? "Kort changelog + enkel veiledning" : da ? "Kort changelog + enkel guide" : sv ? "Kort changelog + enkel guide" : fi ? "Lyhyt changelog + yksinkertainen opas" : "Короткий changelog + проста інструкція";
+  if (strcmp(key, "changelog_short") == 0) return en ? "Changelog (short)" : no ? "Changelog (kort)" : da ? "Changelog (kort)" : sv ? "Changelog (kort)" : fi ? "Changelog (lyhyt)" : "Changelog (коротко)";
+  if (strcmp(key, "manual_simple") == 0) return en ? "Manual (simple)" : no ? "Brukermanual (forenklet)" : da ? "Brugermanual (forenklet)" : sv ? "Manual (forenklad)" : fi ? "Kayttoopas (yksinkertainen)" : "Інструкція (спрощено)";
+  if (strcmp(key, "to_admin_page") == 0) return en ? "Back to admin" : no ? "Tilbake til admin" : da ? "Tilbage til admin" : sv ? "Tillbaka till admin" : fi ? "Takaisin adminiin" : "До адмін";
   return String(key);
 }
 
@@ -416,17 +449,17 @@ static String pageHeader(const String& title, const String& subtitle = "")
       return s;
     }
 
-static String pageFooter(){ return "</div><div style='margin-top:20px'><form method='POST' action='/admin/reboot'><button class=\"btn\">Restart enheten nå</button></form></div></body></html>"; }
+static String pageFooter(){ return "</div><div style='margin-top:20px'><form method='POST' action='/admin/reboot'><button class=\"btn\">" + tr("restart_now") + "</button></form></div></body></html>"; }
 
 static void handleRoot()
 {
-  String s = pageHeader("Flexit-reader", "Admin portal");
+  String s = pageHeader("Flexit-reader", tr("admin_portal"));
 
   bool apOn  = (WiFi.getMode() & WIFI_AP);
   bool staOn = (WiFi.status() == WL_CONNECTED);
 
   s += "<div class='grid'>";
-  s += "<div class='card'><h2>Status</h2>";
+  s += "<div class='card'><h2>" + tr("status") + "</h2>";
   s += "<div class='kpi'>";
   s += "<div class='kv'><div class='k'>STA WiFi</div><div class='v'>" + String(staOn ? "Connected" : "Offline") + "</div></div>";
   s += "<div class='kv'><div class='k'>Fallback AP</div><div class='v'>" + String(apOn ? "ON" : "OFF") + "</div></div>";
@@ -435,12 +468,12 @@ static void handleRoot()
   s += "<div class='help'>API: <code>/status?token=...</code> (Homey polling). Debug: <code>&pretty=1</code></div>";
   s += "</div>";
 
-  s += "<div class='card'><h2>Handlinger</h2>";
+  s += "<div class='card'><h2>" + tr("actions") + "</h2>";
   s += "<div class='actions'>";
-  s += "<a class='btn' href='/admin'>Åpne admin</a>";
+  s += "<a class='btn' href='/admin'>" + tr("open_admin") + "</a>";
   s += "<a class='btn secondary' href='/health'>/health</a>";
   s += "</div>";
-  s += "<div class='help'>Admin er beskyttet med passord. Ved første innlogging må du endre passord.</div>";
+  s += "<div class='help'>" + tr("admin_protected") + "</div>";
   s += "</div>";
 
   s += "</div>"; // grid
@@ -753,9 +786,9 @@ static void handleAdmin()
   s += "<div class='card'><h2>Lagre / handlinger</h2>";
   s += "<div class='actions'>";
   s += "<button class='btn' type='submit'>Lagre</button>";
-  s += "<a class='btn secondary' href='/admin/manual'>Brukermanual</a>";
-  s += "<a class='btn secondary' href='/admin/ota'>OTA</a>";
-  s += "<a class='btn secondary' href='/'>Til start</a>";
+  s += "<a class='btn secondary' href='/admin/manual'>" + tr("manual") + "</a>";
+  s += "<a class='btn secondary' href='/admin/ota'>" + tr("ota") + "</a>";
+  s += "<a class='btn secondary' href='/'>" + tr("back_home") + "</a>";
   s += "</div>";
   s += "</form>";
   s += "<hr style='border:none;border-top:1px solid var(--border);margin:14px 0'>";
@@ -781,61 +814,86 @@ static void handleAdminManual()
     return;
   }
 
-  String s = pageHeader("Brukermanual", "Kort changelog + enkel veiledning");
+  const bool noLang = (lang() == "no");
+  String s = pageHeader(tr("manual"), tr("manual_subtitle"));
   s += "<div class='grid'>";
 
-  s += "<div class='card'><h2>Changelog (kort)</h2>";
+  s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v3.2.5</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Språkstyring er utvidet til manual, lagre/restart/OTA-sider og ePaper-visning.";
+  else
+    s += "Language control now also applies to manual, save/restart/OTA pages and ePaper texts.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v3.1.0</strong></div>";
   s += "<div class='help'>";
-  s += "Språkvalg i admin/setup, Home Assistant-endepunkt, eksperimentell styring (modus/setpunkt), ";
-  s += "ekstra Flexit-modeller (S2/S7/CL3/CL4 som experimental), og forbedret dokumentasjon.";
+  if (noLang)
+    s += "Språkvalg i admin/setup, Home Assistant-endepunkt, eksperimentell styring, ekstra modellvalg og dokumentasjon.";
+  else
+    s += "Language selector in admin/setup, Home Assistant endpoint, experimental control, extra model options and docs.";
   s += "</div>";
-  s += "<div class='sep-gold'></div>";
-  s += "<div><strong>v3.0.0</strong></div>";
-  s += "<div class='help'>Stabil base med setup wizard, adminpanel, Modbus-lesing, ePaper-dashboard og OTA.</div>";
   s += "</div>";
 
-  s += "<div class='card'><h2>Brukermanual (forenklet)</h2>";
-  s += "<div><strong>1) Førstegangsoppsett</strong></div>";
+  s += "<div class='card'><h2>" + tr("manual_simple") + "</h2>";
+  s += "<div><strong>1) " + String(noLang ? "Forstegangsoppsett" : "First setup") + "</strong></div>";
   s += "<div class='help'>";
-  s += "Logg inn p&aring; <code>/admin</code> med fabrikkpassord, fullf&oslash;r wizard (passord, WiFi, modell/funksjoner), ";
-  s += "og restart enheten.";
+  if (noLang)
+    s += "Logg inn p&aring; <code>/admin</code> med fabrikkpassord, fullf&oslash;r wizard og restart enheten.";
+  else
+    s += "Log in at <code>/admin</code> with factory password, complete wizard, then restart the device.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>2) Daglig bruk</strong></div>";
+  s += "<div><strong>2) " + String(noLang ? "Daglig bruk" : "Daily use") + "</strong></div>";
   s += "<div class='help'>";
-  s += "Skjermen viser live verdier. API-status leses fra <code>/status?token=...</code> ";
-  s += "(eller <code>/ha/status?token=...</code> for Home Assistant).";
+  if (noLang)
+    s += "Skjermen viser live verdier. API-status leses fra <code>/status?token=...</code> (eller <code>/ha/status?token=...</code>).";
+  else
+    s += "Display shows live values. Read API status from <code>/status?token=...</code> (or <code>/ha/status?token=...</code>).";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>3) Modbus</strong></div>";
   s += "<div class='help'>";
-  s += "Modbus er AV som standard. N&aring;r Modbus aktiveres, vises avanserte innstillinger automatisk under Modbus-valget. ";
-  s += "Anbefalt standard settes etter valgt Flexit-modell.";
+  if (noLang)
+    s += "Modbus er AV som standard. N&aring;r Modbus aktiveres, vises avanserte innstillinger automatisk.";
+  else
+    s += "Modbus is OFF by default. When enabled, advanced settings appear automatically.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>4) Homey / Home Assistant</strong></div>";
   s += "<div class='help'>";
-  s += "Aktiver Homey/API eller Home Assistant/API i admin. Bruk token-beskyttet API lokalt for sensorer, logger og dashboards.";
+  if (noLang)
+    s += "Aktiver Homey/API eller Home Assistant/API i admin. Bruk token-beskyttet API lokalt.";
+  else
+    s += "Enable Homey/API or Home Assistant/API in admin. Use token-protected local API.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>5) Fjernstyring (eksperimentell)</strong></div>";
+  s += "<div><strong>5) " + String(noLang ? "Fjernstyring (eksperimentell)" : "Remote control (experimental)") + "</strong></div>";
   s += "<div class='help'>";
-  s += "Kun aktiv n&aring;r <code>Modbus</code> og <code>Enable remote control writes</code> er p&aring;. ";
-  s += "Endepunkt: <code>POST /api/control/mode</code> og <code>POST /api/control/setpoint</code>.";
+  if (noLang)
+    s += "Kun aktiv n&aring;r <code>Modbus</code> og <code>Enable remote control writes</code> er p&aring;.";
+  else
+    s += "Only active when <code>Modbus</code> and <code>Enable remote control writes</code> are enabled.";
+  s += " API: <code>POST /api/control/mode</code>, <code>POST /api/control/setpoint</code>.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>6) OTA-oppdatering</strong></div>";
+  s += "<div><strong>6) " + String(noLang ? "OTA-oppdatering" : "OTA update") + "</strong></div>";
   s += "<div class='help'>";
-  s += "G&aring; til <code>/admin/ota</code>, last opp firmwarefil (.bin), og enheten restarter automatisk ved vellykket oppdatering.";
+  if (noLang)
+    s += "G&aring; til <code>/admin/ota</code>, last opp firmwarefil (.bin), enheten restarter automatisk.";
+  else
+    s += "Go to <code>/admin/ota</code>, upload firmware (.bin), device restarts automatically.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div><strong>7) Feils&oslash;king</strong></div>";
+  s += "<div><strong>7) " + String(noLang ? "Feilsoking" : "Troubleshooting") + "</strong></div>";
   s += "<div class='help'>";
-  s += "Sjekk <code>/health</code> og <code>/status?token=...&pretty=1</code>. ";
-  s += "Ved Modbus-feil brukes siste gyldige data n&aring;r Modbus er aktivert, og statusfeltet markerer avvik.";
+  if (noLang)
+    s += "Sjekk <code>/health</code> og <code>/status?token=...&pretty=1</code>. Ved Modbus-feil brukes siste gyldige data.";
+  else
+    s += "Check <code>/health</code> and <code>/status?token=...&pretty=1</code>. On Modbus errors, last good data is used.";
   s += "</div>";
-  s += "<div class='actions' style='margin-top:16px'><a class='btn' href='/admin'>Tilbake til admin</a></div>";
+  s += "<div class='actions' style='margin-top:16px'><a class='btn' href='/admin'>" + tr("to_admin_page") + "</a></div>";
   s += "</div>";
 
   s += "</div>";
@@ -893,18 +951,33 @@ static void handleAdminSave()
     g_cfg->admin_pass = np1;
     g_cfg->admin_pass_changed = true;
     config_save(*g_cfg);
-    server.send(200, "text/html", "<html><body><h3>Lagret.</h3><p>Logg inn på nytt med nytt passord.</p><a href='/admin'>Admin</a><div style='margin-top:20px'><form method='POST' action='/admin/reboot'><button class=\"btn\">Restart enheten nå</button></form></div></body></html>");
+    String s = pageHeader(tr("admin"), tr("saved"));
+    s += "<div class='card'><h2>" + tr("saved") + "</h2>";
+    s += "<p>" + tr("password_updated") + "</p>";
+    s += "<div class='actions'><a class='btn' href='/admin'>" + tr("to_admin") + "</a></div>";
+    s += "</div>";
+    s += pageFooter();
+    server.send(200, "text/html", s);
     return;
   }
 
   config_save(*g_cfg);
-  server.send(200, "text/html", "<html><body><h3>Lagret.</h3><p>Restart for å bruke ny WiFi hvis endret.</p><a href='/admin'>Tilbake</a><div style='margin-top:20px'><form method='POST' action='/admin/reboot'><button class=\"btn\">Restart enheten nå</button></form></div></body></html>");
+  String s = pageHeader(tr("admin"), tr("saved"));
+  s += "<div class='card'><h2>" + tr("saved") + "</h2>";
+  s += "<p>" + tr("settings_saved_restart_if_needed") + "</p>";
+  s += "<div class='actions'><a class='btn' href='/admin'>" + tr("to_admin") + "</a></div>";
+  s += "</div>";
+  s += pageFooter();
+  server.send(200, "text/html", s);
 }
 
 static void handleReboot()
 {
   if (!checkAdminAuth()) return;
-  server.send(200, "text/plain", "rebooting...");
+  String s = pageHeader(tr("admin"), tr("restart"));
+  s += "<div class='card'><h2>" + tr("restart") + "</h2><p>" + tr("restarting_now") + "</p></div>";
+  s += pageFooter();
+  server.send(200, "text/html", s);
   delay(300);
   ESP.restart();
 }
@@ -912,7 +985,10 @@ static void handleReboot()
 static void handleFactoryReset()
 {
   if (!checkAdminAuth()) return;
-  server.send(200, "text/plain", "factory reset...");
+  String s = pageHeader(tr("admin"), tr("factory_reset"));
+  s += "<div class='card'><h2>" + tr("factory_reset") + "</h2><p>" + tr("factory_reset_now") + "</p></div>";
+  s += pageFooter();
+  server.send(200, "text/html", s);
   delay(300);
 
   config_factory_reset(); // wipes NVS keys
@@ -924,20 +1000,20 @@ static void handleAdminOta()
 {
   if (!checkAdminAuth()) return;
 
-  String s = pageHeader("OTA");
-  s += "<div class='card'><h2>OTA via filopplasting (.bin)</h2>";
-  s += "<p>Last opp firmwarefil for ESP32 direkte fra nettleser.</p>";
+  String s = pageHeader(tr("ota"));
+  s += "<div class='card'><h2>" + tr("ota_upload_title") + "</h2>";
+  s += "<p>" + tr("ota_upload_desc") + "</p>";
   s += "<form method='POST' action='/admin/ota_upload' enctype='multipart/form-data'>";
-  s += "<label>Firmware-fil (.bin)</label>";
+  s += "<label>" + tr("firmware_file") + "</label>";
   s += "<input type='file' name='firmware' accept='.bin,application/octet-stream' required>";
-  s += "<div class='actions'><button class='btn' type='submit'>Start oppdatering</button></div>";
+  s += "<div class='actions'><button class='btn' type='submit'>" + tr("start_update") + "</button></div>";
   s += "</form>";
-  s += "<div class='help'>Enheten restarter automatisk når oppdateringen er ferdig.</div>";
+  s += "<div class='help'>" + tr("ota_restart_done") + "</div>";
   s += "</div>";
-  s += "<div class='card'><h2>Alternativ: Arduino OTA</h2>";
-  s += "<p>Du kan fortsatt bruke Arduino IDE nettverksport dersom ønskelig.</p>";
+  s += "<div class='card'><h2>" + tr("ota_alt_title") + "</h2>";
+  s += "<p>" + tr("ota_alt_desc") + "</p>";
   s += "</div>";
-  s += "<div class='card'><a class='btn' href='/admin'>Tilbake</a></div>";
+  s += "<div class='card'><a class='btn' href='/admin'>" + tr("back") + "</a></div>";
   s += pageFooter();
   server.send(200, "text/html", s);
 }
@@ -955,12 +1031,19 @@ static void handleAdminOtaUploadDone()
   {
     char b[96];
     snprintf(b, sizeof(b), "OTA failed. Update error code: %u", Update.getError());
-    server.send(500, "text/plain", b);
+    String s = pageHeader(tr("admin"), tr("ota_failed"));
+    s += "<div class='card'><h2>" + tr("ota_failed") + "</h2><p>";
+    s += String(b);
+    s += "</p><div class='actions'><a class='btn' href='/admin/ota'>" + tr("back_to_ota") + "</a></div></div>";
+    s += pageFooter();
+    server.send(500, "text/html", s);
     return;
   }
 
-  server.send(200, "text/html",
-    "<html><body><h3>OTA OK</h3><p>Firmware er oppdatert. Enheten restarter...</p></body></html>");
+  String s = pageHeader(tr("admin"), tr("ota"));
+  s += "<div class='card'><h2>" + tr("ota_ok") + "</h2><p>" + tr("ota_ok_restart") + "</p></div>";
+  s += pageFooter();
+  server.send(200, "text/html", s);
   delay(300);
   ESP.restart();
 }
