@@ -281,13 +281,6 @@ webportal_begin(cfg);
   }
   webportal_set_data(data, mbStatus);
 
-  // Enable Arduino OTA (only makes sense when STA is up)
-  if (setup_done && sta_ok)
-  {
-    ArduinoOTA.setHostname(PRODUCT_DEVICE_NAME);
-    ArduinoOTA.begin();
-  }
-
   lastRefresh = millis();
 }
 

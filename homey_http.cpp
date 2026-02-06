@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <Update.h>
 
 static WebServer server(80);
 
@@ -652,18 +653,83 @@ static void handleAdminOta()
   if (!checkAdminAuth()) return;
 
   String s = pageHeader("OTA");
-  s += "<div class='card'><h2>OTA (trådløs oppdatering)</h2>";
-  s += "<p>Denne firmwaren støtter Arduino OTA via nettverksport (ikke via nettleser).";
-  s += "</p><ol>";
-  s += "<li>Koble PC/Mac på samme WiFi som enheten.</li>";
-  s += "<li>I Arduino IDE: velg <b>Tools → Port</b> og finn en nettverksport som heter <b>VentReader</b>.</li>";
-  s += "<li>Trykk <b>Upload</b> som normalt.</li>";
-  s += "</ol>";
-  s += "<div class='help'>Tips: OTA er kun tilgjengelig når enheten er koblet til WiFi (STA-mode). Hvis du er koblet til enhetens setup-AP, bruk USB for oppdatering.</div>";
+  s += "<div class='card'><h2>OTA via filopplasting (.bin)</h2>";
+  s += "<p>Last opp firmwarefil for ESP32 direkte fra nettleser.</p>";
+  s += "<form method='POST' action='/admin/ota_upload' enctype='multipart/form-data'>";
+  s += "<label>Firmware-fil (.bin)</label>";
+  s += "<input type='file' name='firmware' accept='.bin,application/octet-stream' required>";
+  s += "<div class='actions'><button class='btn' type='submit'>Start oppdatering</button></div>";
+  s += "</form>";
+  s += "<div class='help'>Enheten restarter automatisk når oppdateringen er ferdig.</div>";
+  s += "</div>";
+  s += "<div class='card'><h2>Alternativ: Arduino OTA</h2>";
+  s += "<p>Du kan fortsatt bruke Arduino IDE nettverksport dersom ønskelig.</p>";
   s += "</div>";
   s += "<div class='card'><a class='btn' href='/admin'>Tilbake</a></div>";
   s += pageFooter();
   server.send(200, "text/html", s);
+}
+
+static void handleAdminOtaUploadDone()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed)
+  {
+    server.send(403, "text/plain", "setup not completed");
+    return;
+  }
+
+  if (Update.hasError())
+  {
+    char b[96];
+    snprintf(b, sizeof(b), "OTA failed. Update error code: %u", Update.getError());
+    server.send(500, "text/plain", b);
+    return;
+  }
+
+  server.send(200, "text/html",
+    "<html><body><h3>OTA OK</h3><p>Firmware er oppdatert. Enheten restarter...</p></body></html>");
+  delay(300);
+  ESP.restart();
+}
+
+static void handleAdminOtaUploadStream()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed) return;
+
+  HTTPUpload& upload = server.upload();
+
+  if (upload.status == UPLOAD_FILE_START)
+  {
+    if (!g_cfg->setup_completed)
+    {
+      return;
+    }
+
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+    {
+      Update.printError(Serial);
+    }
+  }
+  else if (upload.status == UPLOAD_FILE_WRITE)
+  {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+    {
+      Update.printError(Serial);
+    }
+  }
+  else if (upload.status == UPLOAD_FILE_END)
+  {
+    if (!Update.end(true))
+    {
+      Update.printError(Serial);
+    }
+  }
+  else if (upload.status == UPLOAD_FILE_ABORTED)
+  {
+    Update.abort();
+  }
 }
 
 void webportal_set_data(const FlexitData& data, const String& mbStatus)
@@ -704,6 +770,7 @@ void webportal_begin(DeviceConfig& cfg)
   server.on("/admin", HTTP_GET, handleAdmin);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
   server.on("/admin/ota", HTTP_GET, handleAdminOta);
+  server.on("/admin/ota_upload", HTTP_POST, handleAdminOtaUploadDone, handleAdminOtaUploadStream);
   server.on("/admin/reboot", HTTP_POST, handleReboot);
   server.on("/admin/factory_reset", HTTP_POST, handleFactoryReset);
 
