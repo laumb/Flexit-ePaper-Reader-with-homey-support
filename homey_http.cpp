@@ -9,6 +9,7 @@
 #include <Update.h>
 #include "version.h"
 #include "flexit_modbus.h"
+#include "flexit_web.h"
 
 static WebServer server(80);
 
@@ -21,6 +22,7 @@ static bool   g_pending_admin_set = false;
 // Deferred restart after HTTP response
 static bool   g_restart_pending = false;
 static uint32_t g_restart_at_ms = 0;
+static bool   g_refresh_requested = false;
 
 // Cached payload for /status
 static FlexitData g_data;
@@ -181,7 +183,7 @@ static String tr(const char* key)
   if (strcmp(key, "cloud_poll_min") == 0) return en ? "Cloud polling interval (minutes, 5-60)" : no ? "Cloud polling-intervall (minutter, 5-60)" : da ? "Cloud polling-interval (minutter, 5-60)" : sv ? "Cloud pollingintervall (minuter, 5-60)" : fi ? "Cloud-pollausvali (minuuttia, 5-60)" : "Інтервал опитування cloud (хвилини, 5-60)";
   if (strcmp(key, "cloud_user") == 0) return en ? "Flexit login (email/user)" : no ? "Flexit login (e-post/bruker)" : da ? "Flexit login (e-mail/bruger)" : sv ? "Flexit login (e-post/anvandare)" : fi ? "Flexit-kirjautuminen (sahkoposti/kayttaja)" : "Логін Flexit (email/користувач)";
   if (strcmp(key, "cloud_pass") == 0) return en ? "Flexit password" : no ? "Flexit passord" : da ? "Flexit adgangskode" : sv ? "Flexit losenord" : fi ? "Flexit salasana" : "Пароль Flexit";
-  if (strcmp(key, "cloud_serial") == 0) return en ? "Device serial (optional)" : no ? "Enhetsserienummer (valgfritt)" : da ? "Enhedsserienummer (valgfrit)" : sv ? "Enhetens serienummer (valfritt)" : fi ? "Laitteen sarjanumero (valinnainen)" : "Серійний номер пристрою (необов'язково)";
+  if (strcmp(key, "cloud_serial") == 0) return en ? "Device serial (required)" : no ? "Enhetsserienummer (obligatorisk)" : da ? "Enhedsserienummer (obligatorisk)" : sv ? "Enhetens serienummer (obligatoriskt)" : fi ? "Laitteen sarjanumero (pakollinen)" : "Серійний номер пристрою (обов'язково)";
   if (strcmp(key, "cloud_adv") == 0) return en ? "Cloud endpoint overrides (advanced)" : no ? "Cloud endpoint-overstyring (avansert)" : da ? "Cloud endpoint-overstyring (avanceret)" : sv ? "Cloud endpoint-override (avancerat)" : fi ? "Cloud endpoint -ylikirjoitus (edistynyt)" : "Перевизначення cloud endpoint (розширено)";
   if (strcmp(key, "cloud_auth_url") == 0) return en ? "Auth URL" : no ? "Auth URL" : da ? "Auth URL" : sv ? "Auth URL" : fi ? "Auth URL" : "Auth URL";
   if (strcmp(key, "cloud_dev_url") == 0) return en ? "Device list URL" : no ? "Enhetsliste URL" : da ? "Enhedsliste URL" : sv ? "Enhetslista URL" : fi ? "Laite-lista URL" : "URL списку пристроїв";
@@ -297,7 +299,13 @@ static void applyPostedFlexitWebSettings()
     String p = server.arg("fwpass");
     if (p.length() > 0) g_cfg->flexitweb_pass = p;
   }
-  if (server.hasArg("fwserial")) g_cfg->flexitweb_serial = server.arg("fwserial");
+  if (server.hasArg("fwserial"))
+  {
+    String s = server.arg("fwserial");
+    s.trim();
+    s.toUpperCase();
+    g_cfg->flexitweb_serial = s;
+  }
   if (server.hasArg("fwauth")) g_cfg->flexitweb_auth_url = server.arg("fwauth");
   if (server.hasArg("fwdev")) g_cfg->flexitweb_device_url = server.arg("fwdev");
   if (server.hasArg("fwdata")) g_cfg->flexitweb_datapoint_url = server.arg("fwdata");
@@ -308,6 +316,114 @@ static void applyPostedFlexitWebSettings()
     if (m > 60) m = 60;
     g_cfg->flexitweb_poll_minutes = (uint8_t)m;
   }
+}
+
+static bool flexitWebSerialValid(const String& serialIn, String* why = nullptr)
+{
+  String serial = serialIn;
+  serial.trim();
+  if (serial.length() < 6 || serial.length() > 32)
+  {
+    if (why) *why = "Serienummer m&aring; v&aelig;re 6-32 tegn.";
+    return false;
+  }
+  for (size_t i = 0; i < serial.length(); i++)
+  {
+    char c = serial[i];
+    const bool ok = ((c >= '0' && c <= '9') ||
+                     (c >= 'A' && c <= 'Z') ||
+                     (c >= 'a' && c <= 'z') ||
+                     c == '-' || c == '_' || c == '.');
+    if (!ok)
+    {
+      if (why) *why = "Serienummer kan kun inneholde A-Z, 0-9, -, _ og .";
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool runFlexitWebPreflight(const DeviceConfig& cfg, FlexitData* outData = nullptr, String* why = nullptr)
+{
+  if (cfg.flexitweb_user.length() == 0 || cfg.flexitweb_pass.length() == 0)
+  {
+    if (why) *why = "Mangler FlexitWeb bruker/passord.";
+    return false;
+  }
+  if (!flexitWebSerialValid(cfg.flexitweb_serial, why))
+    return false;
+
+  flexit_web_set_runtime_config(cfg);
+  FlexitData t = g_data;
+  if (!flexit_web_poll(t))
+  {
+    if (why) *why = String(flexit_web_last_error());
+    return false;
+  }
+  if (outData) *outData = t;
+  return true;
+}
+
+static String fOrNullCompact(float v)
+{
+  if (isnan(v)) return "null";
+  char t[24];
+  snprintf(t, sizeof(t), "%.1f", v);
+  return String(t);
+}
+
+static void handleAdminFlexitWebTest()
+{
+  if (!checkAdminAuth()) return;
+
+  DeviceConfig tmp = *g_cfg;
+  tmp.data_source = "FLEXITWEB";
+  if (server.hasArg("fwuser")) tmp.flexitweb_user = server.arg("fwuser");
+  if (server.hasArg("fwpass"))
+  {
+    String p = server.arg("fwpass");
+    if (p.length() > 0) tmp.flexitweb_pass = p;
+  }
+  if (server.hasArg("fwserial")) tmp.flexitweb_serial = server.arg("fwserial");
+  tmp.flexitweb_serial.trim();
+  tmp.flexitweb_serial.toUpperCase();
+  if (server.hasArg("fwauth")) tmp.flexitweb_auth_url = server.arg("fwauth");
+  if (server.hasArg("fwdev")) tmp.flexitweb_device_url = server.arg("fwdev");
+  if (server.hasArg("fwdata")) tmp.flexitweb_datapoint_url = server.arg("fwdata");
+  if (server.hasArg("fwpoll"))
+  {
+    int m = server.arg("fwpoll").toInt();
+    if (m < 5) m = 5;
+    if (m > 60) m = 60;
+    tmp.flexitweb_poll_minutes = (uint8_t)m;
+  }
+
+  String why;
+  FlexitData t = g_data;
+  if (!runFlexitWebPreflight(tmp, &t, &why))
+  {
+    server.send(200, "application/json", String("{\"ok\":false,\"error\":\"") + jsonEscape(why) + "\"}");
+    return;
+  }
+
+  String mb = "WEB OK (test)";
+  String out;
+  out.reserve(360);
+  out += "{\"ok\":true,\"source_status\":\"WEB OK (test)\",\"data\":{";
+  out += "\"mode\":\"" + jsonEscape(t.mode) + "\",";
+  out += "\"uteluft\":" + fOrNullCompact(t.uteluft) + ",";
+  out += "\"tilluft\":" + fOrNullCompact(t.tilluft) + ",";
+  out += "\"avtrekk\":" + fOrNullCompact(t.avtrekk) + ",";
+  out += "\"avkast\":" + fOrNullCompact(t.avkast) + ",";
+  out += "\"fan\":" + String(t.fan_percent) + ",";
+  out += "\"heat\":" + String(t.heat_element_percent) + ",";
+  out += "\"efficiency\":" + String(t.efficiency_percent);
+  out += "}}";
+  server.send(200, "application/json", out);
+
+  // keep live dashboard fresh after successful test
+  g_data = t;
+  g_mb = mb;
 }
 
 static bool tokenOK()
@@ -1261,7 +1377,7 @@ static void handleAdminSetup()
     const bool forceApiDecision = !g_cfg->setup_completed;
     const bool apiChoiceError = server.hasArg("api_choice_error");
     s += "<div class='card'><h2>Token + moduler</h2>";
-    s += "<form method='POST' action='/admin/setup_save?step=3'>";
+    s += "<form id='setup_form' method='POST' action='/admin/setup_save?step=3'>";
     s += "<label>Enhetsmodell</label>";
     s += "<select id='model_setup' name='model' class='input'>";
     s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
@@ -1324,14 +1440,17 @@ static void handleAdminSetup()
     s += "<div id='fw_adv_setup' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
     s += "<div class='help'>" + tr("source_flexitweb_help") + "</div>";
     s += "<label>" + tr("cloud_user") + "</label><input name='fwuser' value='" + jsonEscape(g_cfg->flexitweb_user) + "'>";
-    s += "<label>" + tr("cloud_pass") + "</label><input name='fwpass' type='password' value=''>";
-    s += "<label>" + tr("cloud_serial") + "</label><input name='fwserial' value='" + jsonEscape(g_cfg->flexitweb_serial) + "'>";
+    s += "<label>" + tr("cloud_pass") + "</label><input name='fwpass' type='password' value='' placeholder='" + String(g_cfg->flexitweb_pass.length() ? "********" : "") + "'>";
+    s += "<label>" + tr("cloud_serial") + "</label><input name='fwserial' required pattern='[A-Za-z0-9._-]{6,32}' value='" + jsonEscape(g_cfg->flexitweb_serial) + "'>";
+    s += "<div class='help'>Format: 6-32 tegn, kun A-Z, 0-9, -, _ og .</div>";
     s += "<label>" + tr("cloud_poll_min") + "</label><input name='fwpoll' type='number' min='5' max='60' value='" + String((int)g_cfg->flexitweb_poll_minutes) + "'>";
     s += "<details style='margin-top:8px'><summary>" + tr("cloud_adv") + "</summary>";
     s += "<label>" + tr("cloud_auth_url") + "</label><input class='mono' name='fwauth' value='" + jsonEscape(g_cfg->flexitweb_auth_url) + "'>";
     s += "<label>" + tr("cloud_dev_url") + "</label><input class='mono' name='fwdev' value='" + jsonEscape(g_cfg->flexitweb_device_url) + "'>";
     s += "<label>" + tr("cloud_data_url") + "</label><input class='mono' name='fwdata' value='" + jsonEscape(g_cfg->flexitweb_datapoint_url) + "'>";
     s += "</details>";
+    s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testFlexitWeb(\"setup_form\")'>Test FlexitWeb</button></div>";
+    s += "<div id='fw_test_result_setup' class='help'></div>";
     s += "</div>";
     s += "<script>(function(){"
          "var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');"
@@ -1347,7 +1466,22 @@ static void handleAdminSetup()
          "t.addEventListener('change',u);"
          "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
-         "u();})();</script>";
+         "u();"
+         "window.testFlexitWeb=async function(formId){"
+         "var form=document.getElementById(formId);if(!form)return;"
+         "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
+         "if(target){target.style.color='var(--muted)';target.textContent='Tester FlexitWeb...';}"
+         "try{"
+         "var fd=new FormData(form);"
+         "var body=new URLSearchParams();"
+         "fd.forEach(function(v,k){if(typeof v==='string')body.append(k,v);});"
+         "var r=await fetch('/admin/test_flexitweb',{method:'POST',credentials:'same-origin',body:body});"
+         "var j=await r.json();"
+         "if(!j.ok){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+(j.error||'ukjent feil');}return;}"
+         "if(target){target.style.color='#166534';target.textContent='FlexitWeb OK. Modus '+(j.data&&j.data.mode?j.data.mode:'N/A')+', tilluft '+(j.data&&j.data.tilluft!==null?j.data.tilluft:'-')+' C.';}"
+         "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+e.message;}}"
+         "};"
+         "})();</script>";
     s += "<div class='sep-gold'></div>";
     s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
     s += "<div class='help'>Gjelder visningsoppdatering. Cloud-frekvens styres av eget minuttfelt.</div>";
@@ -1435,11 +1569,15 @@ static void handleAdminSetupSave()
   applyPostedFlexitWebSettings();
   if (g_cfg->data_source == "FLEXITWEB")
   {
-    if (g_cfg->flexitweb_user.length() == 0 || g_cfg->flexitweb_pass.length() == 0)
+    String why;
+    FlexitData verified;
+    if (!runFlexitWebPreflight(*g_cfg, &verified, &why))
     {
-      server.send(400, "text/plain", "FlexitWeb krever bruker/e-post og passord.");
+      server.send(400, "text/plain", String("FlexitWeb test must pass before save: ") + why);
       return;
     }
+    g_data = verified;
+    g_mb = "WEB OK (verified)";
   }
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
@@ -1458,6 +1596,7 @@ static void handleAdminSetupSave()
   g_cfg->setup_completed = true;
 
   config_save(*g_cfg);
+  g_refresh_requested = true;
 
   // clear pending (avoid re-applying)
   g_pending_admin_pass = "";
@@ -1495,7 +1634,7 @@ static void handleAdmin()
 
   // WiFi
   s += "<div class='card'><h2>WiFi</h2>";
-  s += "<form method='POST' action='/admin/save'>";
+  s += "<form id='admin_form' method='POST' action='/admin/save'>";
   s += "<label>SSID</label><input name='ssid' value='" + jsonEscape(g_cfg->wifi_ssid) + "'>";
   s += "<label>Passord (la tomt for å beholde)</label><input name='wpass' type='password' value=''>";
   s += "<div class='help'>Hvis du endrer WiFi må enheten restartes etterpå.</div>";
@@ -1554,14 +1693,17 @@ static void handleAdmin()
   s += "<div id='fw_adv_admin' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
   s += "<div class='help'>" + tr("source_flexitweb_help") + "</div>";
   s += "<label>" + tr("cloud_user") + "</label><input name='fwuser' value='" + jsonEscape(g_cfg->flexitweb_user) + "'>";
-  s += "<label>" + tr("cloud_pass") + "</label><input name='fwpass' type='password' value=''>";
-  s += "<label>" + tr("cloud_serial") + "</label><input name='fwserial' value='" + jsonEscape(g_cfg->flexitweb_serial) + "'>";
+  s += "<label>" + tr("cloud_pass") + "</label><input name='fwpass' type='password' value='' placeholder='" + String(g_cfg->flexitweb_pass.length() ? "********" : "") + "'>";
+  s += "<label>" + tr("cloud_serial") + "</label><input name='fwserial' required pattern='[A-Za-z0-9._-]{6,32}' value='" + jsonEscape(g_cfg->flexitweb_serial) + "'>";
+  s += "<div class='help'>Format: 6-32 tegn, kun A-Z, 0-9, -, _ og .</div>";
   s += "<label>" + tr("cloud_poll_min") + "</label><input name='fwpoll' type='number' min='5' max='60' value='" + String((int)g_cfg->flexitweb_poll_minutes) + "'>";
   s += "<details style='margin-top:8px'><summary>" + tr("cloud_adv") + "</summary>";
   s += "<label>" + tr("cloud_auth_url") + "</label><input class='mono' name='fwauth' value='" + jsonEscape(g_cfg->flexitweb_auth_url) + "'>";
   s += "<label>" + tr("cloud_dev_url") + "</label><input class='mono' name='fwdev' value='" + jsonEscape(g_cfg->flexitweb_device_url) + "'>";
   s += "<label>" + tr("cloud_data_url") + "</label><input class='mono' name='fwdata' value='" + jsonEscape(g_cfg->flexitweb_datapoint_url) + "'>";
   s += "</details>";
+  s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testFlexitWeb(\"admin_form\")'>Test FlexitWeb</button></div>";
+  s += "<div id='fw_test_result_admin' class='help'></div>";
   s += "</div>";
   s += "<script>(function(){"
        "var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');"
@@ -1577,7 +1719,22 @@ static void handleAdmin()
        "t.addEventListener('change',u);"
        "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
-       "u();})();</script>";
+       "u();"
+       "window.testFlexitWeb=async function(formId){"
+       "var form=document.getElementById(formId);if(!form)return;"
+       "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
+       "if(target){target.style.color='var(--muted)';target.textContent='Tester FlexitWeb...';}"
+       "try{"
+       "var fd=new FormData(form);"
+       "var body=new URLSearchParams();"
+       "fd.forEach(function(v,k){if(typeof v==='string')body.append(k,v);});"
+       "var r=await fetch('/admin/test_flexitweb',{method:'POST',credentials:'same-origin',body:body});"
+       "var j=await r.json();"
+       "if(!j.ok){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+(j.error||'ukjent feil');}return;}"
+       "if(target){target.style.color='#166534';target.textContent='FlexitWeb OK. Modus '+(j.data&&j.data.mode?j.data.mode:'N/A')+', tilluft '+(j.data&&j.data.tilluft!==null?j.data.tilluft:'-')+' C.';}"
+       "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='FlexitWeb test feilet: '+e.message;}}"
+       "};"
+       "})();</script>";
   s += "<div class='sep-gold'></div>";
   s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
@@ -1911,11 +2068,15 @@ static void handleAdminSave()
   applyPostedFlexitWebSettings();
   if (g_cfg->data_source == "FLEXITWEB")
   {
-    if (g_cfg->flexitweb_user.length() == 0 || g_cfg->flexitweb_pass.length() == 0)
+    String why;
+    FlexitData verified;
+    if (!runFlexitWebPreflight(*g_cfg, &verified, &why))
     {
-      server.send(400, "text/plain", "FlexitWeb krever bruker/e-post og passord.");
+      server.send(400, "text/plain", String("FlexitWeb test must pass before save: ") + why);
       return;
     }
+    g_data = verified;
+    g_mb = "WEB OK (verified)";
   }
 
   // Poll interval
@@ -1937,6 +2098,7 @@ static void handleAdminSave()
     g_cfg->admin_pass = np1;
     g_cfg->admin_pass_changed = true;
     config_save(*g_cfg);
+    g_refresh_requested = true;
     String s = pageHeader(tr("admin"), tr("saved"));
     s += "<div class='card'><h2>" + tr("saved") + "</h2>";
     s += "<p>" + tr("password_updated") + "</p>";
@@ -1948,6 +2110,7 @@ static void handleAdminSave()
   }
 
   config_save(*g_cfg);
+  g_refresh_requested = true;
   String s = pageHeader(tr("admin"), tr("saved"));
   s += "<div class='card'><h2>" + tr("saved") + "</h2>";
   s += "<p>" + tr("settings_saved_restart_if_needed") + "</p>";
@@ -1961,7 +2124,11 @@ static void handleReboot()
 {
   if (!checkAdminAuth()) return;
   String s = pageHeader(tr("admin"), tr("restart"));
-  s += "<div class='card'><h2>" + tr("restart") + "</h2><p>" + tr("restarting_now") + "</p></div>";
+  s += "<div class='card'><h2>" + tr("restart") + "</h2><p>" + tr("restarting_now") + "</p>";
+  s += "<div class='help'>Vent 10-20 sekunder, og g&aring; deretter tilbake til admin.</div>";
+  s += "<div class='actions'><a class='btn' href='/admin'>Tilbake til admin</a></div>";
+  s += "</div>";
+  s += "<script>setTimeout(function(){window.location.href='/admin';},12000);</script>";
   s += pageFooter();
   server.send(200, "text/html", s);
   delay(300);
@@ -1980,6 +2147,13 @@ static void handleFactoryReset()
   config_factory_reset(); // wipes NVS keys
   delay(200);
   ESP.restart();
+}
+
+static void handleRefreshNow()
+{
+  if (!checkAdminAuth()) return;
+  g_refresh_requested = true;
+  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 static void handleAdminOta()
@@ -2133,6 +2307,8 @@ void webportal_begin(DeviceConfig& cfg)
   server.on("/admin/export/homey", HTTP_GET, handleAdminHomeyExport);
   server.on("/admin/export/homey.txt", HTTP_GET, handleAdminHomeyExportText);
   server.on("/admin/lang", HTTP_POST, handleAdminLang);
+  server.on("/admin/test_flexitweb", HTTP_POST, handleAdminFlexitWebTest);
+  server.on("/admin/refresh_now", HTTP_POST, handleRefreshNow);
   server.on("/admin/save", HTTP_POST, handleAdminSave);
   server.on("/admin/control/mode", HTTP_POST, handleAdminControlMode);
   server.on("/admin/control/setpoint", HTTP_POST, handleAdminControlSetpoint);
@@ -2157,4 +2333,11 @@ void webportal_loop()
     delay(50);
     ESP.restart();
   }
+}
+
+bool webportal_consume_refresh_request()
+{
+  const bool v = g_refresh_requested;
+  g_refresh_requested = false;
+  return v;
 }

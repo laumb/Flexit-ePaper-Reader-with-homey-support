@@ -9,7 +9,7 @@ Default behavior is read-only monitoring. Modbus write control is optional and d
 
 ### v4.0.0
 - New optional data source: `FlexitWeb Cloud` (read-only) as an alternative to local Modbus.
-- New cloud settings in wizard/admin: login, optional serial, endpoint overrides, and polling `5-60 min`.
+- New cloud settings in wizard/admin: login, required serial, endpoint overrides, and polling `5-60 min`.
 - Control writes are now allowed only when data source is `Modbus`.
 
 ### v3.7.0
@@ -78,7 +78,7 @@ Required:
 3. Cloud polling interval (`5-60 min`).
 
 Optional:
-1. Device serial override (otherwise first cloud device is auto-discovered).
+1. Device serial (required, tested before save).
 2. Endpoint override fields under advanced settings.
 
 ## Quick start: Homey

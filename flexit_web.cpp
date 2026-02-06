@@ -6,7 +6,7 @@
 #include <ctype.h>
 
 static DeviceConfig g_cfg_web;
-static String g_last_error = "WEB OFF";
+static String g_last_error = "OFF";
 static String g_token;
 static String g_cached_serial;
 static uint32_t g_last_auth_ms = 0;
@@ -121,7 +121,7 @@ static bool httpPostJson(const String& url, const String& body, String& resp, in
   HTTPClient http;
   if (!http.begin(cli, url))
   {
-    g_last_error = "WEB auth begin failed";
+    g_last_error = "auth begin failed";
     return false;
   }
   http.addHeader("Content-Type", "application/json");
@@ -138,7 +138,7 @@ static bool httpGetAuth(const String& url, const String& bearer, String& resp, i
   HTTPClient http;
   if (!http.begin(cli, url))
   {
-    g_last_error = "WEB get begin failed";
+    g_last_error = "get begin failed";
     return false;
   }
   if (bearer.length() > 0) http.addHeader("Authorization", String("Bearer ") + bearer);
@@ -155,12 +155,12 @@ static bool authenticate()
   const String authUrl = trimCopy(g_cfg_web.flexitweb_auth_url);
   if (user.length() == 0 || pass.length() == 0)
   {
-    g_last_error = "WEB missing credentials";
+    g_last_error = "missing credentials";
     return false;
   }
   if (!startsWithHttp(authUrl))
   {
-    g_last_error = "WEB bad auth URL";
+    g_last_error = "bad auth URL";
     return false;
   }
 
@@ -172,7 +172,7 @@ static bool authenticate()
     return false;
   if (code < 200 || code >= 300)
   {
-    g_last_error = String("WEB auth HTTP ") + code;
+    g_last_error = String("auth HTTP ") + code;
     return false;
   }
 
@@ -181,7 +181,7 @@ static bool authenticate()
   if (token.length() == 0) token = jsonGetString(resp, "access_token");
   if (token.length() == 0)
   {
-    g_last_error = "WEB auth token missing";
+    g_last_error = "auth token missing";
     return false;
   }
 
@@ -202,39 +202,10 @@ static bool ensureToken()
 
 static bool ensureSerial()
 {
-  if (trimCopy(g_cfg_web.flexitweb_serial).length() > 0)
-  {
-    g_cached_serial = trimCopy(g_cfg_web.flexitweb_serial);
-    return true;
-  }
-  if (g_cached_serial.length() > 0) return true;
-
-  const String devUrl = trimCopy(g_cfg_web.flexitweb_device_url);
-  if (!startsWithHttp(devUrl))
-  {
-    g_last_error = "WEB bad device URL";
-    return false;
-  }
-
-  String resp;
-  int code = 0;
-  if (!httpGetAuth(devUrl, g_token, resp, code))
-    return false;
-  if (code == 401 || code == 403)
-  {
-    if (!authenticate()) return false;
-    if (!httpGetAuth(devUrl, g_token, resp, code)) return false;
-  }
-  if (code < 200 || code >= 300)
-  {
-    g_last_error = String("WEB device HTTP ") + code;
-    return false;
-  }
-
-  String serial = jsonGetString(resp, "serialNumber");
+  String serial = trimCopy(g_cfg_web.flexitweb_serial);
   if (serial.length() == 0)
   {
-    g_last_error = "WEB serial not found";
+    g_last_error = "serial required";
     return false;
   }
   g_cached_serial = serial;
@@ -255,7 +226,17 @@ static String buildDatapointUrl(const String& serial)
 
 void flexit_web_set_runtime_config(const DeviceConfig& cfg)
 {
+  const bool credsChanged =
+    (cfg.flexitweb_user != g_cfg_web.flexitweb_user) ||
+    (cfg.flexitweb_pass != g_cfg_web.flexitweb_pass) ||
+    (cfg.flexitweb_auth_url != g_cfg_web.flexitweb_auth_url);
+  const bool deviceLookupChanged =
+    (cfg.flexitweb_device_url != g_cfg_web.flexitweb_device_url) ||
+    (cfg.flexitweb_serial != g_cfg_web.flexitweb_serial);
+
   g_cfg_web = cfg;
+  if (credsChanged) g_token = "";
+  if (credsChanged || deviceLookupChanged) g_cached_serial = "";
   if (trimCopy(cfg.flexitweb_serial).length() > 0)
     g_cached_serial = trimCopy(cfg.flexitweb_serial);
 }
@@ -264,12 +245,12 @@ bool flexit_web_poll(FlexitData& out)
 {
   if (WiFi.status() != WL_CONNECTED)
   {
-    g_last_error = "WEB no WiFi";
+    g_last_error = "no WiFi";
     return false;
   }
   if (!flexit_web_is_ready())
   {
-    g_last_error = "WEB not configured";
+    g_last_error = "not configured";
     return false;
   }
   if (!ensureToken()) return false;
@@ -278,7 +259,7 @@ bool flexit_web_poll(FlexitData& out)
   String url = buildDatapointUrl(g_cached_serial);
   if (!startsWithHttp(url))
   {
-    g_last_error = "WEB bad datapoint URL";
+    g_last_error = "bad datapoint URL";
     return false;
   }
 
@@ -293,7 +274,7 @@ bool flexit_web_poll(FlexitData& out)
   }
   if (code < 200 || code >= 300)
   {
-    g_last_error = String("WEB datapoint HTTP ") + code;
+    g_last_error = String("datapoint HTTP ") + code;
     return false;
   }
 
@@ -317,7 +298,7 @@ bool flexit_web_poll(FlexitData& out)
 
   if (!any)
   {
-    g_last_error = "WEB datapoints missing";
+    g_last_error = "datapoints missing";
     return false;
   }
 

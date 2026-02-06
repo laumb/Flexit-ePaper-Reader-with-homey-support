@@ -226,7 +226,8 @@ static void drawTempCard(int x, int y, const char* label, float value, IconType 
 
   display.setFont(&FreeSansBold18pt7b);
   display.setCursor(x + 70, y + 62);
-  display.print(value, 1);
+  if (isnan(value)) display.print("--.-");
+  else display.print(value, 1);
 
   // degree symbol and C
   int degX = x + 70 + 78;

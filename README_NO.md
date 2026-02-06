@@ -10,7 +10,7 @@ Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiv
 ### v4.0.0
 
 - Ny valgfri datakilde: `FlexitWeb Cloud` (kun lesing) som alternativ til lokal Modbus.
-- Nye cloud-innstillinger i wizard/admin: login, valgfritt serienummer, endpoint-overstyring og polling `5-60 min`.
+- Nye cloud-innstillinger i wizard/admin: login, obligatorisk serienummer, endpoint-overstyring og polling `5-60 min`.
 - Styringsskriving er nå kun tilgjengelig når datakilde er `Modbus`.
 
 ### v3.7.0

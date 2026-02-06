@@ -47,6 +47,7 @@
 void webportal_begin(DeviceConfig& cfg);
 void webportal_loop();
 void webportal_set_data(const FlexitData& data, const String& mbStatus);
+bool webportal_consume_refresh_request();
 
 // Helpers
 bool webportal_sta_connected();

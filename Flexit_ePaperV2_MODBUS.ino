@@ -391,6 +391,20 @@ void loop()
     ui_render(data, mbStatus);
   }
 
+  // Force immediate source refresh after admin test/save changes.
+  if (webportal_consume_refresh_request())
+  {
+    updateDataFromActiveSource(true);
+    if (cfg.setup_completed)
+    {
+      ui_set_language(cfg.ui_language);
+      lastUiLanguageApplied = cfg.ui_language;
+      ui_render(data, mbStatus);
+    }
+    webportal_set_data(data, mbStatus);
+    lastRefresh = millis();
+  }
+
   if (millis() - lastRefresh >= UI_REFRESH_MS)
   {
     lastRefresh = millis();
