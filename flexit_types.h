@@ -17,4 +17,5 @@ struct FlexitData {
   String wifi_status = "NO";
   String ip = "";     // short IP display, e.g. ".25"
   String time = "--:--";
+  String device_model = "S3";
 };

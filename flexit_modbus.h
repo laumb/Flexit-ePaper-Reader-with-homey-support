@@ -42,6 +42,15 @@
 #define FLEXIT_ADDR_OFFSET 0
 #endif
 
+struct FlexitModbusRuntimeConfig {
+  String model = "S3";            // selected in admin
+  uint32_t baud = FLEXIT_MODBUS_BAUD;
+  uint8_t slave_id = FLEXIT_MODBUS_ID;
+  int8_t addr_offset = FLEXIT_ADDR_OFFSET;
+  String serial_format = "8N1";   // 8N1 / 8E1 / 8O1
+  String transport_mode = "AUTO"; // AUTO (auto-direction transceiver) / MANUAL (DE/RE pin)
+};
+
 // ---------------------------------------------------------------------------
 // Registers from Flexit: modbus_nordic_basic_2883.xlsx
 // 3x = Input registers (FC04)
@@ -67,10 +76,12 @@
 // Public API
 bool flexit_modbus_is_enabled();
 void flexit_modbus_set_enabled(bool enabled);
+void flexit_modbus_set_runtime_config(const FlexitModbusRuntimeConfig& cfg);
 
 bool flexit_modbus_begin();
 bool flexit_modbus_poll(FlexitData& data);
 const char* flexit_modbus_last_error();
+const char* flexit_modbus_active_map();
 
 // Mode mapping (from register list)
 const char* flexit_mode_to_text(uint16_t v);

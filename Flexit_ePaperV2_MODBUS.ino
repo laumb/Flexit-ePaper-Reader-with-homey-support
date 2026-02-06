@@ -107,6 +107,8 @@ static int calcEtaPercent(float uteluft, float tilluft, float avtrekk)
 static DeviceConfig cfg;
 static FlexitData data;
 static String mbStatus = "MB OFF";
+static FlexitData lastGoodModbusData;
+static bool hasLastGoodModbusData = false;
 
 // UI refresh every 10 minutes
 static uint32_t UI_REFRESH_MS = 10UL * 60UL * 1000UL;
@@ -117,6 +119,30 @@ static void updateCommonMeta()
   data.time = nowHHMM();
   data.wifi_status = (WiFi.status() == WL_CONNECTED) ? "OK" : "NO";
   data.ip = ipLastOctetDot();
+  data.device_model = cfg.model;
+}
+
+static void applyRuntimeModbusConfig()
+{
+  FlexitModbusRuntimeConfig mcfg;
+  mcfg.model = cfg.model;
+  mcfg.baud = cfg.modbus_baud;
+  mcfg.slave_id = cfg.modbus_slave_id;
+  mcfg.addr_offset = cfg.modbus_addr_offset;
+  mcfg.serial_format = cfg.modbus_serial_format;
+  mcfg.transport_mode = cfg.modbus_transport_mode;
+  flexit_modbus_set_runtime_config(mcfg);
+}
+
+static void clearModbusDataUnknown()
+{
+  data.uteluft = NAN;
+  data.tilluft = NAN;
+  data.avtrekk = NAN;
+  data.avkast = NAN;
+  data.fan_percent = 0;
+  data.heat_element_percent = 0;
+  data.mode = "N/A";
 }
 
 static void updateDataFromModbusOrFallback()
@@ -124,23 +150,38 @@ static void updateDataFromModbusOrFallback()
   updateCommonMeta();
 
   flexit_modbus_set_enabled(cfg.modbus_enabled);
+  applyRuntimeModbusConfig();
 
   if (!flexit_modbus_is_enabled())
   {
     mbStatus = "MB OFF";
     data_example_fill(data);
+    data.device_model = cfg.model;
+    hasLastGoodModbusData = false;
   }
   else
   {
     if (flexit_modbus_poll(data))
     {
-      mbStatus = "MB OK";
+      mbStatus = String("MB OK (") + flexit_modbus_active_map() + ")";
+      lastGoodModbusData = data;
+      hasLastGoodModbusData = true;
     }
     else
     {
       const char* err = flexit_modbus_last_error();
-      mbStatus = String("MB ") + (err ? err : "ERR");
-      data_example_fill(data);
+      if (hasLastGoodModbusData)
+      {
+        data = lastGoodModbusData;
+        updateCommonMeta();
+        mbStatus = String("MB ") + (err ? err : "ERR") + " (stale)";
+      }
+      else
+      {
+        clearModbusDataUnknown();
+        updateCommonMeta();
+        mbStatus = String("MB ") + (err ? err : "ERR");
+      }
     }
   }
 

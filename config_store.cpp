@@ -64,6 +64,24 @@ DeviceConfig config_load() {
 
   c.modbus_enabled = prefs.getBool("modbus", false);
   c.homey_enabled  = prefs.getBool("homey", true);
+  c.modbus_transport_mode = prefs.getString("mbtr", "AUTO");
+  if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")
+    c.modbus_transport_mode = "AUTO";
+
+  c.modbus_serial_format = prefs.getString("mbser", "8N1");
+  if (c.modbus_serial_format != "8N1" &&
+      c.modbus_serial_format != "8E1" &&
+      c.modbus_serial_format != "8O1")
+    c.modbus_serial_format = "8N1";
+
+  c.modbus_baud = prefs.getUInt("mbbaud", 19200);
+  if (c.modbus_baud < 1200 || c.modbus_baud > 115200) c.modbus_baud = 19200;
+
+  c.modbus_slave_id = (uint8_t)prefs.getUChar("mbid", 1);
+  if (c.modbus_slave_id < 1 || c.modbus_slave_id > 247) c.modbus_slave_id = 1;
+
+  c.modbus_addr_offset = (int8_t)prefs.getChar("mboff", 0);
+  if (c.modbus_addr_offset < -5 || c.modbus_addr_offset > 5) c.modbus_addr_offset = 0;
 
   c.poll_interval_ms = prefs.getULong("pollms", 10UL * 60UL * 1000UL);
 
@@ -82,11 +100,13 @@ void config_save(const DeviceConfig& c) {
   prefs.putBool("setup", c.setup_completed);
   prefs.putString("model", c.model);
 
-  prefs.putBool("setup", c.setup_completed);
-  prefs.putString("model", c.model);
-
   prefs.putBool("modbus", c.modbus_enabled);
   prefs.putBool("homey", c.homey_enabled);
+  prefs.putString("mbtr", c.modbus_transport_mode);
+  prefs.putString("mbser", c.modbus_serial_format);
+  prefs.putUInt("mbbaud", c.modbus_baud);
+  prefs.putUChar("mbid", c.modbus_slave_id);
+  prefs.putChar("mboff", c.modbus_addr_offset);
 
   prefs.putULong("pollms", c.poll_interval_ms);
 }

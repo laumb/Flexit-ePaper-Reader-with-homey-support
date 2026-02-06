@@ -34,6 +34,25 @@ static String jsonEscape(const String& s)
   return out;
 }
 
+static String normModel(const String& in)
+{
+  if (in == "S4") return "S4";
+  return "S3";
+}
+
+static String normTransport(const String& in)
+{
+  if (in == "MANUAL") return "MANUAL";
+  return "AUTO";
+}
+
+static String normSerialFmt(const String& in)
+{
+  if (in == "8E1") return "8E1";
+  if (in == "8O1") return "8O1";
+  return "8N1";
+}
+
 static bool tokenOK()
 {
   if (!server.hasArg("token")) return false;
@@ -64,6 +83,7 @@ static String buildStatusJson(bool pretty)
   String ip   = jsonEscape(g_data.ip);
   String time = jsonEscape(g_data.time);
   String mb   = jsonEscape(g_mb);
+  String model = jsonEscape(g_data.device_model);
 
   auto fOrNull = [](float v) -> String {
     if (isnan(v)) return "null";
@@ -92,6 +112,7 @@ static String buildStatusJson(bool pretty)
         "\"fan\":%d,"
         "\"heat\":%d,"
         "\"efficiency\":%d,"
+        "\"model\":\"%s\","
         "\"wifi\":\"%s\","
         "\"ip\":\"%s\","
         "\"modbus\":\"%s\""
@@ -105,6 +126,7 @@ static String buildStatusJson(bool pretty)
       g_data.fan_percent,
       g_data.heat_element_percent,
       g_data.efficiency_percent,
+      model.c_str(),
       wifi.c_str(),
       ip.c_str(),
       mb.c_str()
@@ -123,6 +145,7 @@ static String buildStatusJson(bool pretty)
     "  \"fan\": %d,\n"
     "  \"heat\": %d,\n"
     "  \"efficiency\": %d,\n"
+    "  \"model\": \"%s\",\n"
     "  \"wifi\": \"%s\",\n"
     "  \"ip\": \"%s\",\n"
     "  \"modbus\": \"%s\"\n"
@@ -136,6 +159,7 @@ static String buildStatusJson(bool pretty)
     g_data.fan_percent,
     g_data.heat_element_percent,
     g_data.efficiency_percent,
+    model.c_str(),
     wifi.c_str(),
     ip.c_str(),
     mb.c_str()
@@ -323,6 +347,22 @@ static void handleAdminSetup()
     s += "<label>API-token (for /status)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
     s += "<label><input type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
     s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
+    s += "<label>Modbus transport</label>";
+    s += "<select name='mbtr' class='input'>";
+    s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
+    s += "<option value='MANUAL'" + String(g_cfg->modbus_transport_mode == "MANUAL" ? " selected" : "") + ">MANUAL (DE/RE styres av GPIO)</option>";
+    s += "</select>";
+    s += "<div class='row'>";
+    s += "<div><label>Modbus baud</label><input name='mbbaud' type='number' min='1200' max='115200' value='" + String(g_cfg->modbus_baud) + "'></div>";
+    s += "<div><label>Slave ID</label><input name='mbid' type='number' min='1' max='247' value='" + String((int)g_cfg->modbus_slave_id) + "'></div>";
+    s += "<div><label>Addr offset</label><input name='mboff' type='number' min='-5' max='5' value='" + String((int)g_cfg->modbus_addr_offset) + "'></div>";
+    s += "</div>";
+    s += "<label>Serial format</label>";
+    s += "<select name='mbser' class='input'>";
+    s += "<option value='8N1'" + String(g_cfg->modbus_serial_format == "8N1" ? " selected" : "") + ">8N1</option>";
+    s += "<option value='8E1'" + String(g_cfg->modbus_serial_format == "8E1" ? " selected" : "") + ">8E1</option>";
+    s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
+    s += "</select>";
     s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
     s += "</form>";
@@ -381,13 +421,27 @@ static void handleAdminSetupSave()
   // step 3
   if (server.hasArg("model"))
   {
-    String m = server.arg("model");
-    if (m == "S3" || m == "S4") g_cfg->model = m;
+    g_cfg->model = normModel(server.arg("model"));
   }
 
   g_cfg->api_token = server.arg("token");
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
+  g_cfg->modbus_transport_mode = normTransport(server.arg("mbtr"));
+  g_cfg->modbus_serial_format = normSerialFmt(server.arg("mbser"));
+
+  uint32_t mbBaud = (uint32_t)server.arg("mbbaud").toInt();
+  if (mbBaud < 1200 || mbBaud > 115200) mbBaud = 19200;
+  g_cfg->modbus_baud = mbBaud;
+
+  int mbId = server.arg("mbid").toInt();
+  if (mbId < 1 || mbId > 247) mbId = 1;
+  g_cfg->modbus_slave_id = (uint8_t)mbId;
+
+  int mbOff = server.arg("mboff").toInt();
+  if (mbOff < -5) mbOff = -5;
+  if (mbOff > 5) mbOff = 5;
+  g_cfg->modbus_addr_offset = (int8_t)mbOff;
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
   if (pollSec < 30) pollSec = 30;
@@ -460,6 +514,22 @@ static void handleAdmin()
   s += "<label style='flex:1 1 220px'><input type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
   s += "<label style='flex:1 1 220px'><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> Homey/API</label>";
   s += "</div>";
+  s += "<label>Modbus transport</label>";
+  s += "<select name='mbtr' class='input'>";
+  s += "<option value='AUTO'" + String(g_cfg->modbus_transport_mode == "AUTO" ? " selected" : "") + ">AUTO (anbefalt for auto-dir modul)</option>";
+  s += "<option value='MANUAL'" + String(g_cfg->modbus_transport_mode == "MANUAL" ? " selected" : "") + ">MANUAL (DE/RE styres av GPIO)</option>";
+  s += "</select>";
+  s += "<div class='row'>";
+  s += "<div><label>Modbus baud</label><input name='mbbaud' type='number' min='1200' max='115200' value='" + String(g_cfg->modbus_baud) + "'></div>";
+  s += "<div><label>Slave ID</label><input name='mbid' type='number' min='1' max='247' value='" + String((int)g_cfg->modbus_slave_id) + "'></div>";
+  s += "<div><label>Addr offset</label><input name='mboff' type='number' min='-5' max='5' value='" + String((int)g_cfg->modbus_addr_offset) + "'></div>";
+  s += "</div>";
+  s += "<label>Serial format</label>";
+  s += "<select name='mbser' class='input'>";
+  s += "<option value='8N1'" + String(g_cfg->modbus_serial_format == "8N1" ? " selected" : "") + ">8N1</option>";
+  s += "<option value='8E1'" + String(g_cfg->modbus_serial_format == "8E1" ? " selected" : "") + ">8E1</option>";
+  s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
+  s += "</select>";
   s += "<label>Oppdateringsintervall (sek)</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
   s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
   s += "</div>";
@@ -509,13 +579,27 @@ static void handleAdminSave()
   // Model
   if (server.hasArg("model"))
   {
-    String m = server.arg("model");
-    if (m == "S3" || m == "S4") g_cfg->model = m;
+    g_cfg->model = normModel(server.arg("model"));
   }
 
   // Modules
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
+  g_cfg->modbus_transport_mode = normTransport(server.arg("mbtr"));
+  g_cfg->modbus_serial_format = normSerialFmt(server.arg("mbser"));
+
+  uint32_t mbBaud = (uint32_t)server.arg("mbbaud").toInt();
+  if (mbBaud < 1200 || mbBaud > 115200) mbBaud = 19200;
+  g_cfg->modbus_baud = mbBaud;
+
+  int mbId = server.arg("mbid").toInt();
+  if (mbId < 1 || mbId > 247) mbId = 1;
+  g_cfg->modbus_slave_id = (uint8_t)mbId;
+
+  int mbOff = server.arg("mboff").toInt();
+  if (mbOff < -5) mbOff = -5;
+  if (mbOff > 5) mbOff = 5;
+  g_cfg->modbus_addr_offset = (int8_t)mbOff;
 
   // Poll interval
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
@@ -640,4 +724,3 @@ void webportal_loop()
     ESP.restart();
   }
 }
-

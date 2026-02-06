@@ -24,6 +24,13 @@ struct DeviceConfig {
   bool modbus_enabled;
   bool homey_enabled;
 
+  // Modbus runtime options
+  String modbus_transport_mode; // "AUTO" or "MANUAL"
+  String modbus_serial_format;  // "8N1", "8E1", "8O1"
+  uint32_t modbus_baud;         // e.g. 19200
+  uint8_t modbus_slave_id;      // 1..247
+  int8_t modbus_addr_offset;    // typically 0 or -1
+
   uint32_t poll_interval_ms; // data/UI refresh (default 10min)
 
   // computed helpers

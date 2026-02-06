@@ -85,7 +85,8 @@ static void drawHeader(const FlexitData& d)
   setTextWhite();
   display.setFont(&FreeMonoBold9pt7b);
   display.setCursor(10, 20);
-  display.print("FLEXIT NORDIC S3"); // ok on device screen (internal label)
+  String model = d.device_model.length() ? d.device_model : "S3";
+  display.print(String("FLEXIT NORDIC ") + model);
   display.setCursor(display.width() - 60, 20);
   display.print(d.time);
   setTextBlack();
