@@ -695,119 +695,122 @@ static void redirectTo(const String& path)
 
 static String buildStatusJson(bool pretty)
 {
-  String mode = jsonEscape(g_data.mode);
-  String wifi = jsonEscape(g_data.wifi_status);
-  String ip   = jsonEscape(g_data.ip);
-  String time = jsonEscape(g_data.time);
-  String mb   = jsonEscape(g_mb);
-  String src  = jsonEscape(normDataSource(g_cfg->data_source));
-  String model = jsonEscape(g_data.device_model);
-  String fw = jsonEscape(String(FW_VERSION));
+  const String mode = jsonEscape(g_data.mode);
+  const String filter = jsonEscape(g_data.filter_status);
+  const String wifi = jsonEscape(g_data.wifi_status);
+  const String ip = jsonEscape(g_data.ip);
+  const String screenTime = jsonEscape(g_data.time);
+  const String dataTime = jsonEscape(g_data.data_time);
+  const String sourceStatus = jsonEscape(g_mb);
+  const String src = jsonEscape(normDataSource(g_cfg->data_source));
+  const String model = jsonEscape(g_data.device_model);
+  const String fw = jsonEscape(String(FW_VERSION));
 
   const uint64_t tsEpochMs = nowEpochMs();
-  String tsIso = jsonEscape(isoFromEpochMs(tsEpochMs));
+  const String tsIso = jsonEscape(isoFromEpochMs(tsEpochMs));
   const bool stale = (g_mb.indexOf("stale") >= 0);
 
   auto fOrNull = [](float v) -> String {
     if (isnan(v)) return "null";
     char t[24];
-    snprintf(t, sizeof(t), "%.1f", v);
+    snprintf(t, sizeof(t), "%.2f", v);
     return String(t);
   };
+  auto quoted = [](const String& v) -> String {
+    return String("\"") + v + "\"";
+  };
 
-  String ut = fOrNull(g_data.uteluft);
-  String ti = fOrNull(g_data.tilluft);
-  String av = fOrNull(g_data.avtrekk);
-  String ak = fOrNull(g_data.avkast);
+  const String ut = fOrNull(g_data.uteluft);
+  const String ti = fOrNull(g_data.tilluft);
+  const String av = fOrNull(g_data.avtrekk);
+  const String ak = fOrNull(g_data.avkast);
 
-  char buf[1024];
+  String out;
+  out.reserve(pretty ? 2600 : 1200);
 
   if (!pretty)
   {
-    snprintf(buf, sizeof(buf),
-      "{"
-        "\"ts_epoch_ms\":%llu,"
-        "\"ts_iso\":\"%s\","
-        "\"stale\":%s,"
-        "\"time\":\"%s\","
-        "\"mode\":\"%s\","
-        "\"uteluft\":%s,"
-        "\"tilluft\":%s,"
-        "\"avtrekk\":%s,"
-        "\"avkast\":%s,"
-        "\"fan\":%d,"
-        "\"heat\":%d,"
-        "\"efficiency\":%d,"
-        "\"model\":\"%s\","
-        "\"fw\":\"%s\","
-        "\"wifi\":\"%s\","
-        "\"ip\":\"%s\","
-        "\"modbus\":\"%s\","
-        "\"data_source\":\"%s\""
-      "}",
-      (unsigned long long)tsEpochMs,
-      tsIso.c_str(),
-      stale ? "true" : "false",
-      time.c_str(),
-      mode.c_str(),
-      ut.c_str(),
-      ti.c_str(),
-      av.c_str(),
-      ak.c_str(),
-      g_data.fan_percent,
-      g_data.heat_element_percent,
-      g_data.efficiency_percent,
-      model.c_str(),
-      fw.c_str(),
-      wifi.c_str(),
-      ip.c_str(),
-      mb.c_str(),
-      src.c_str()
-    );
-    return String(buf);
+    out += "{";
+    out += "\"ts_epoch_ms\":" + u64ToString(tsEpochMs) + ",";
+    out += "\"ts_iso\":" + quoted(tsIso) + ",";
+    out += "\"stale\":" + String(stale ? "true" : "false") + ",";
+    out += "\"screen_time\":" + quoted(screenTime) + ",";
+    out += "\"time\":" + quoted(screenTime) + ",";
+    out += "\"data_time\":" + quoted(dataTime) + ",";
+    out += "\"mode\":" + quoted(mode) + ",";
+    out += "\"filter_status\":" + quoted(filter) + ",";
+    out += "\"uteluft\":" + ut + ",";
+    out += "\"tilluft\":" + ti + ",";
+    out += "\"avtrekk\":" + av + ",";
+    out += "\"avkast\":" + ak + ",";
+    out += "\"fan\":" + String(g_data.fan_percent) + ",";
+    out += "\"heat\":" + String(g_data.heat_element_percent) + ",";
+    out += "\"efficiency\":" + String(g_data.efficiency_percent) + ",";
+    out += "\"model\":" + quoted(model) + ",";
+    out += "\"fw\":" + quoted(fw) + ",";
+    out += "\"wifi\":" + quoted(wifi) + ",";
+    out += "\"ip\":" + quoted(ip) + ",";
+    out += "\"source_status\":" + quoted(sourceStatus) + ",";
+    out += "\"modbus\":" + quoted(sourceStatus) + ",";
+    out += "\"data_source\":" + quoted(src) + ",";
+    out += "\"homey_enabled\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
+    out += "\"ha_enabled\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
+    out += "\"modbus_enabled\":" + String(g_cfg->modbus_enabled ? "true" : "false");
+    out += "}";
+    return out;
   }
 
-  snprintf(buf, sizeof(buf),
-    "{\n"
-    "  \"ts_epoch_ms\": %llu,\n"
-    "  \"ts_iso\": \"%s\",\n"
-    "  \"stale\": %s,\n"
-    "  \"time\": \"%s\",\n"
-    "  \"mode\": \"%s\",\n"
-    "  \"uteluft\": %s,\n"
-    "  \"tilluft\": %s,\n"
-    "  \"avtrekk\": %s,\n"
-    "  \"avkast\": %s,\n"
-    "  \"fan\": %d,\n"
-    "  \"heat\": %d,\n"
-    "  \"efficiency\": %d,\n"
-    "  \"model\": \"%s\",\n"
-    "  \"fw\": \"%s\",\n"
-    "  \"wifi\": \"%s\",\n"
-    "  \"ip\": \"%s\",\n"
-    "  \"modbus\": \"%s\",\n"
-    "  \"data_source\": \"%s\"\n"
-    "}\n",
-    (unsigned long long)tsEpochMs,
-    tsIso.c_str(),
-    stale ? "true" : "false",
-    time.c_str(),
-    mode.c_str(),
-    ut.c_str(),
-    ti.c_str(),
-    av.c_str(),
-    ak.c_str(),
-    g_data.fan_percent,
-    g_data.heat_element_percent,
-    g_data.efficiency_percent,
-    model.c_str(),
-    fw.c_str(),
-    wifi.c_str(),
-    ip.c_str(),
-    mb.c_str(),
-    src.c_str()
-  );
-  return String(buf);
+  out += "{\n";
+  out += "  \"meta\": {\n";
+  out += "    \"ts_epoch_ms\": " + u64ToString(tsEpochMs) + ",\n";
+  out += "    \"ts_iso\": " + quoted(tsIso) + ",\n";
+  out += "    \"screen_time\": " + quoted(screenTime) + ",\n";
+  out += "    \"time\": " + quoted(screenTime) + ",\n";
+  out += "    \"data_time\": " + quoted(dataTime) + ",\n";
+  out += "    \"stale\": " + String(stale ? "true" : "false") + ",\n";
+  out += "    \"model\": " + quoted(model) + ",\n";
+  out += "    \"fw\": " + quoted(fw) + "\n";
+  out += "  },\n";
+  out += "  \"source\": {\n";
+  out += "    \"data_source\": " + quoted(src) + ",\n";
+  out += "    \"source_status\": " + quoted(sourceStatus) + ",\n";
+  out += "    \"modbus\": " + quoted(sourceStatus) + ",\n";
+  out += "    \"modbus_enabled\": " + String(g_cfg->modbus_enabled ? "true" : "false") + ",\n";
+  out += "    \"homey_enabled\": " + String(g_cfg->homey_enabled ? "true" : "false") + ",\n";
+  out += "    \"ha_enabled\": " + String(g_cfg->ha_enabled ? "true" : "false") + "\n";
+  out += "  },\n";
+  out += "  \"network\": {\n";
+  out += "    \"wifi\": " + quoted(wifi) + ",\n";
+  out += "    \"ip\": " + quoted(ip) + "\n";
+  out += "  },\n";
+  out += "  \"data\": {\n";
+  out += "    \"mode\": " + quoted(mode) + ",\n";
+  out += "    \"filter_status\": " + quoted(filter) + ",\n";
+  out += "    \"uteluft\": " + ut + ",\n";
+  out += "    \"tilluft\": " + ti + ",\n";
+  out += "    \"avtrekk\": " + av + ",\n";
+  out += "    \"avkast\": " + ak + ",\n";
+  out += "    \"fan\": " + String(g_data.fan_percent) + ",\n";
+  out += "    \"heat\": " + String(g_data.heat_element_percent) + ",\n";
+  out += "    \"efficiency\": " + String(g_data.efficiency_percent) + "\n";
+  out += "  },\n";
+  out += "  \"field_map\": {\n";
+  out += "    \"screen_time\": \"Last ePaper refresh (HH:MM)\",\n";
+  out += "    \"time\": \"Alias for screen_time (legacy compatibility)\",\n";
+  out += "    \"data_time\": \"Last successful datasource update (HH:MM)\",\n";
+  out += "    \"source_status\": \"Datasource status string (MB/BACNET + state)\",\n";
+  out += "    \"modbus\": \"Alias for source_status (legacy compatibility)\",\n";
+  out += "    \"mode\": \"Ventilation mode\",\n";
+  out += "    \"uteluft\": \"Outdoor temperature (C)\",\n";
+  out += "    \"tilluft\": \"Supply temperature (C)\",\n";
+  out += "    \"avtrekk\": \"Extract temperature (C)\",\n";
+  out += "    \"avkast\": \"Exhaust temperature (C)\",\n";
+  out += "    \"fan\": \"Fan control/speed percent\",\n";
+  out += "    \"heat\": \"Heater percent\",\n";
+  out += "    \"efficiency\": \"Heat recovery efficiency percent\"\n";
+  out += "  }\n";
+  out += "}\n";
+  return out;
 }
 
 static String boolLabel(bool v)
@@ -1582,6 +1585,7 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += ".kpi .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}";
       s += ".kpi .v{font-size:16px;font-weight:700;margin-top:4px;}";
       s += ".sep-gold{height:1px;background:var(--accent);opacity:.65;margin:12px 0;}";
+      s += ".sep-gold-dashed{height:0;border-top:1px dashed var(--accent);opacity:.7;margin:12px 0;}";
       s += ".lang{padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);}";
       s += "a{color:var(--accent);text-decoration:none;}";
       s += "code{background:rgba(194,161,126,.18);padding:2px 6px;border-radius:8px;}";
@@ -1779,15 +1783,18 @@ static void handleAdminSetup()
     s += "<label><input type='radio' name='ha_mode' value='disable'"
          + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
          + "> Deaktiver</label>";
+    s += "</div>";
+    s += "<div class='card'><h2>Inndata-moduler</h2>";
+    s += "<div class='help'>Velg aktiv datakilde. Kun innstillinger for valgt kilde vises.</div>";
     s += "<div class='sep-gold'></div>";
     const bool srcWeb = (normDataSource(g_cfg->data_source) == "BACNET");
     s += "<div><strong>" + tr("data_source") + "</strong></div>";
     s += "<label><input type='radio' name='src' value='MODBUS'" + String(!srcWeb ? " checked" : "") + "> " + tr("source_modbus") + "</label>";
     s += "<label><input type='radio' name='src' value='BACNET'" + String(srcWeb ? " checked" : "") + "> " + tr("source_bacnet") + "</label>";
-    s += "<div class='help'>" + tr("source_bacnet_help") + "</div>";
-    s += "<div class='sep-gold'></div>";
-    s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus (eksperimentell)</label>";
-    s += "<div id='mb_adv_setup' style='display:" + String(g_cfg->modbus_enabled ? "block" : "none") + ";'>";
+    s += "<div id='mb_block_setup' style='display:" + String(!srcWeb ? "block" : "none") + ";'>";
+    s += "<div class='sep-gold-dashed'></div>";
+    s += "<label><input id='mb_toggle_setup' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
+    s += "<div id='mb_adv_setup' style='display:" + String((!srcWeb && g_cfg->modbus_enabled) ? "block" : "none") + ";'>";
     s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
     s += "<label><input type='checkbox' name='ctrl' " + String(g_cfg->control_enabled ? "checked" : "") + "> " + tr("control_enable") + "</label>";
     s += "<select id='mbtr_setup' name='mbtr' class='input'>";
@@ -1806,8 +1813,10 @@ static void handleAdminSetup()
     s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
     s += "</select>";
     s += "</div>";
+    s += "</div>";
+    s += "<div id='bac_block_setup' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
+    s += "<div class='sep-gold-dashed'></div>";
     s += "<div id='fw_adv_setup' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
-    s += "<div class='help'>BACnet er produksjonsklar (read-only datakilde).</div>";
     s += "<div class='help'>" + tr("source_bacnet_help") + "</div>";
     s += "<div class='row'>";
     s += "<div><label>" + tr("bac_ip") + "</label><input name='bacip' value='" + jsonEscape(g_cfg->bacnet_ip) + "' required></div>";
@@ -1831,16 +1840,17 @@ static void handleAdminSetup()
     s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"setup\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"setup\")'>Tøm debuglogg</button></div>";
     s += "<pre id='bacnet_debug_setup' data-on='0' style='display:none;white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:11px;line-height:1.45;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
     s += "</div>";
+    s += "</div>";
     s += "<script>(function(){"
          "var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');"
-         "var fw=document.getElementById('fw_adv_setup');"
+         "var fw=document.getElementById('fw_adv_setup');var mbb=document.getElementById('mb_block_setup');var bcb=document.getElementById('bac_block_setup');"
          "var src=document.querySelectorAll('input[name=\"src\"]');"
          "var m=document.getElementById('model_setup');var tr=document.getElementById('mbtr_setup');"
          "var sf=document.getElementById('mbser_setup');var bd=document.getElementById('mbbaud_setup');"
          "var id=document.getElementById('mbid_setup');var of=document.getElementById('mboff_setup');"
          "if(!t||!a)return;"
          "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
-         "function u(){var useMb=(srcVal()==='MODBUS');a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=(srcVal()==='BACNET')?'block':'none';}"
+         "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';}"
          "function p(model){tr.value='AUTO';sf.value='8E1';bd.value='9600';id.value='1';of.value='0';}"
          "t.addEventListener('change',u);"
          "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
@@ -2110,7 +2120,7 @@ static void handleAdmin()
   s += "</div>";
 
   // API + modules
-  s += "<div class='card'><h2>API, integrasjoner og datakilde</h2>";
+  s += "<div class='card'><h2>API og integrasjoner</h2>";
   s += "<label>Enhetsmodell</label>";
   s += "<select id='model_admin' name='model' class='input'>";
   s += "<option value='S3'" + String(g_cfg->model == "S3" ? " selected" : "") + ">Nordic S3</option>";
@@ -2139,16 +2149,19 @@ static void handleAdmin()
   s += "<p class='muted-title'>Moduler</p>";
   s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
   s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
+  s += "</div>";
+  s += "<div class='card'><h2>Inndata-moduler</h2>";
+  s += "<div class='help'>Velg aktiv datakilde. Kun innstillinger for valgt kilde vises.</div>";
   s += "<div class='sep-gold'></div>";
   const bool srcWeb = (normDataSource(g_cfg->data_source) == "BACNET");
   s += "<p class='muted-title'>Datakilde</p>";
   s += "<div><strong>" + tr("data_source") + "</strong></div>";
   s += "<label><input type='radio' name='src' value='MODBUS'" + String(!srcWeb ? " checked" : "") + "> " + tr("source_modbus") + "</label>";
   s += "<label><input type='radio' name='src' value='BACNET'" + String(srcWeb ? " checked" : "") + "> " + tr("source_bacnet") + "</label>";
-  s += "<div class='help'>" + tr("source_bacnet_help") + "</div>";
-  s += "<div class='sep-gold'></div>";
-  s += "<p class='muted-title'>Modbus (eksperimentell)</p>";
-  s += "<label><input id='mb_toggle_admin' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus (eksperimentell)</label>";
+  s += "<div id='mb_block_admin' style='display:" + String(!srcWeb ? "block" : "none") + ";'>";
+  s += "<div class='sep-gold-dashed'></div>";
+  s += "<p class='muted-title'>Modbus</p>";
+  s += "<label><input id='mb_toggle_admin' type='checkbox' name='modbus' " + String(g_cfg->modbus_enabled ? "checked" : "") + "> Modbus</label>";
   s += "<div id='mb_adv_admin' style='display:" + String((g_cfg->modbus_enabled && !srcWeb) ? "block" : "none") + ";'>";
   s += "<div class='help'>Avanserte Modbus-innstillinger</div>";
   s += "<label><input type='checkbox' name='ctrl' " + String(g_cfg->control_enabled ? "checked" : "") + "> " + tr("control_enable") + "</label>";
@@ -2169,8 +2182,11 @@ static void handleAdmin()
   s += "<option value='8O1'" + String(g_cfg->modbus_serial_format == "8O1" ? " selected" : "") + ">8O1</option>";
   s += "</select>";
   s += "</div>";
+  s += "</div>";
+  s += "<div id='bac_block_admin' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
+  s += "<div class='sep-gold-dashed'></div>";
   s += "<div id='fw_adv_admin' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
-  s += "<p class='muted-title'>BACnet (produksjonsklar, read-only)</p>";
+  s += "<p class='muted-title'>BACnet</p>";
   s += "<div class='help'>" + tr("source_bacnet_help") + "</div>";
   s += "<div class='row'>";
   s += "<div><label>" + tr("bac_ip") + "</label><input name='bacip' value='" + jsonEscape(g_cfg->bacnet_ip) + "' required></div>";
@@ -2194,16 +2210,17 @@ static void handleAdmin()
   s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"admin\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"admin\")'>Tøm debuglogg</button></div>";
   s += "<pre id='bacnet_debug_admin' data-on='0' style='display:none;white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:11px;line-height:1.45;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
   s += "</div>";
+  s += "</div>";
   s += "<script>(function(){"
        "var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');"
-       "var fw=document.getElementById('fw_adv_admin');"
+       "var fw=document.getElementById('fw_adv_admin');var mbb=document.getElementById('mb_block_admin');var bcb=document.getElementById('bac_block_admin');"
        "var src=document.querySelectorAll('input[name=\"src\"]');"
        "var m=document.getElementById('model_admin');var tr=document.getElementById('mbtr_admin');"
        "var sf=document.getElementById('mbser_admin');var bd=document.getElementById('mbbaud_admin');"
        "var id=document.getElementById('mbid_admin');var of=document.getElementById('mboff_admin');"
        "if(!t||!a)return;"
        "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
-       "function u(){var useMb=(srcVal()==='MODBUS');a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=(srcVal()==='BACNET')?'block':'none';}"
+       "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';}"
        "function p(model){tr.value='AUTO';sf.value='8E1';bd.value='9600';id.value='1';of.value='0';}"
        "t.addEventListener('change',u);"
        "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
@@ -2427,6 +2444,22 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.0.2</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "/status returnerer n&aring; komplett datasett uansett aktiv datakilde (MODBUS/BACNET), og pretty=1 viser field_map med lesbar mapping.";
+  else
+    s += "/status now returns complete data independent of active datasource (MODBUS/BACNET), and pretty=1 shows field_map with readable mapping.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>v4.0.1</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Klokken i toppfelt viser siste skjermrefresh, mens 'siste' under hvert kort viser siste vellykkede dataoppdatering fra datakilde.";
+  else
+    s += "Header clock now shows last screen refresh, while each card 'updated' time shows last successful datasource update.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v4.0.0</strong></div>";
   s += "<div class='help'>";
   if (noLang)

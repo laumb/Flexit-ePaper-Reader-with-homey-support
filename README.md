@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.0.0)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.0.3)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -6,6 +6,23 @@ It provides local ePaper display, local web admin, and Homey/Home Assistant inte
 Default behavior is read-only monitoring. Modbus write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.0.3
+- Admin/setup input modules were split into a dedicated section separate from API/integration settings.
+- Advanced Modbus settings now appear only when `Modbus` is the selected data source and enabled.
+- BACnet settings now appear only when `BACnet` is the selected data source.
+- Added dashed gold separators between datasource input blocks for clearer visual separation.
+
+### v4.0.2
+- `/status` now always returns a complete dataset independent of active datasource (`MODBUS` or `BACNET`).
+- `pretty=1` now includes structured groups and a readable `field_map`.
+- Kept legacy aliases (`time`, `modbus`) for backward compatibility.
+
+### v4.0.1
+- Display timing clarified:
+  - Header clock now shows last ePaper refresh time.
+  - Per-card `updated` timestamp now shows last successful datasource update.
+- Added `data_time` to status payload for explicit last data-update timestamp.
 
 ### v4.0.0
 - New optional data source: `BACnet (local, read-only)` as an alternative to local Modbus.
@@ -170,7 +187,7 @@ Detailed guides:
 Status payload includes:
 - Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
 - Aggregates: `fan`, `heat`, `efficiency`
-- Metadata: `mode`, `modbus`, `model`, `time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`
+- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`
 
 ### History
 - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`

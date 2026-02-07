@@ -16,6 +16,7 @@ struct FlexitData {
   String filter_status = "N/A";
   String wifi_status = "NO";
   String ip = "";     // short IP display, e.g. ".25"
-  String time = "--:--";
+  String time = "--:--";       // last ePaper refresh time (header clock)
+  String data_time = "--:--";  // last successful datasource update time
   String device_model = "S3";
 };

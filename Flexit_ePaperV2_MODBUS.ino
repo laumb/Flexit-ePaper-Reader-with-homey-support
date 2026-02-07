@@ -150,10 +150,24 @@ static uint32_t bacnetPollIntervalMs()
 
 static void updateCommonMeta()
 {
-  data.time = nowHHMM();
   data.wifi_status = (WiFi.status() == WL_CONNECTED) ? "OK" : "NO";
   data.ip = ipLastOctetDot();
   data.device_model = modelLabel(cfg.model);
+}
+
+static void markDataFreshNow()
+{
+  data.data_time = nowHHMM();
+}
+
+static void markDataUnknownTime()
+{
+  data.data_time = "--:--";
+}
+
+static void markScreenRefreshNow()
+{
+  data.time = nowHHMM();
 }
 
 static void applyRuntimeModbusConfig()
@@ -177,6 +191,7 @@ static void clearModbusDataUnknown()
   data.fan_percent = 0;
   data.heat_element_percent = 0;
   data.mode = "N/A";
+  markDataUnknownTime();
 }
 
 static void recomputeEfficiency()
@@ -198,6 +213,7 @@ static void updateDataFromModbusOrFallback()
   {
     mbStatus = "MB OFF";
     data_example_fill(data);
+    markDataUnknownTime();
     data.device_model = cfg.model;
     hasLastGoodModbusData = false;
   }
@@ -205,6 +221,7 @@ static void updateDataFromModbusOrFallback()
   {
     if (flexit_modbus_poll(data))
     {
+      markDataFreshNow();
       mbStatus = String("MB OK (") + flexit_modbus_active_map() + ")";
       lastGoodModbusData = data;
       hasLastGoodModbusData = true;
@@ -246,6 +263,7 @@ static void updateDataFromBacnet(bool forceRead)
   }
   else if (flexit_bacnet_poll(data))
   {
+    markDataFreshNow();
     mbStatus = "BACNET OK";
     lastGoodBacnetData = data;
     hasLastGoodBacnetData = true;
@@ -368,6 +386,7 @@ webportal_begin(cfg);
   {
     ui_set_language(cfg.ui_language);
     lastUiLanguageApplied = cfg.ui_language;
+    markScreenRefreshNow();
     ui_render(data, mbStatus);
   }
   webportal_set_data(data, mbStatus);
@@ -388,6 +407,7 @@ void loop()
   {
     ui_set_language(cfg.ui_language);
     lastUiLanguageApplied = cfg.ui_language;
+    markScreenRefreshNow();
     ui_render(data, mbStatus);
   }
 
@@ -399,6 +419,7 @@ void loop()
     {
       ui_set_language(cfg.ui_language);
       lastUiLanguageApplied = cfg.ui_language;
+      markScreenRefreshNow();
       ui_render(data, mbStatus);
     }
     webportal_set_data(data, mbStatus);
@@ -417,6 +438,7 @@ void loop()
     {
       ui_set_language(cfg.ui_language);
       lastUiLanguageApplied = cfg.ui_language;
+      markScreenRefreshNow();
       ui_render(data, mbStatus);
     }
 

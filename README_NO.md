@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v4.0.0)
+# VentReader – Brukerveiledning (v4.0.2)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -6,6 +6,19 @@ VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.0.2
+
+- `/status` returnerer nå komplett datasett uavhengig av aktiv datakilde (`MODBUS` eller `BACNET`).
+- `pretty=1` inkluderer nå strukturert gruppering og lesbar `field_map`.
+- Beholder legacy-alias (`time`, `modbus`) for bakoverkompatibilitet.
+
+### v4.0.1
+
+- Tidsvisning i display er tydeliggjort:
+  - Klokke i toppfelt viser siste skjermrefresh.
+  - `siste` under hvert datakort viser siste vellykkede dataoppdatering fra datakilde.
+- Status-JSON inkluderer nå `data_time` som eksplisitt tid for siste dataoppdatering.
 
 ### v4.0.0
 

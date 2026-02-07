@@ -240,7 +240,7 @@ static void drawTempCard(int x, int y, const char* label, float value, IconType 
   display.setCursor(x + 62, y + 84);
   display.print(tr("updated"));
   display.print(" ");
-  display.print(d.time);
+  display.print(d.data_time);
 }
 
 static void drawFooter(const FlexitData& d, const String& mbStatus)
