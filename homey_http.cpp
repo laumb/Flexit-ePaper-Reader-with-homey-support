@@ -733,6 +733,8 @@ static void handleAdminNewToken()
 
 static bool checkAdminAuth()
 {
+  // First-boot onboarding is intentionally pre-auth until setup is completed.
+  if (g_cfg && !g_cfg->setup_completed) return true;
   if (!server.authenticate(g_cfg->admin_user.c_str(), g_cfg->admin_pass.c_str()))
   {
     server.requestAuthentication();
@@ -1803,6 +1805,37 @@ static void handleRoot()
   s += "<div class='help'>API: <code>/status?token=...</code> (Homey polling). Debug: <code>&pretty=1</code></div>";
   s += "</div>";
 
+  // Quick control directly under status on public page
+  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
+  const String rootQcSrc = normDataSource(g_cfg->data_source);
+  const bool rootQcActive =
+      (rootQcSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+      (rootQcSrc == "BACNET" && g_cfg->bacnet_write_enabled);
+  if (rootQcActive)
+  {
+    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
+    s += "<div class='actions'>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
+    s += "</div>";
+    s += "<div class='sep-gold'></div>";
+    s += "<form method='POST' action='/admin/control/setpoint'>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
+    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
+    s += "</div>";
+    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
+    s += "</form>";
+    s += "<div class='help'>Krever innlogging i admin ved aktivt system.</div>";
+  }
+  else
+  {
+    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
+  }
+  s += "</div>";
+
   auto fOrDash = [](float v) -> String {
     if (isnan(v)) return "-";
     char t[16];
@@ -1887,6 +1920,10 @@ static void handleAdminSetup()
 
   String s = pageHeader("Oppsett", "Stegvis konfigurasjon (første login)");
   wizardProgress(s, step);
+  s += "<div class='card'><h2>Onboarding</h2>";
+  s += "<div class='help'>Førstegangsoppsett er pre-auth: du blir ikke bedt om innlogging før oppsett er fullført. ";
+  s += "Steg: 1) nytt admin-passord, 2) WiFi, 3) datakilde/integrasjoner/display.</div>";
+  s += "</div>";
 
   if (step == 1)
   {
@@ -2349,6 +2386,36 @@ static void handleAdmin()
   s += "<div class='help'>Lenkene bruker aktiv Homey-token automatisk.</div>";
   s += "</div>";
 
+  // Quick control directly under status in admin
+  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
+  const String qcTopSrc = normDataSource(g_cfg->data_source);
+  const bool qcTopActive =
+      (qcTopSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+      (qcTopSrc == "BACNET" && g_cfg->bacnet_write_enabled);
+  if (qcTopActive)
+  {
+    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
+    s += "<div class='actions'>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
+    s += "</div>";
+    s += "<div class='sep-gold'></div>";
+    s += "<form method='POST' action='/admin/control/setpoint'>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
+    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
+    s += "</div>";
+    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
+    s += "</form>";
+  }
+  else
+  {
+    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
+  }
+  s += "</div>";
+
   // WiFi
   s += "<div class='card'><h2>WiFi</h2>";
   s += "<form id='admin_form' method='POST' action='/admin/save'>";
@@ -2387,7 +2454,6 @@ static void handleAdmin()
   s += "<p class='muted-title'>Moduler</p>";
   s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
   s += "<label><input id='ha_toggle_admin' type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
-  s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
   s += "<label><input id='hamqtt_admin' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
   s += "<div id='hamqtt_block_admin' style='display:" + String((g_cfg->ha_enabled && g_cfg->ha_mqtt_enabled) ? "block" : "none") + ";'>";
   s += "<div class='help'>" + tr("ha_mqtt_help") + "</div>";
@@ -2588,9 +2654,13 @@ static void handleAdmin()
        "if(dbg){dbg.dataset.on='0';dbg.style.display='none';dbg.textContent='';}"
        "};"
        "})();</script>";
-  s += "<div class='sep-gold'></div>";
+  s += "</div>";
+
+  // Display settings
+  s += "<div class='card'><h2>Display</h2>";
+  s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
   s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
-  s += "<div class='help'>Skjermen oppdateres ved samme intervall (partial refresh).</div>";
+  s += "<div class='help'>Skjerminnstillinger: headless og oppdateringsintervall er samlet her.</div>";
   s += "</div>";
 
   // Homey export helper
@@ -2602,36 +2672,6 @@ static void handleAdmin()
   s += "<button class='btn secondary' type='button' onclick='emailHomeySetup()'>Send til e-post (mobil)</button>";
   s += "</div>";
   s += "<div class='help'>Mobilknappen åpner e-postklient med oppsetttekst i ny e-post.</div>";
-  s += "</div>";
-
-  // Quick control panel (next-level UX)
-  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
-  const String qcSrc = normDataSource(g_cfg->data_source);
-  const bool qcActive =
-      (qcSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
-      (qcSrc == "BACNET" && g_cfg->bacnet_write_enabled);
-  if (qcActive)
-  {
-    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
-    s += "<div class='actions'>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
-    s += "</div>";
-    s += "<div class='sep-gold'></div>";
-    s += "<form method='POST' action='/admin/control/setpoint'>";
-    s += "<div class='row'>";
-    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
-    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
-    s += "</div>";
-    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
-    s += "</form>";
-  }
-  else
-  {
-    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
-  }
   s += "</div>";
 
   // Admin password
@@ -2709,6 +2749,14 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.2.1</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Admin: nytt Display-segment (headless + oppdateringsintervall), hurtigstyring flyttet rett under status, og førstegangsoppsett kjører nå uten auth-prompt.";
+  else
+    s += "Admin: new Display section (headless + refresh interval), quick control moved directly below status, and first-time setup now runs without auth prompt.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v4.2.0</strong></div>";
   s += "<div class='help'>";
   if (noLang)
