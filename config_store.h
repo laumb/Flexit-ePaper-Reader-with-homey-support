@@ -26,8 +26,18 @@ struct DeviceConfig {
   bool modbus_enabled;
   bool homey_enabled;
   bool ha_enabled;
+  bool ha_mqtt_enabled; // Home Assistant native MQTT Discovery
   bool control_enabled; // allows Modbus write actions via API (experimental)
   String data_source;   // "MODBUS" or "BACNET"
+
+  // Home Assistant MQTT Discovery (native HA entities)
+  String ha_mqtt_host;        // broker host/ip
+  uint16_t ha_mqtt_port;      // default 1883
+  String ha_mqtt_user;        // optional
+  String ha_mqtt_pass;        // optional
+  String ha_mqtt_prefix;      // discovery prefix, default "homeassistant"
+  String ha_mqtt_topic_base;  // state base topic, default "ventreader/<chip>"
+  uint16_t ha_mqtt_interval_s;// publish interval seconds
 
   // Local BACnet/IP source (read-only)
   String bacnet_ip;             // target device IP (required)

@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v4.0.2)
+# VentReader – Brukerveiledning (v4.0.4)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -6,6 +6,19 @@ VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.0.4
+
+- Ny native Home Assistant MQTT Discovery-integrasjon (standard MQTT entities, ingen custom HA-komponent).
+- Nye HA MQTT-innstillinger i setup/admin: broker, auth, discovery-prefix, state-topic base og publiseringsintervall.
+- Admin viser nå HA MQTT runtime-status, samtidig som eksisterende `/ha/*` REST-endepunkter fortsatt støttes.
+
+### v4.0.3
+
+- Inndata-moduler i setup/admin er flyttet til egen seksjon, separat fra API/integrasjoner.
+- Avanserte Modbus-innstillinger vises nå kun når `Modbus` er valgt datakilde og aktivert.
+- BACnet-innstillinger vises nå kun når `BACnet` er valgt datakilde.
+- Lagt til stiplet gull-separator mellom inndata-blokker for tydeligere visuelt skille.
 
 ### v4.0.2
 
@@ -145,6 +158,8 @@ Full steg-for-steg guider:
 - Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP_NO.md`
 - English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP.md`
 
+Anbefalt metode er nå native MQTT Discovery i Home Assistant (ingen custom komponent).
+
 ## API-endepunkt
 
 - Helse:
@@ -153,7 +168,7 @@ Full steg-for-steg guider:
   - `GET /status?token=<HOMEY_TOKEN>`
   - `GET /ha/status?token=<HA_TOKEN>` (krever `Home Assistant/API` aktivert)
   - Inkluderer `ts_epoch_ms` og `ts_iso` i hver datapakke for tidsserier/grafer
-  - Inkluderer `stale`-felt per datapakke
+  - Inkluderer `stale`-felt og `ha_mqtt_enabled` per datapakke
 - Historikk:
   - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
   - `GET /ha/history?token=<HA_TOKEN>&limit=120`

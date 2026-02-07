@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.0.3)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.0.4)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -6,6 +6,11 @@ It provides local ePaper display, local web admin, and Homey/Home Assistant inte
 Default behavior is read-only monitoring. Modbus write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.0.4
+- Added native Home Assistant MQTT Discovery integration (standard MQTT entities, no custom HA component).
+- Added HA MQTT settings in setup/admin: broker, auth, discovery prefix, state topic base, publish interval.
+- Added runtime HA MQTT status in admin and full compatibility with existing `/ha/*` REST endpoints.
 
 ### v4.0.3
 - Admin/setup input modules were split into a dedicated section separate from API/integration settings.
@@ -122,11 +127,11 @@ This page can test local HTTP auth/data endpoints, but cannot access BACnet/UDP 
 ## Quick start: Home Assistant
 
 1. In `/admin`, verify `Home Assistant/API` is enabled.
-2. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
-3. Add REST sensor in `configuration.yaml`.
-4. Add template sensors for temperatures/percentages.
-5. Restart Home Assistant.
-6. Verify values in Entities + History.
+2. Enable `HA MQTT Discovery (native)`.
+3. Fill MQTT broker host/IP (+ optional auth), then save.
+4. In Home Assistant, ensure MQTT integration is connected to the same broker.
+5. Verify entities auto-appear in HA.
+6. Optional fallback: use `/ha/status` REST endpoint if you prefer REST sensors.
 
 ## Mode/setpoint writes (optional)
 
@@ -175,6 +180,8 @@ Detailed guides:
 - English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP.md`
 - Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP_NO.md`
 
+Recommended method is now native Home Assistant MQTT Discovery (no custom component).
+
 ## API endpoints
 
 ### Health
@@ -187,7 +194,7 @@ Detailed guides:
 Status payload includes:
 - Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
 - Aggregates: `fan`, `heat`, `efficiency`
-- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`
+- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`, `ha_mqtt_enabled`
 
 ### History
 - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`

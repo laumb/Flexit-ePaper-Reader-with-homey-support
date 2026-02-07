@@ -10,6 +10,7 @@
 #include "flexit_bacnet.h"
 #include "config_store.h"
 #include "homey_http.h" // web portal + /status API
+#include "ha_mqtt.h"
 
 // Keep credentials/tokens out of source control
 
@@ -376,8 +377,9 @@ if (WiFi.status() == WL_CONNECTED)
     ArduinoOTA.begin();
   }
 
-// Start web portal (admin + /status API)
+  // Start web portal (admin + /status API)
 webportal_begin(cfg);
+  ha_mqtt_begin(cfg);
 
   updateDataFromActiveSource(true);
 
@@ -390,6 +392,7 @@ webportal_begin(cfg);
     ui_render(data, mbStatus);
   }
   webportal_set_data(data, mbStatus);
+  ha_mqtt_request_publish_now();
 
   lastRefresh = millis();
 }
@@ -398,6 +401,7 @@ void loop()
 {
   // Handle incoming HTTP requests for /status
   webportal_loop();
+  ha_mqtt_loop(cfg, data, mbStatus);
 
   // Arduino OTA (enabled when on network)
   ArduinoOTA.handle();
@@ -423,6 +427,7 @@ void loop()
       ui_render(data, mbStatus);
     }
     webportal_set_data(data, mbStatus);
+    ha_mqtt_request_publish_now();
     lastRefresh = millis();
   }
 
@@ -445,6 +450,7 @@ void loop()
     // Optional: send to Homey (stub for now)
     // homey_post_status(data);
     webportal_set_data(data, mbStatus);
+    ha_mqtt_request_publish_now();
 
     // Optional push (not needed for read-only):
     // homey_post_status(data);

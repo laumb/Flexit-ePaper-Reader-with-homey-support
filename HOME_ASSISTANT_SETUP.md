@@ -1,158 +1,63 @@
-# Home Assistant Setup Guide (Step by Step)
+# Home Assistant Setup Guide (Native MQTT Discovery)
 
-This guide explains how to integrate VentReader with Home Assistant via local REST APIs.
+VentReader now supports **native Home Assistant integration** using standard MQTT Discovery.
+No custom component is required.
 
-You get:
-- live values
-- history graphs
-- optional write control (mode + setpoint)
+## Recommended flow (native)
 
-## Quick start (recommended)
+1. In VentReader admin (`/admin`):
+- Enable `Home Assistant/API`
+- Enable `HA MQTT Discovery (native)`
+- Fill MQTT broker host/IP, port, optional username/password
+- Keep `Discovery prefix` as `homeassistant` (recommended)
+- Keep `State topic base` default unless you need custom topic layout
 
-1. Verify `Home Assistant/API` is enabled in VentReader admin.
-2. Verify data source is configured:
-   - `Modbus (experimental, local)`, or
-   - `BACnet (local, read-only)` with local BACnet config (IP + Device ID).
-3. Test `http://<VENTREADER_IP>/ha/status?token=<HA_TOKEN>&pretty=1`.
-4. Add REST sensor in `configuration.yaml`.
-5. Add template sensors.
-6. Restart Home Assistant.
-7. Verify values in Entities/History.
+2. Save settings.
 
-## Required vs optional
+3. In Home Assistant:
+- Ensure MQTT integration is installed and connected to the same broker.
+- Entities will auto-appear from discovery topics.
 
-### Required
-1. `Home Assistant/API` enabled.
-2. Correct token in REST resource URL.
-3. At least one REST sensor and relevant template sensors.
+4. Add entities to dashboard (temperatures, fan, heat, efficiency, mode, source).
 
-### Optional
-1. REST commands for write control.
-2. Automations for mode/setpoint.
-3. Custom alert/notification logic.
+## What gets created automatically
 
-## 1) Prepare VentReader
+- Sensors: `Uteluft`, `Tilluft`, `Avtrekk`, `Avkast`
+- Sensors: `Vifte`, `Varme`, `Gjenvinning`
+- Sensors: `Modus`, `Datakilde`, `Siste dataoppdatering`, `Siste skjermrefresh`
+- Binary sensor: `Data stale`
 
-In VentReader admin (`/admin`):
-1. Enable `Home Assistant/API`.
-2. Choose data source (`Modbus (experimental)` or `BACnet`).
-3. Keep a strong **Home Assistant token (/ha/*)**.
-4. Note local IP address.
+## VentReader MQTT fields
 
-Test in browser:
-- `http://<VENTREADER_IP>/ha/status?token=<HA_TOKEN>&pretty=1`
+In admin, HA MQTT section:
+- `MQTT broker host/IP`
+- `MQTT port` (default `1883`)
+- `MQTT username/password` (optional)
+- `Discovery prefix` (default `homeassistant`)
+- `State topic base` (default `ventreader/<chip>`)
+- `MQTT publish interval (sec)`
 
-## 2) Add REST sensor in Home Assistant
+## Fallback (REST API)
 
-In `configuration.yaml`, add:
+The existing REST API is still available:
+- `GET /ha/status?token=<HA_TOKEN>&pretty=1`
+- `GET /ha/history?token=<HA_TOKEN>&limit=120`
+- `GET /ha/history.csv?token=<HA_TOKEN>&limit=120`
 
-```yaml
-sensor:
-  - platform: rest
-    name: ventreader_status
-    resource: "http://192.168.1.50/ha/status?token=REPLACE_TOKEN"
-    scan_interval: 60
-    value_template: "{{ value_json.mode }}"
-    json_attributes:
-      - uteluft
-      - tilluft
-      - avtrekk
-      - avkast
-      - fan
-      - heat
-      - efficiency
-      - modbus
-      - model
-      - fw
-      - time
-```
+Use this if you prefer REST sensors/templates.
 
-Template sensors:
+## Troubleshooting
 
-```yaml
-template:
-  - sensor:
-      - name: "VentReader Uteluft"
-        unit_of_measurement: "°C"
-        device_class: temperature
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'uteluft') }}"
+- No entities in HA:
+  - Check VentReader admin `HA MQTT status`
+  - Verify MQTT broker host/port/user/pass
+  - Confirm Home Assistant MQTT integration is connected
+  - Check that `Discovery prefix` matches HA MQTT discovery settings
+- `HA MQTT requires PubSubClient` in save response:
+  - Install `PubSubClient` in Arduino libraries and rebuild firmware
 
-      - name: "VentReader Tilluft"
-        unit_of_measurement: "°C"
-        device_class: temperature
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'tilluft') }}"
+## Security
 
-      - name: "VentReader Avtrekk"
-        unit_of_measurement: "°C"
-        device_class: temperature
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'avtrekk') }}"
-
-      - name: "VentReader Avkast"
-        unit_of_measurement: "°C"
-        device_class: temperature
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'avkast') }}"
-
-      - name: "VentReader Fan"
-        unit_of_measurement: "%"
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'fan') }}"
-
-      - name: "VentReader Heat"
-        unit_of_measurement: "%"
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'heat') }}"
-
-      - name: "VentReader Efficiency"
-        unit_of_measurement: "%"
-        state_class: measurement
-        state: "{{ state_attr('sensor.ventreader_status', 'efficiency') }}"
-```
-
-Restart Home Assistant.
-
-## 3) Dashboard (Lovelace)
-
-Add entities and history graph cards for the created sensors.
-
-## 4) Optional write control (mode + setpoint)
-
-In VentReader admin (`/admin`), enable:
-1. Data source = `Modbus`
-2. `Modbus`
-3. `Enable remote control writes (experimental)`
-
-REST commands:
-
-```yaml
-rest_command:
-  ventreader_mode:
-    url: "http://192.168.1.50/api/control/mode?token=REPLACE_TOKEN&mode={{ mode }}"
-    method: POST
-
-  ventreader_setpoint:
-    url: "http://192.168.1.50/api/control/setpoint?token=REPLACE_TOKEN&profile={{ profile }}&value={{ value }}"
-    method: POST
-```
-
-Helpers:
-1. `input_select.vent_mode` with options `AWAY`, `HOME`, `HIGH`, `FIRE`
-2. `input_number.vent_setpoint_home` with range `10-30`
-
-## 5) Troubleshooting
-
-- `401 missing/invalid token`: wrong token in URL.
-- `403 home assistant/api disabled`: `Home Assistant/API` is disabled.
-- `403 control disabled`: write control disabled.
-- `409 modbus disabled`: `Modbus` disabled for write calls.
-- `500 write ... failed`: Modbus settings/transport/physical bus issue.
-- No values in HA: verify resource URL, restart, and template entity names.
-
-## 6) Notes
-
-- API calls are local LAN by default.
-- Keep token private.
-- Keep write control disabled unless needed.
+- Keep HA token private even when using MQTT.
+- Use MQTT auth if broker is shared.
+- Keep write control disabled unless explicitly needed.

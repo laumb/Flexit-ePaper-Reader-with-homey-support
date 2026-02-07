@@ -12,6 +12,7 @@
 #include "version.h"
 #include "flexit_modbus.h"
 #include "flexit_bacnet.h"
+#include "ha_mqtt.h"
 
 static WebServer server(80);
 
@@ -190,6 +191,16 @@ static String tr(const char* key)
   if (strcmp(key, "model") == 0) return en ? "Device model" : no ? "Enhetsmodell" : da ? "Enhedsmodel" : sv ? "Enhetsmodell" : fi ? "Laitemalli" : "Модель пристрою";
   if (strcmp(key, "homey_api") == 0) return en ? "Homey/API" : no ? "Homey/API" : da ? "Homey/API" : sv ? "Homey/API" : fi ? "Homey/API" : "Homey/API";
   if (strcmp(key, "ha_api") == 0) return en ? "Home Assistant/API" : no ? "Home Assistant/API" : da ? "Home Assistant/API" : sv ? "Home Assistant/API" : fi ? "Home Assistant/API" : "Home Assistant/API";
+  if (strcmp(key, "ha_mqtt") == 0) return en ? "HA MQTT Discovery (native)" : no ? "HA MQTT Discovery (native)" : da ? "HA MQTT Discovery (native)" : sv ? "HA MQTT Discovery (native)" : fi ? "HA MQTT Discovery (native)" : "HA MQTT Discovery (native)";
+  if (strcmp(key, "ha_mqtt_help") == 0) return en ? "Native HA entities via standard MQTT discovery. No custom integration needed." : no ? "Native HA-entities via standard MQTT discovery. Ingen custom-integrasjon trengs." : da ? "Native HA-enheder via standard MQTT discovery. Ingen custom-integration nodvendig." : sv ? "Native HA-entiteter via standard MQTT discovery. Ingen custom-integration behovs." : fi ? "Natiivit HA-entiteetit standardin MQTT discoveryn kautta. Ei custom-integraatiota." : "Нативні сутності HA через стандартний MQTT discovery.";
+  if (strcmp(key, "ha_mqtt_host") == 0) return en ? "MQTT broker host/IP" : no ? "MQTT broker host/IP" : da ? "MQTT broker host/IP" : sv ? "MQTT broker host/IP" : fi ? "MQTT-valittajan host/IP" : "MQTT broker host/IP";
+  if (strcmp(key, "ha_mqtt_port") == 0) return en ? "MQTT port" : no ? "MQTT-port" : da ? "MQTT-port" : sv ? "MQTT-port" : fi ? "MQTT-portti" : "MQTT порт";
+  if (strcmp(key, "ha_mqtt_user") == 0) return en ? "MQTT username (optional)" : no ? "MQTT brukernavn (valgfritt)" : da ? "MQTT brugernavn (valgfrit)" : sv ? "MQTT anvandarnamn (valfritt)" : fi ? "MQTT-kayttajanimi (valinnainen)" : "MQTT ім'я користувача (необов'язково)";
+  if (strcmp(key, "ha_mqtt_pass") == 0) return en ? "MQTT password (optional)" : no ? "MQTT passord (valgfritt)" : da ? "MQTT adgangskode (valgfrit)" : sv ? "MQTT losenord (valfritt)" : fi ? "MQTT-salasana (valinnainen)" : "MQTT пароль (необов'язково)";
+  if (strcmp(key, "ha_mqtt_prefix") == 0) return en ? "Discovery prefix" : no ? "Discovery-prefix" : da ? "Discovery-prefix" : sv ? "Discovery-prefix" : fi ? "Discovery-etuliite" : "Префікс discovery";
+  if (strcmp(key, "ha_mqtt_base") == 0) return en ? "State topic base" : no ? "State topic base" : da ? "State topic base" : sv ? "State topic base" : fi ? "State topic -perusta" : "Базовий topic стану";
+  if (strcmp(key, "ha_mqtt_interval") == 0) return en ? "MQTT publish interval (sec)" : no ? "MQTT publiseringsintervall (sek)" : da ? "MQTT publiceringsinterval (sek)" : sv ? "MQTT publiceringsintervall (sek)" : fi ? "MQTT-julkaisuväli (s)" : "Інтервал публікації MQTT (с)";
+  if (strcmp(key, "ha_mqtt_status") == 0) return en ? "HA MQTT status" : no ? "HA MQTT-status" : da ? "HA MQTT-status" : sv ? "HA MQTT-status" : fi ? "HA MQTT-tila" : "Статус HA MQTT";
   if (strcmp(key, "modbus") == 0) return en ? "Modbus" : no ? "Modbus" : da ? "Modbus" : sv ? "Modbus" : fi ? "Modbus" : "Modbus";
   if (strcmp(key, "advanced_modbus") == 0) return en ? "Advanced Modbus settings" : no ? "Avanserte Modbus-innstillinger" : da ? "Avancerede Modbus-indstillinger" : sv ? "Avancerade Modbus-inställningar" : fi ? "Edistyneet Modbus-asetukset" : "Розширені налаштування Modbus";
   if (strcmp(key, "save") == 0) return en ? "Save" : no ? "Lagre" : da ? "Gem" : sv ? "Spara" : fi ? "Tallenna" : "Зберегти";
@@ -354,6 +365,31 @@ static void applyPostedBACnetSettings()
   if (server.hasArg("baheat")) g_cfg->bacnet_obj_heat = server.arg("baheat");
   if (server.hasArg("bamode")) g_cfg->bacnet_obj_mode = server.arg("bamode");
   if (server.hasArg("bamap")) g_cfg->bacnet_mode_map = server.arg("bamap");
+}
+
+static void applyPostedHAMqttSettings()
+{
+  g_cfg->ha_mqtt_enabled = server.hasArg("hamqtt");
+  if (server.hasArg("hamhost")) g_cfg->ha_mqtt_host = server.arg("hamhost");
+  if (server.hasArg("hamuser")) g_cfg->ha_mqtt_user = server.arg("hamuser");
+  if (server.hasArg("hampass")) g_cfg->ha_mqtt_pass = server.arg("hampass");
+  if (server.hasArg("hampfx")) g_cfg->ha_mqtt_prefix = server.arg("hampfx");
+  if (server.hasArg("hambase")) g_cfg->ha_mqtt_topic_base = server.arg("hambase");
+
+  int p = server.arg("hamport").toInt();
+  if (p <= 0) p = 1883;
+  if (p > 65535) p = 65535;
+  g_cfg->ha_mqtt_port = (uint16_t)p;
+
+  int sec = server.arg("hamint").toInt();
+  if (sec <= 0) sec = 60;
+  if (sec < 10) sec = 10;
+  if (sec > 3600) sec = 3600;
+  g_cfg->ha_mqtt_interval_s = (uint16_t)sec;
+
+  if (g_cfg->ha_mqtt_prefix.length() == 0) g_cfg->ha_mqtt_prefix = "homeassistant";
+  if (g_cfg->ha_mqtt_topic_base.length() == 0)
+    g_cfg->ha_mqtt_topic_base = String("ventreader/") + config_chip_suffix4();
 }
 
 static bool bacnetIpValid(const String& ipIn)
@@ -755,6 +791,7 @@ static String buildStatusJson(bool pretty)
     out += "\"data_source\":" + quoted(src) + ",";
     out += "\"homey_enabled\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
     out += "\"ha_enabled\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
+    out += "\"ha_mqtt_enabled\":" + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",";
     out += "\"modbus_enabled\":" + String(g_cfg->modbus_enabled ? "true" : "false");
     out += "}";
     return out;
@@ -777,7 +814,8 @@ static String buildStatusJson(bool pretty)
   out += "    \"modbus\": " + quoted(sourceStatus) + ",\n";
   out += "    \"modbus_enabled\": " + String(g_cfg->modbus_enabled ? "true" : "false") + ",\n";
   out += "    \"homey_enabled\": " + String(g_cfg->homey_enabled ? "true" : "false") + ",\n";
-  out += "    \"ha_enabled\": " + String(g_cfg->ha_enabled ? "true" : "false") + "\n";
+  out += "    \"ha_enabled\": " + String(g_cfg->ha_enabled ? "true" : "false") + ",\n";
+  out += "    \"ha_mqtt_enabled\": " + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + "\n";
   out += "  },\n";
   out += "  \"network\": {\n";
   out += "    \"wifi\": " + quoted(wifi) + ",\n";
@@ -899,6 +937,7 @@ static String buildHomeyExportJson()
   out += "\"modules\":{";
   out += "\"homey_api\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
   out += "\"home_assistant_api\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
+  out += "\"home_assistant_mqtt\":" + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",";
   out += "\"modbus\":" + String(g_cfg->modbus_enabled ? "true" : "false") + ",";
   out += "\"control_writes\":" + String(g_cfg->control_enabled ? "true" : "false");
   out += "},";
@@ -1031,7 +1070,8 @@ static String buildAdminManualText(bool noLang)
     out += "2) Fullfor setup wizard.\n";
     out += "3) Verifiser /status?token=<HOMEY_TOKEN> svar.\n";
     out += "4) For Homey: bruk Eksporter Homey-oppsett.\n";
-    out += "5) For HA: konfigurer REST sensor mot /ha/status?token=<HA_TOKEN>.\n";
+    out += "5) For HA: aktiver HA MQTT Discovery (native) i admin (anbefalt).\n";
+    out += "   REST fallback: /ha/status?token=<HA_TOKEN>.\n";
     out += "6) Datakilde: velg Modbus (eksperimentell, lokal) eller BACnet (lokal, kun lesing).\n\n";
     out += "Modbus skriv (valgfritt)\n";
     out += "- Aktiver Modbus\n";
@@ -1058,7 +1098,8 @@ static String buildAdminManualText(bool noLang)
     out += "2) Complete setup wizard.\n";
     out += "3) Verify /status?token=<HOMEY_TOKEN> returns data.\n";
     out += "4) For Homey: use Export Homey setup.\n";
-    out += "5) For HA: configure REST sensor to /ha/status?token=<HA_TOKEN>.\n";
+    out += "5) For HA: enable HA MQTT Discovery (native) in admin (recommended).\n";
+    out += "   REST fallback: /ha/status?token=<HA_TOKEN>.\n";
     out += "6) Data source: choose Modbus (experimental, local) or BACnet (local, read-only).\n\n";
     out += "Modbus writes (optional)\n";
     out += "- Enable Modbus\n";
@@ -1655,6 +1696,9 @@ static void handleRoot()
   s += "<div class='kv'><div class='k'>Datakilde</div><div class='v'>" + dataSourceLabel(g_cfg->data_source) + "</div></div>";
   s += "<div class='kv'><div class='k'>Homey/API</div><div class='v'>" + boolLabel(g_cfg->homey_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>Home Assistant/API</div><div class='v'>" + boolLabel(g_cfg->ha_enabled) + "</div></div>";
+  s += "<div class='kv'><div class='k'>HA MQTT Discovery</div><div class='v'>" + boolLabel(g_cfg->ha_mqtt_enabled) + "</div></div>";
+  if (g_cfg->ha_mqtt_enabled)
+    s += "<div class='kv'><div class='k'>" + tr("ha_mqtt_status") + "</div><div class='v'>" + (ha_mqtt_is_active() ? "CONNECTED" : (ha_mqtt_last_error().length() ? ha_mqtt_last_error() : "CONNECTING")) + "</div></div>";
   s += "<div class='kv'><div class='k'>Modbus</div><div class='v'>" + boolLabel(g_cfg->modbus_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>BACnet (local)</div><div class='v'>" + boolLabel(normDataSource(g_cfg->data_source) == "BACNET") + "</div></div>";
   const bool ctrlActive = (g_cfg->control_enabled && normDataSource(g_cfg->data_source) == "MODBUS");
@@ -1783,6 +1827,25 @@ static void handleAdminSetup()
     s += "<label><input type='radio' name='ha_mode' value='disable'"
          + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
          + "> Deaktiver</label>";
+    s += "<div class='sep-gold'></div>";
+    s += "<label><input id='hamqtt_setup' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
+    s += "<div id='hamqtt_block_setup' style='display:" + String(g_cfg->ha_mqtt_enabled ? "block" : "none") + ";'>";
+    s += "<div class='help'>" + tr("ha_mqtt_help") + "</div>";
+    if (!ha_mqtt_lib_available()) s += "<div class='help' style='color:#b91c1c'>PubSubClient-bibliotek mangler i firmware-build.</div>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("ha_mqtt_host") + "</label><input name='hamhost' value='" + jsonEscape(g_cfg->ha_mqtt_host) + "'></div>";
+    s += "<div><label>" + tr("ha_mqtt_port") + "</label><input name='hamport' type='number' min='1' max='65535' value='" + String((int)g_cfg->ha_mqtt_port) + "'></div>";
+    s += "</div>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("ha_mqtt_user") + "</label><input name='hamuser' value='" + jsonEscape(g_cfg->ha_mqtt_user) + "'></div>";
+    s += "<div><label>" + tr("ha_mqtt_pass") + "</label><input name='hampass' type='password' value='" + jsonEscape(g_cfg->ha_mqtt_pass) + "'></div>";
+    s += "</div>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("ha_mqtt_prefix") + "</label><input name='hampfx' value='" + jsonEscape(g_cfg->ha_mqtt_prefix) + "'></div>";
+    s += "<div><label>" + tr("ha_mqtt_interval") + "</label><input name='hamint' type='number' min='10' max='3600' value='" + String((int)g_cfg->ha_mqtt_interval_s) + "'></div>";
+    s += "</div>";
+    s += "<label>" + tr("ha_mqtt_base") + "</label><input name='hambase' value='" + jsonEscape(g_cfg->ha_mqtt_topic_base) + "'>";
+    s += "</div>";
     s += "</div>";
     s += "<div class='card'><h2>Inndata-moduler</h2>";
     s += "<div class='help'>Velg aktiv datakilde. Kun innstillinger for valgt kilde vises.</div>";
@@ -1844,15 +1907,20 @@ static void handleAdminSetup()
     s += "<script>(function(){"
          "var t=document.getElementById('mb_toggle_setup');var a=document.getElementById('mb_adv_setup');"
          "var fw=document.getElementById('fw_adv_setup');var mbb=document.getElementById('mb_block_setup');var bcb=document.getElementById('bac_block_setup');"
+         "var hm=document.getElementById('hamqtt_setup');var hmb=document.getElementById('hamqtt_block_setup');"
          "var src=document.querySelectorAll('input[name=\"src\"]');"
+         "var haModes=document.querySelectorAll('input[name=\"ha_mode\"]');"
          "var m=document.getElementById('model_setup');var tr=document.getElementById('mbtr_setup');"
          "var sf=document.getElementById('mbser_setup');var bd=document.getElementById('mbbaud_setup');"
          "var id=document.getElementById('mbid_setup');var of=document.getElementById('mboff_setup');"
          "if(!t||!a)return;"
          "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
-         "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';}"
+         "function haEnabled(){for(var i=0;i<haModes.length;i++){if(haModes[i].checked)return haModes[i].value==='enable';}return true;}"
+         "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';if(hmb)hmb.style.display=(hm&&hm.checked&&haEnabled())?'block':'none';if(hm)hm.disabled=!haEnabled();}"
          "function p(model){tr.value='AUTO';sf.value='8E1';bd.value='9600';id.value='1';of.value='0';}"
          "t.addEventListener('change',u);"
+         "if(hm)hm.addEventListener('change',u);"
+         "for(var i=0;i<haModes.length;i++){haModes[i].addEventListener('change',u);}"
          "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
          "u();"
@@ -2046,6 +2114,18 @@ static void handleAdminSetupSave()
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
   applyPostedBACnetSettings();
+  applyPostedHAMqttSettings();
+  if (!g_cfg->ha_enabled) g_cfg->ha_mqtt_enabled = false;
+  if (g_cfg->ha_mqtt_enabled && !ha_mqtt_lib_available())
+  {
+    server.send(400, "text/plain", "HA MQTT krever PubSubClient-biblioteket.");
+    return;
+  }
+  if (g_cfg->ha_mqtt_enabled && g_cfg->ha_mqtt_host.length() == 0)
+  {
+    server.send(400, "text/plain", "HA MQTT host/IP må fylles ut.");
+    return;
+  }
   if (g_cfg->data_source == "BACNET")
   {
     String why;
@@ -2111,6 +2191,34 @@ static void handleAdmin()
   String s = pageHeader("Admin", "Innstillinger");
   s += "<div class='grid admin-grid'>";
 
+  auto fOrDash = [](float v) -> String {
+    if (isnan(v)) return "-";
+    char t[16];
+    snprintf(t, sizeof(t), "%.1f", v);
+    return String(t);
+  };
+
+  // Admin status + one-click API links
+  const bool staOnAdmin  = (WiFi.status() == WL_CONNECTED);
+  const bool apOnAdmin   = (WiFi.getMode() & WIFI_AP);
+  const String statusApiUrl = "/status?token=" + g_cfg->homey_api_token;
+  const String statusApiPrettyUrl = statusApiUrl + "&pretty=1";
+  s += "<div class='card'><h2>Status + API</h2>";
+  s += "<div class='kpi'>";
+  s += "<div class='kv'><div class='k'>STA WiFi</div><div class='v'>" + String(staOnAdmin ? "Connected" : "Offline") + "</div></div>";
+  s += "<div class='kv'><div class='k'>Fallback AP</div><div class='v'>" + String(apOnAdmin ? "ON" : "OFF") + "</div></div>";
+  s += "<div class='kv'><div class='k'>Datakilde</div><div class='v'>" + dataSourceLabel(g_cfg->data_source) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Kilde-status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Ute / Tilluft</div><div class='v'>" + fOrDash(g_data.uteluft) + " / " + fOrDash(g_data.tilluft) + " C</div></div>";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div class='actions'>";
+  s += "<a class='btn secondary' target='_blank' rel='noopener' href='" + statusApiUrl + "'>Vanlig API</a>";
+  s += "<a class='btn secondary' target='_blank' rel='noopener' href='" + statusApiPrettyUrl + "'>Pretty API</a>";
+  s += "</div>";
+  s += "<div class='help'>Lenkene bruker aktiv Homey-token automatisk.</div>";
+  s += "</div>";
+
   // WiFi
   s += "<div class='card'><h2>WiFi</h2>";
   s += "<form id='admin_form' method='POST' action='/admin/save'>";
@@ -2148,7 +2256,25 @@ static void handleAdmin()
   s += "<div class='sep-gold'></div>";
   s += "<p class='muted-title'>Moduler</p>";
   s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
-  s += "<label><input type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
+  s += "<label><input id='ha_toggle_admin' type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
+  s += "<label><input id='hamqtt_admin' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
+  s += "<div id='hamqtt_block_admin' style='display:" + String((g_cfg->ha_enabled && g_cfg->ha_mqtt_enabled) ? "block" : "none") + ";'>";
+  s += "<div class='help'>" + tr("ha_mqtt_help") + "</div>";
+  if (!ha_mqtt_lib_available()) s += "<div class='help' style='color:#b91c1c'>PubSubClient-bibliotek mangler i firmware-build.</div>";
+  s += "<div class='row'>";
+  s += "<div><label>" + tr("ha_mqtt_host") + "</label><input name='hamhost' value='" + jsonEscape(g_cfg->ha_mqtt_host) + "'></div>";
+  s += "<div><label>" + tr("ha_mqtt_port") + "</label><input name='hamport' type='number' min='1' max='65535' value='" + String((int)g_cfg->ha_mqtt_port) + "'></div>";
+  s += "</div>";
+  s += "<div class='row'>";
+  s += "<div><label>" + tr("ha_mqtt_user") + "</label><input name='hamuser' value='" + jsonEscape(g_cfg->ha_mqtt_user) + "'></div>";
+  s += "<div><label>" + tr("ha_mqtt_pass") + "</label><input name='hampass' type='password' value='" + jsonEscape(g_cfg->ha_mqtt_pass) + "'></div>";
+  s += "</div>";
+  s += "<div class='row'>";
+  s += "<div><label>" + tr("ha_mqtt_prefix") + "</label><input name='hampfx' value='" + jsonEscape(g_cfg->ha_mqtt_prefix) + "'></div>";
+  s += "<div><label>" + tr("ha_mqtt_interval") + "</label><input name='hamint' type='number' min='10' max='3600' value='" + String((int)g_cfg->ha_mqtt_interval_s) + "'></div>";
+  s += "</div>";
+  s += "<label>" + tr("ha_mqtt_base") + "</label><input name='hambase' value='" + jsonEscape(g_cfg->ha_mqtt_topic_base) + "'>";
+  s += "</div>";
   s += "</div>";
   s += "<div class='card'><h2>Inndata-moduler</h2>";
   s += "<div class='help'>Velg aktiv datakilde. Kun innstillinger for valgt kilde vises.</div>";
@@ -2214,15 +2340,17 @@ static void handleAdmin()
   s += "<script>(function(){"
        "var t=document.getElementById('mb_toggle_admin');var a=document.getElementById('mb_adv_admin');"
        "var fw=document.getElementById('fw_adv_admin');var mbb=document.getElementById('mb_block_admin');var bcb=document.getElementById('bac_block_admin');"
+       "var ha=document.getElementById('ha_toggle_admin');var hm=document.getElementById('hamqtt_admin');var hmb=document.getElementById('hamqtt_block_admin');"
        "var src=document.querySelectorAll('input[name=\"src\"]');"
        "var m=document.getElementById('model_admin');var tr=document.getElementById('mbtr_admin');"
        "var sf=document.getElementById('mbser_admin');var bd=document.getElementById('mbbaud_admin');"
        "var id=document.getElementById('mbid_admin');var of=document.getElementById('mboff_admin');"
        "if(!t||!a)return;"
        "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
-       "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';}"
+       "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';if(hm)hm.disabled=!(ha&&ha.checked);if(hmb)hmb.style.display=(ha&&ha.checked&&hm&&hm.checked)?'block':'none';}"
        "function p(model){tr.value='AUTO';sf.value='8E1';bd.value='9600';id.value='1';of.value='0';}"
        "t.addEventListener('change',u);"
+       "if(ha)ha.addEventListener('change',u);if(hm)hm.addEventListener('change',u);"
        "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
        "u();"
@@ -2444,6 +2572,22 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.0.4</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Ny native Home Assistant MQTT Discovery-integrasjon med auto entities i HA (uten custom komponent).";
+  else
+    s += "New native Home Assistant MQTT Discovery integration with auto-created HA entities (no custom component).";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>v4.0.3</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Inndata-moduler er flyttet til egen seksjon. Modbus/BACnet-innstillinger vises kun for aktivt valgt datakilde.";
+  else
+    s += "Input modules were moved to a dedicated section. Modbus/BACnet settings now show only for the active data source.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v4.0.2</strong></div>";
   s += "<div class='help'>";
   if (noLang)
@@ -2689,6 +2833,18 @@ static void handleAdminSave()
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
   applyPostedBACnetSettings();
+  applyPostedHAMqttSettings();
+  if (!g_cfg->ha_enabled) g_cfg->ha_mqtt_enabled = false;
+  if (g_cfg->ha_mqtt_enabled && !ha_mqtt_lib_available())
+  {
+    server.send(400, "text/plain", "HA MQTT krever PubSubClient-biblioteket.");
+    return;
+  }
+  if (g_cfg->ha_mqtt_enabled && g_cfg->ha_mqtt_host.length() == 0)
+  {
+    server.send(400, "text/plain", "HA MQTT host/IP må fylles ut.");
+    return;
+  }
   if (g_cfg->data_source == "BACNET")
   {
     String why;
