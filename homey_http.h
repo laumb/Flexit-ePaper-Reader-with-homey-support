@@ -17,7 +17,9 @@
 // - GET  /ha/history.csv?token=... [&limit=120] -> CSV history export
 // - POST /api/control/mode?token=...&mode=AWAY|HOME|HIGH|FIRE
 // - POST /api/control/setpoint?token=...&profile=home|away&value=18.5
-//   (control endpoints require data source=Modbus and control writes enabled)
+//   (control endpoints use active source:
+//    - Modbus requires Modbus + control writes
+//    - BACnet requires BACnet writes enabled)
 // - Admin UI (Basic Auth):
 //     GET  /admin
 //     GET  /admin/setup        (forced on first login until password changed)
@@ -31,12 +33,13 @@
 //     SSID: Flexit-Setup-XXXX (XXXX = MAC suffix)
 //     PASS: product AP password (default: ventreader)
 //
-// First login:
+// First boot onboarding:
 // - API token is auto-generated securely on first boot (stored in NVS).
 // Default admin creds are same for all units (as requested):
 //     user: admin
 //     pass: ventreader
-// - On first login, user must change password (forced setup screen).
+// - Setup wizard is pre-auth until setup_completed=true.
+// - User is still forced to set new admin password in setup step 1.
 //
 // Factory reset:
 // - Via admin UI button

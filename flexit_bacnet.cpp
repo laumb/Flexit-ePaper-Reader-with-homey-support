@@ -1678,11 +1678,15 @@ String flexit_bacnet_scan_objects_json(uint16_t inst_from, uint16_t inst_to,
   const uint16_t scanTypesAll[] = {0, 1, 2, 13, 14, 19};
   uint16_t hitCount = 0;
   uint16_t byTypeAI = 0, byTypeAO = 0, byTypeAV = 0, byTypeMSV = 0, byTypeOther = 0;
+  const bool collectDebug = g_debug_enabled;
   String preview;
   String allValues;
-  dbg(String("Object scan start ip=") + ip.toString() + ":" + String(g_cfg.bacnet_port) +
-      " inst=" + String(inst_from) + "-" + String(inst_to) +
-      " timeout=" + String(timeout_ms) + " max=" + String(max_hits));
+  if (collectDebug)
+  {
+    dbg(String("Object scan start ip=") + ip.toString() + ":" + String(g_cfg.bacnet_port) +
+        " inst=" + String(inst_from) + "-" + String(inst_to) +
+        " timeout=" + String(timeout_ms) + " max=" + String(max_hits));
+  }
 
   g_quiet_data_errors = true;
   out = "[";
@@ -1741,7 +1745,7 @@ String flexit_bacnet_scan_objects_json(uint16_t inst_from, uint16_t inst_to,
       else if (ref.type == 2) byTypeAV++;
       else if (ref.type == 19) byTypeMSV++;
       else byTypeOther++;
-      if (preview.length() < 280)
+      if (collectDebug && preview.length() < 280)
       {
         if (preview.length() > 0) preview += ", ";
         const char* sn = objTypeShortName(ref.type);
@@ -1752,7 +1756,7 @@ String flexit_bacnet_scan_objects_json(uint16_t inst_from, uint16_t inst_to,
         if (isnan(v)) preview += "null";
         else preview += String(v, 2);
       }
-      if (allValues.length() < 12000)
+      if (collectDebug && allValues.length() < 12000)
       {
         if (allValues.length() > 0) allValues += ", ";
         const char* sn2 = objTypeShortName(ref.type);
@@ -1773,14 +1777,17 @@ String flexit_bacnet_scan_objects_json(uint16_t inst_from, uint16_t inst_to,
   g_cfg.bacnet_timeout_ms = oldTimeout;
   udp.stop();
 
-  dbg(String("Object scan summary hits=") + String(hitCount) +
-      " [ai=" + String(byTypeAI) +
-      ", ao=" + String(byTypeAO) +
-      ", av=" + String(byTypeAV) +
-      ", msv=" + String(byTypeMSV) +
-      ", other=" + String(byTypeOther) + "]");
-  if (allValues.length() > 0) dbg(String("Object scan values: ") + allValues);
-  if (preview.length() > 0) dbg(String("Object scan sample: ") + preview);
+  if (collectDebug)
+  {
+    dbg(String("Object scan summary hits=") + String(hitCount) +
+        " [ai=" + String(byTypeAI) +
+        ", ao=" + String(byTypeAO) +
+        ", av=" + String(byTypeAV) +
+        ", msv=" + String(byTypeMSV) +
+        ", other=" + String(byTypeOther) + "]");
+    if (allValues.length() > 0) dbg(String("Object scan values: ") + allValues);
+    if (preview.length() > 0) dbg(String("Object scan sample: ") + preview);
+  }
 
   g_last_error = (hitCount > 0) ? "OK" : "SCAN: no readable objects found in range";
   return out;

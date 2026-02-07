@@ -1387,6 +1387,118 @@ static void applyModbusApiRuntime()
   flexit_modbus_set_enabled(g_cfg->modbus_enabled);
 }
 
+static bool isQuickControlActive()
+{
+  const String src = normDataSource(g_cfg->data_source);
+  return (src == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+         (src == "BACNET" && g_cfg->bacnet_write_enabled);
+}
+
+static bool runControlWriteMode(const String& mode, String& err, int& statusCode)
+{
+  const String src = normDataSource(g_cfg->data_source);
+  err = "";
+  statusCode = 500;
+
+  if (src == "MODBUS")
+  {
+    if (!g_cfg->control_enabled) { err = "control disabled"; statusCode = 403; return false; }
+    if (!g_cfg->modbus_enabled) { err = "modbus disabled"; statusCode = 409; return false; }
+    applyModbusApiRuntime();
+    if (!flexit_modbus_write_mode(mode))
+    {
+      err = String("write mode failed: ") + flexit_modbus_last_error();
+      statusCode = 500;
+      return false;
+    }
+    return true;
+  }
+
+  if (src == "BACNET")
+  {
+    if (!g_cfg->bacnet_write_enabled) { err = "bacnet write disabled"; statusCode = 403; return false; }
+    flexit_bacnet_set_runtime_config(*g_cfg);
+    if (!flexit_bacnet_write_mode(mode))
+    {
+      err = String("write mode failed: ") + flexit_bacnet_last_error();
+      statusCode = 500;
+      return false;
+    }
+    return true;
+  }
+
+  err = "control disabled for selected data source";
+  statusCode = 403;
+  return false;
+}
+
+static bool runControlWriteSetpoint(const String& profile, float value, String& err, int& statusCode)
+{
+  const String src = normDataSource(g_cfg->data_source);
+  err = "";
+  statusCode = 500;
+
+  if (src == "MODBUS")
+  {
+    if (!g_cfg->control_enabled) { err = "control disabled"; statusCode = 403; return false; }
+    if (!g_cfg->modbus_enabled) { err = "modbus disabled"; statusCode = 409; return false; }
+    applyModbusApiRuntime();
+    if (!flexit_modbus_write_setpoint(profile, value))
+    {
+      err = String("write setpoint failed: ") + flexit_modbus_last_error();
+      statusCode = 500;
+      return false;
+    }
+    return true;
+  }
+
+  if (src == "BACNET")
+  {
+    if (!g_cfg->bacnet_write_enabled) { err = "bacnet write disabled"; statusCode = 403; return false; }
+    flexit_bacnet_set_runtime_config(*g_cfg);
+    if (!flexit_bacnet_write_setpoint(profile, value))
+    {
+      err = String("write setpoint failed: ") + flexit_bacnet_last_error();
+      statusCode = 500;
+      return false;
+    }
+    return true;
+  }
+
+  err = "control disabled for selected data source";
+  statusCode = 403;
+  return false;
+}
+
+static void appendQuickControlCard(String& s, bool publicPage)
+{
+  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
+  if (isQuickControlActive())
+  {
+    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
+    s += "<div class='actions'>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
+    s += "</div>";
+    s += "<div class='sep-gold'></div>";
+    s += "<form method='POST' action='/admin/control/setpoint'>";
+    s += "<div class='row'>";
+    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
+    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
+    s += "</div>";
+    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
+    s += "</form>";
+    if (publicPage) s += "<div class='help'>Krever innlogging i admin ved aktivt system.</div>";
+  }
+  else
+  {
+    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
+  }
+  s += "</div>";
+}
+
 static void handleHaStatus()
 {
   if (!g_cfg->ha_enabled)
@@ -1541,33 +1653,11 @@ static void handleControlMode()
 {
   if (!tokenOKControl()) { server.send(401, "text/plain", "missing/invalid token"); return; }
   if (!server.hasArg("mode")) { server.send(400, "text/plain", "missing mode"); return; }
-  const String src = normDataSource(g_cfg->data_source);
-  bool ok = false;
   String err;
-  if (src == "MODBUS")
+  int statusCode = 500;
+  if (!runControlWriteMode(server.arg("mode"), err, statusCode))
   {
-    if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
-    if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
-    applyModbusApiRuntime();
-    ok = flexit_modbus_write_mode(server.arg("mode"));
-    if (!ok) err = String("write mode failed: ") + flexit_modbus_last_error();
-  }
-  else if (src == "BACNET")
-  {
-    if (!g_cfg->bacnet_write_enabled) { server.send(403, "text/plain", "bacnet write disabled"); return; }
-    flexit_bacnet_set_runtime_config(*g_cfg);
-    ok = flexit_bacnet_write_mode(server.arg("mode"));
-    if (!ok) err = String("write mode failed: ") + flexit_bacnet_last_error();
-  }
-  else
-  {
-    server.send(403, "text/plain", "control disabled for selected data source");
-    return;
-  }
-
-  if (!ok)
-  {
-    server.send(500, "text/plain", err);
+    server.send(statusCode, "text/plain", err);
     return;
   }
 
@@ -1585,33 +1675,11 @@ static void handleControlSetpoint()
 
   const String profile = server.arg("profile");
   const float value = server.arg("value").toFloat();
-  const String src = normDataSource(g_cfg->data_source);
-  bool ok = false;
   String err;
-  if (src == "MODBUS")
+  int statusCode = 500;
+  if (!runControlWriteSetpoint(profile, value, err, statusCode))
   {
-    if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
-    if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
-    applyModbusApiRuntime();
-    ok = flexit_modbus_write_setpoint(profile, value);
-    if (!ok) err = String("write setpoint failed: ") + flexit_modbus_last_error();
-  }
-  else if (src == "BACNET")
-  {
-    if (!g_cfg->bacnet_write_enabled) { server.send(403, "text/plain", "bacnet write disabled"); return; }
-    flexit_bacnet_set_runtime_config(*g_cfg);
-    ok = flexit_bacnet_write_setpoint(profile, value);
-    if (!ok) err = String("write setpoint failed: ") + flexit_bacnet_last_error();
-  }
-  else
-  {
-    server.send(403, "text/plain", "control disabled for selected data source");
-    return;
-  }
-
-  if (!ok)
-  {
-    server.send(500, "text/plain", err);
+    server.send(statusCode, "text/plain", err);
     return;
   }
 
@@ -1626,31 +1694,12 @@ static void handleAdminControlMode()
     redirectTo("/admin");
     return;
   }
-  const String src = normDataSource(g_cfg->data_source);
-  bool ok = false;
   String err;
-  if (src == "MODBUS")
+  int statusCode = 500;
+  if (!runControlWriteMode(server.arg("mode"), err, statusCode))
   {
-    if (!g_cfg->control_enabled || !g_cfg->modbus_enabled) { redirectTo("/admin"); return; }
-    applyModbusApiRuntime();
-    ok = flexit_modbus_write_mode(server.arg("mode"));
-    if (!ok) err = String("control mode failed: ") + flexit_modbus_last_error();
-  }
-  else if (src == "BACNET")
-  {
-    if (!g_cfg->bacnet_write_enabled) { redirectTo("/admin"); return; }
-    flexit_bacnet_set_runtime_config(*g_cfg);
-    ok = flexit_bacnet_write_mode(server.arg("mode"));
-    if (!ok) err = String("control mode failed: ") + flexit_bacnet_last_error();
-  }
-  else
-  {
-    redirectTo("/admin");
-    return;
-  }
-  if (!ok)
-  {
-    server.send(500, "text/plain", err);
+    if (statusCode == 403 || statusCode == 409) { redirectTo("/admin"); return; }
+    server.send(statusCode, "text/plain", String("control mode failed: ") + err);
     return;
   }
   redirectTo("/admin");
@@ -1664,31 +1713,12 @@ static void handleAdminControlSetpoint()
     redirectTo("/admin");
     return;
   }
-  const String src = normDataSource(g_cfg->data_source);
-  bool ok = false;
   String err;
-  if (src == "MODBUS")
+  int statusCode = 500;
+  if (!runControlWriteSetpoint(server.arg("profile"), server.arg("value").toFloat(), err, statusCode))
   {
-    if (!g_cfg->control_enabled || !g_cfg->modbus_enabled) { redirectTo("/admin"); return; }
-    applyModbusApiRuntime();
-    ok = flexit_modbus_write_setpoint(server.arg("profile"), server.arg("value").toFloat());
-    if (!ok) err = String("control setpoint failed: ") + flexit_modbus_last_error();
-  }
-  else if (src == "BACNET")
-  {
-    if (!g_cfg->bacnet_write_enabled) { redirectTo("/admin"); return; }
-    flexit_bacnet_set_runtime_config(*g_cfg);
-    ok = flexit_bacnet_write_setpoint(server.arg("profile"), server.arg("value").toFloat());
-    if (!ok) err = String("control setpoint failed: ") + flexit_bacnet_last_error();
-  }
-  else
-  {
-    redirectTo("/admin");
-    return;
-  }
-  if (!ok)
-  {
-    server.send(500, "text/plain", err);
+    if (statusCode == 403 || statusCode == 409) { redirectTo("/admin"); return; }
+    server.send(statusCode, "text/plain", String("control setpoint failed: ") + err);
     return;
   }
   redirectTo("/admin");
@@ -1805,36 +1835,7 @@ static void handleRoot()
   s += "<div class='help'>API: <code>/status?token=...</code> (Homey polling). Debug: <code>&pretty=1</code></div>";
   s += "</div>";
 
-  // Quick control directly under status on public page
-  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
-  const String rootQcSrc = normDataSource(g_cfg->data_source);
-  const bool rootQcActive =
-      (rootQcSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
-      (rootQcSrc == "BACNET" && g_cfg->bacnet_write_enabled);
-  if (rootQcActive)
-  {
-    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
-    s += "<div class='actions'>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
-    s += "</div>";
-    s += "<div class='sep-gold'></div>";
-    s += "<form method='POST' action='/admin/control/setpoint'>";
-    s += "<div class='row'>";
-    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
-    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
-    s += "</div>";
-    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
-    s += "</form>";
-    s += "<div class='help'>Krever innlogging i admin ved aktivt system.</div>";
-  }
-  else
-  {
-    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
-  }
-  s += "</div>";
+  appendQuickControlCard(s, true);
 
   auto fOrDash = [](float v) -> String {
     if (isnan(v)) return "-";
@@ -1854,10 +1855,7 @@ static void handleRoot()
     s += "<div class='kv'><div class='k'>" + tr("ha_mqtt_status") + "</div><div class='v'>" + (ha_mqtt_is_active() ? "CONNECTED" : (ha_mqtt_last_error().length() ? ha_mqtt_last_error() : "CONNECTING")) + "</div></div>";
   s += "<div class='kv'><div class='k'>Modbus</div><div class='v'>" + boolLabel(g_cfg->modbus_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>BACnet (local)</div><div class='v'>" + boolLabel(normDataSource(g_cfg->data_source) == "BACNET") + "</div></div>";
-  const String srcCtrl = normDataSource(g_cfg->data_source);
-  const bool ctrlActive =
-      (srcCtrl == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
-      (srcCtrl == "BACNET" && g_cfg->bacnet_write_enabled);
+  const bool ctrlActive = isQuickControlActive();
   s += "<div class='kv'><div class='k'>Control writes</div><div class='v'>" + boolLabel(ctrlActive) + "</div></div>";
   s += "</div>";
   s += "<div class='help'>Dette er lesbar oversikt uten innlogging. Konfigurasjon krever admin-login.</div>";
@@ -1987,8 +1985,6 @@ static void handleAdminSetup()
     s += "<label><input type='radio' name='ha_mode' value='disable'"
          + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
          + "> Deaktiver</label>";
-    s += "<div class='sep-gold'></div>";
-    s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
     s += "<div class='sep-gold'></div>";
     s += "<label><input id='hamqtt_setup' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
     s += "<div id='hamqtt_block_setup' style='display:" + String(g_cfg->ha_mqtt_enabled ? "block" : "none") + ";'>";
@@ -2189,9 +2185,12 @@ static void handleAdminSetup()
          "if(dbg){dbg.dataset.on='0';dbg.style.display='none';dbg.textContent='';}"
          "};"
          "})();</script>";
-    s += "<div class='sep-gold'></div>";
+    s += "</div>";
+
+    s += "<div class='card'><h2>Display</h2>";
+    s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
     s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
-    s += "<div class='help'>Gjelder visningsoppdatering. BACnet-polling styres av eget minuttfelt.</div>";
+    s += "<div class='help'>Skjerminnstillinger samles her. BACnet-polling styres av eget minuttfelt.</div>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
     s += "</form>";
     s += "<div class='help'>Når du fullfører, blir oppsettet lagret og du kan gå til admin.</div>";
@@ -2386,35 +2385,7 @@ static void handleAdmin()
   s += "<div class='help'>Lenkene bruker aktiv Homey-token automatisk.</div>";
   s += "</div>";
 
-  // Quick control directly under status in admin
-  s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
-  const String qcTopSrc = normDataSource(g_cfg->data_source);
-  const bool qcTopActive =
-      (qcTopSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
-      (qcTopSrc == "BACNET" && g_cfg->bacnet_write_enabled);
-  if (qcTopActive)
-  {
-    s += "<div class='help'>" + tr("quick_control_help") + "</div>";
-    s += "<div class='actions'>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
-    s += "</div>";
-    s += "<div class='sep-gold'></div>";
-    s += "<form method='POST' action='/admin/control/setpoint'>";
-    s += "<div class='row'>";
-    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
-    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
-    s += "</div>";
-    s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
-    s += "</form>";
-  }
-  else
-  {
-    s += "<div class='help'>" + tr("enable_control_hint") + "</div>";
-  }
-  s += "</div>";
+  appendQuickControlCard(s, false);
 
   // WiFi
   s += "<div class='card'><h2>WiFi</h2>";
@@ -2749,6 +2720,14 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.2.2</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Intern refaktorering: felles kontrolllogikk/hurtigstyring, mindre duplisering og lettere videre vedlikehold.";
+  else
+    s += "Internal refactor: shared control/quick-control logic, less duplication and easier long-term maintenance.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v4.2.1</strong></div>";
   s += "<div class='help'>";
   if (noLang)
