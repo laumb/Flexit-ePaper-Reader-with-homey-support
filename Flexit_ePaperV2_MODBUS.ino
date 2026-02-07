@@ -3,14 +3,14 @@
 #include <time.h>
 #include <math.h>
 
-#include "flexit_types.h"
-#include "ui_display.h"
-#include "data_example.h"
-#include "flexit_modbus.h"
-#include "flexit_bacnet.h"
-#include "config_store.h"
-#include "homey_http.h" // web portal + /status API
-#include "ha_mqtt.h"
+#include "src/flexit_types.h"
+#include "src/ui_display.h"
+#include "src/data_example.h"
+#include "src/flexit_modbus.h"
+#include "src/flexit_bacnet.h"
+#include "src/config_store.h"
+#include "src/homey_http.h" // web portal + /status API
+#include "src/ha_mqtt.h"
 
 // Optional hard override for "light/headless build".
 // Keep 0 for normal runtime-configurable behavior.

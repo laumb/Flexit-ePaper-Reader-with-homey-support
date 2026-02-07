@@ -179,15 +179,15 @@ Valgfritt:
 
 Full steg-for-steg guider:
 
-- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP_NO.md`
-- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOMEY_SETUP.md`
+- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOMEY_SETUP_NO.md`
+- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOMEY_SETUP.md`
 
 ## Home Assistant-oppsett
 
 Full steg-for-steg guider:
 
-- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP_NO.md`
-- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/HOME_ASSISTANT_SETUP.md`
+- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOME_ASSISTANT_SETUP_NO.md`
+- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOME_ASSISTANT_SETUP.md`
 
 Anbefalt metode er nå native MQTT Discovery i Home Assistant (ingen custom komponent).
 
