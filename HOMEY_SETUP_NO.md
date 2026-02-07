@@ -14,7 +14,7 @@ Metoden under bruker:
 1. I VentReader admin (`/admin`), bekreft at `Homey/API` er aktivert.
 2. Bekreft datakilde:
    - `Modbus (eksperimentell, lokal)`, eller
-   - `BACnet (lokal, kun lesing)` med lokal BACnet-konfigurasjon (IP + Device ID).
+   - `BACnet (lokal)` med lokal BACnet-konfigurasjon (IP + Device ID).
 3. Klikk **Eksporter Homey-oppsett**.
 4. Mobil/nettbrett: trykk **Send til e-post (mobil)** for å åpne mailklient med ferdig utfylt innhold.
 5. PC: last ned `.json` eller `.txt` og åpne filen lokalt.
@@ -163,9 +163,9 @@ Per i dag er VentReader-API-et klart for dette.
 
 ## 9) Valgfri styring fra Homey (modus + setpunkt)
 
-I VentReader admin (`/admin`), aktiver:
-1. `Modbus`
-2. `Enable remote control writes (experimental)`
+I VentReader admin (`/admin`), aktiver ett av disse:
+1. Datakilde `Modbus` + `Modbus` + `Enable remote control writes (experimental)`
+2. Datakilde `BACnet` + `Enable BACnet writes (experimental)`
 
 Styrings-endepunkt:
 1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`

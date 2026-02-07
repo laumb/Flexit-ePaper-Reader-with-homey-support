@@ -26,6 +26,7 @@ struct DeviceConfig {
   bool modbus_enabled;
   bool homey_enabled;
   bool ha_enabled;
+  bool display_enabled; // false = headless (no physical display)
   bool ha_mqtt_enabled; // Home Assistant native MQTT Discovery
   bool control_enabled; // allows Modbus write actions via API (experimental)
   String data_source;   // "MODBUS" or "BACNET"
@@ -39,12 +40,13 @@ struct DeviceConfig {
   String ha_mqtt_topic_base;  // state base topic, default "ventreader/<chip>"
   uint16_t ha_mqtt_interval_s;// publish interval seconds
 
-  // Local BACnet/IP source (read-only)
+  // Local BACnet/IP source
   String bacnet_ip;             // target device IP (required)
   uint16_t bacnet_port;         // UDP port, default 47808
   uint32_t bacnet_device_id;    // required BACnet device instance
   uint8_t bacnet_poll_minutes;  // 5..60
   uint16_t bacnet_timeout_ms;   // per request timeout
+  bool bacnet_write_enabled;    // enables experimental BACnet writes
 
   // BACnet object mapping (format: "ai:1", "av:2", "msv:3")
   String bacnet_obj_outdoor;
@@ -54,6 +56,8 @@ struct DeviceConfig {
   String bacnet_obj_fan;
   String bacnet_obj_heat;
   String bacnet_obj_mode;
+  String bacnet_obj_setpoint_home;
+  String bacnet_obj_setpoint_away;
   String bacnet_mode_map;       // e.g. "1:AWAY,2:HOME,3:HIGH,4:FIRE"
 
   String ui_language; // no, da, sv, fi, en, uk

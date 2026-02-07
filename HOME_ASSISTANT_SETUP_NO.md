@@ -45,6 +45,16 @@ Eksisterende REST API er fortsatt tilgjengelig:
 
 Bruk dette hvis du heller vil bygge REST-sensorer manuelt.
 
+## Valgfri styring (eksperimentell)
+
+VentReader sine skrive-endepunkt kan brukes fra HA-automatiseringer:
+- `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+- `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
+
+Krav per aktiv kilde:
+- Modbus: `Datakilde=Modbus`, `Modbus aktivert` og `Enable remote control writes`.
+- BACnet: `Datakilde=BACnet` og `Enable BACnet writes`.
+
 ## Feilsøking
 
 - Ingen entities i HA:

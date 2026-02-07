@@ -318,6 +318,131 @@ static bool sendReadProperty(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
   return ok;
 }
 
+static bool sendWritePropertyReal(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
+                                  uint8_t invoke, uint16_t objType, uint32_t objInst,
+                                  uint32_t propId, float value)
+{
+  uint8_t pkt[48];
+  size_t n = 0;
+  pkt[n++] = 0x81;
+  pkt[n++] = 0x0A; // original-unicast
+  pkt[n++] = 0x00;
+  pkt[n++] = 0x00;
+  pkt[n++] = 0x01; // NPDU version
+  pkt[n++] = 0x04; // expecting reply
+
+  pkt[n++] = 0x00; // confirmed req
+  pkt[n++] = 0x05; // max segments/apdu
+  pkt[n++] = invoke;
+  pkt[n++] = 0x0F; // WriteProperty service choice
+
+  pkt[n++] = 0x0C; // context 0, len 4
+  uint32_t oid = (((uint32_t)objType & 0x3FFUL) << 22) | (objInst & 0x3FFFFFUL);
+  putU32BE(pkt + n, oid); n += 4;
+
+  if (propId <= 0xFF)
+  {
+    pkt[n++] = 0x19; pkt[n++] = (uint8_t)propId;
+  }
+  else if (propId <= 0xFFFF)
+  {
+    pkt[n++] = 0x1A;
+    pkt[n++] = (uint8_t)((propId >> 8) & 0xFF);
+    pkt[n++] = (uint8_t)(propId & 0xFF);
+  }
+  else
+  {
+    pkt[n++] = 0x1C;
+    putU32BE(pkt + n, propId); n += 4;
+  }
+
+  pkt[n++] = 0x3E; // opening tag 3 (property value)
+  pkt[n++] = 0x44; // real, 4 bytes
+  uint32_t raw = 0;
+  memcpy(&raw, &value, sizeof(float));
+  putU32BE(pkt + n, raw); n += 4;
+  pkt[n++] = 0x3F; // closing tag 3
+
+  putU16BE(pkt + 2, (uint16_t)n);
+  if (!udp.beginPacket(ip, port)) return false;
+  size_t w = udp.write(pkt, n);
+  if (w != n) { udp.endPacket(); return false; }
+  bool ok = (udp.endPacket() == 1);
+  dbg(String("TX WriteProperty(real) inv=") + invoke +
+      " obj=" + String(objType) + ":" + String(objInst) +
+      " prop=" + String(propId) +
+      " val=" + String(value, 2) +
+      " -> " + ip.toString() + ":" + String(port) +
+      (ok ? " ok" : " fail"));
+  return ok;
+}
+
+static bool sendWritePropertyEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
+                                  uint8_t invoke, uint16_t objType, uint32_t objInst,
+                                  uint32_t propId, uint32_t enumValue)
+{
+  uint8_t pkt[48];
+  size_t n = 0;
+  pkt[n++] = 0x81;
+  pkt[n++] = 0x0A; // original-unicast
+  pkt[n++] = 0x00;
+  pkt[n++] = 0x00;
+  pkt[n++] = 0x01; // NPDU version
+  pkt[n++] = 0x04; // expecting reply
+
+  pkt[n++] = 0x00; // confirmed req
+  pkt[n++] = 0x05; // max segments/apdu
+  pkt[n++] = invoke;
+  pkt[n++] = 0x0F; // WriteProperty
+
+  pkt[n++] = 0x0C; // context 0, len 4
+  uint32_t oid = (((uint32_t)objType & 0x3FFUL) << 22) | (objInst & 0x3FFFFFUL);
+  putU32BE(pkt + n, oid); n += 4;
+
+  if (propId <= 0xFF)
+  {
+    pkt[n++] = 0x19; pkt[n++] = (uint8_t)propId;
+  }
+  else if (propId <= 0xFFFF)
+  {
+    pkt[n++] = 0x1A;
+    pkt[n++] = (uint8_t)((propId >> 8) & 0xFF);
+    pkt[n++] = (uint8_t)(propId & 0xFF);
+  }
+  else
+  {
+    pkt[n++] = 0x1C;
+    putU32BE(pkt + n, propId); n += 4;
+  }
+
+  pkt[n++] = 0x3E; // opening tag 3
+  uint8_t bytes[4];
+  size_t len = 1;
+  if (enumValue <= 0xFFUL) { len = 1; bytes[0] = (uint8_t)enumValue; }
+  else if (enumValue <= 0xFFFFUL) { len = 2; bytes[0] = (uint8_t)(enumValue >> 8); bytes[1] = (uint8_t)enumValue; }
+  else if (enumValue <= 0xFFFFFFUL) { len = 3; bytes[0] = (uint8_t)(enumValue >> 16); bytes[1] = (uint8_t)(enumValue >> 8); bytes[2] = (uint8_t)enumValue; }
+  else { len = 4; bytes[0] = (uint8_t)(enumValue >> 24); bytes[1] = (uint8_t)(enumValue >> 16); bytes[2] = (uint8_t)(enumValue >> 8); bytes[3] = (uint8_t)enumValue; }
+  if (len <= 4)
+  {
+    pkt[n++] = (uint8_t)(0x90 | len); // enum app tag
+    for (size_t i = 0; i < len; i++) pkt[n++] = bytes[i];
+  }
+  pkt[n++] = 0x3F; // closing tag 3
+
+  putU16BE(pkt + 2, (uint16_t)n);
+  if (!udp.beginPacket(ip, port)) return false;
+  size_t w = udp.write(pkt, n);
+  if (w != n) { udp.endPacket(); return false; }
+  bool ok = (udp.endPacket() == 1);
+  dbg(String("TX WriteProperty(enum) inv=") + invoke +
+      " obj=" + String(objType) + ":" + String(objInst) +
+      " prop=" + String(propId) +
+      " val=" + String(enumValue) +
+      " -> " + ip.toString() + ":" + String(port) +
+      (ok ? " ok" : " fail"));
+  return ok;
+}
+
 struct IAmInfo
 {
   bool ok = false;
@@ -587,6 +712,50 @@ static bool parseReadPropertyAckValue(const uint8_t* p, size_t n, uint8_t invoke
   return false;
 }
 
+static bool parseWritePropertyResult(const uint8_t* p, size_t n, uint8_t invoke, String& errOut)
+{
+  errOut = "";
+  if (!p || n < 10) return false;
+  size_t apduPos = 0, blen = 0;
+  if (!locateApdu(p, n, apduPos, blen)) return false;
+  size_t i = apduPos;
+  if (i >= blen) return false;
+  uint8_t apdu = p[i++];
+
+  // Simple-ACK
+  if ((apdu & 0xF0) == 0x20)
+  {
+    if (i + 2 > blen) return false;
+    uint8_t gotInvoke = p[i++];
+    uint8_t service = p[i++];
+    return (gotInvoke == invoke && service == 0x0F);
+  }
+
+  // Error-PDU
+  if ((apdu & 0xF0) == 0x50)
+  {
+    if (i + 2 > blen) return false;
+    uint8_t gotInvoke = p[i++];
+    uint8_t service = p[i++];
+    if (gotInvoke != invoke || service != 0x0F) return false;
+
+    uint32_t errClass = 0, errCode = 0;
+    size_t used = 0;
+    if (parseEnumApp(p + i, blen - i, errClass, used))
+    {
+      i += used;
+      if (parseEnumApp(p + i, blen - i, errCode, used))
+      {
+        errOut = String("BACnet Error-PDU class=") + errClass + " code=" + errCode + " service=" + service;
+        return false;
+      }
+    }
+    errOut = String("BACnet Error-PDU service=") + service;
+    return false;
+  }
+  return false;
+}
+
 String flexit_bacnet_debug_dump_text()
 {
   if (!g_debug_enabled) return "Debug logging is disabled.";
@@ -629,6 +798,37 @@ static String mapModeFromEnum(uint32_t v)
     pos = comma + 1;
   }
   return String(v);
+}
+
+static bool mapModeToEnum(const String& modeIn, uint32_t& outEnum)
+{
+  String wanted = trimCopy(modeIn);
+  wanted.toUpperCase();
+  if (wanted.length() == 0) return false;
+
+  String map = g_cfg.bacnet_mode_map;
+  int pos = 0;
+  while (pos < (int)map.length())
+  {
+    int comma = map.indexOf(',', pos);
+    if (comma < 0) comma = map.length();
+    String part = map.substring(pos, comma);
+    int col = part.indexOf(':');
+    if (col > 0)
+    {
+      String k = trimCopy(part.substring(0, col));
+      String val = trimCopy(part.substring(col + 1));
+      val.toUpperCase();
+      uint32_t key = 0;
+      if (val == wanted && parseUint(k, key))
+      {
+        outEnum = key;
+        return true;
+      }
+    }
+    pos = comma + 1;
+  }
+  return false;
 }
 
 static bool readOneNumeric(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
@@ -955,6 +1155,143 @@ bool flexit_bacnet_poll(FlexitData& out)
 const char* flexit_bacnet_last_error()
 {
   return g_last_error.c_str();
+}
+
+static bool writeOneModeEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port, const ObjRef& ref, uint32_t modeValue)
+{
+  if (!ref.valid)
+  {
+    setErr("CFG", "bad mode object mapping");
+    return false;
+  }
+
+  uint8_t invoke = g_invoke++;
+  if (!sendWritePropertyEnum(udp, ip, port, invoke, ref.type, ref.instance, 85, modeValue))
+  {
+    setErr("NET", "send mode write failed");
+    return false;
+  }
+
+  const uint32_t t0 = millis();
+  const uint16_t tout = g_cfg.bacnet_timeout_ms;
+  bool gotFromTarget = false;
+  while ((uint32_t)(millis() - t0) < tout)
+  {
+    int len = udp.parsePacket();
+    if (len <= 0) { delay(2); continue; }
+    uint8_t buf[300];
+    if (len > (int)sizeof(buf)) len = sizeof(buf);
+    int rd = udp.read(buf, len);
+    if (rd <= 0) continue;
+    if (udp.remoteIP() != ip) continue;
+    gotFromTarget = true;
+
+    String err;
+    if (parseWritePropertyResult(buf, (size_t)rd, invoke, err)) return true;
+    if (err.length() > 0)
+    {
+      setErr("WRITE", err);
+      return false;
+    }
+  }
+
+  if (gotFromTarget) { setErr("WRITE", "mode write reply not understood"); return false; }
+  setErr("WRITE", "mode write timeout");
+  return false;
+}
+
+static bool writeOneReal(WiFiUDP& udp, const IPAddress& ip, uint16_t port, const ObjRef& ref, float value)
+{
+  if (!ref.valid)
+  {
+    setErr("CFG", "bad setpoint object mapping");
+    return false;
+  }
+
+  uint8_t invoke = g_invoke++;
+  if (!sendWritePropertyReal(udp, ip, port, invoke, ref.type, ref.instance, 85, value))
+  {
+    setErr("NET", "send setpoint write failed");
+    return false;
+  }
+
+  const uint32_t t0 = millis();
+  const uint16_t tout = g_cfg.bacnet_timeout_ms;
+  bool gotFromTarget = false;
+  while ((uint32_t)(millis() - t0) < tout)
+  {
+    int len = udp.parsePacket();
+    if (len <= 0) { delay(2); continue; }
+    uint8_t buf[300];
+    if (len > (int)sizeof(buf)) len = sizeof(buf);
+    int rd = udp.read(buf, len);
+    if (rd <= 0) continue;
+    if (udp.remoteIP() != ip) continue;
+    gotFromTarget = true;
+
+    String err;
+    if (parseWritePropertyResult(buf, (size_t)rd, invoke, err)) return true;
+    if (err.length() > 0)
+    {
+      setErr("WRITE", err);
+      return false;
+    }
+  }
+
+  if (gotFromTarget) { setErr("WRITE", "setpoint write reply not understood"); return false; }
+  setErr("WRITE", "setpoint write timeout");
+  return false;
+}
+
+bool flexit_bacnet_write_mode(const String& modeCmd)
+{
+  if (WiFi.status() != WL_CONNECTED) { setErr("NET", "no WiFi"); return false; }
+  if (!flexit_bacnet_is_ready()) { setErr("CFG", "missing IP/device-id"); return false; }
+  if (!g_cfg.bacnet_write_enabled) { setErr("CFG", "bacnet write disabled"); return false; }
+
+  uint32_t enumValue = 0;
+  if (!mapModeToEnum(modeCmd, enumValue))
+  {
+    setErr("CFG", "mode not in BACnet mode map");
+    return false;
+  }
+
+  IPAddress ip;
+  if (!parseIP(g_cfg.bacnet_ip, ip)) { setErr("CFG", "bad BACnet IP"); return false; }
+
+  ObjRef modeObj = parseObjRef(g_cfg.bacnet_obj_mode);
+  WiFiUDP udp;
+  if (!udp.begin(0)) { setErr("NET", "udp begin failed"); return false; }
+  bool ok = writeOneModeEnum(udp, ip, g_cfg.bacnet_port, modeObj, enumValue);
+  udp.stop();
+  if (ok) g_last_error = "OK";
+  return ok;
+}
+
+bool flexit_bacnet_write_setpoint(const String& profile, float value)
+{
+  if (WiFi.status() != WL_CONNECTED) { setErr("NET", "no WiFi"); return false; }
+  if (!flexit_bacnet_is_ready()) { setErr("CFG", "missing IP/device-id"); return false; }
+  if (!g_cfg.bacnet_write_enabled) { setErr("CFG", "bacnet write disabled"); return false; }
+  if (value < 10.0f || value > 30.0f) { setErr("CFG", "setpoint range"); return false; }
+
+  String p = profile;
+  p.toLowerCase();
+  String objSpec;
+  if (p == "home") objSpec = g_cfg.bacnet_obj_setpoint_home;
+  else if (p == "away") objSpec = g_cfg.bacnet_obj_setpoint_away;
+  else { setErr("CFG", "setpoint profile"); return false; }
+
+  IPAddress ip;
+  if (!parseIP(g_cfg.bacnet_ip, ip)) { setErr("CFG", "bad BACnet IP"); return false; }
+  ObjRef setpObj = parseObjRef(objSpec);
+
+  WiFiUDP udp;
+  if (!udp.begin(0)) { setErr("NET", "udp begin failed"); return false; }
+  bool ok = writeOneReal(udp, ip, g_cfg.bacnet_port, setpObj, value);
+  udp.stop();
+  if (ok) g_last_error = "OK";
+  return ok;
 }
 
 String flexit_bacnet_autodiscover_json(uint16_t wait_ms)

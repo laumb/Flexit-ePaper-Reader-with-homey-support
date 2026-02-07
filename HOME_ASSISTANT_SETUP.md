@@ -46,6 +46,16 @@ The existing REST API is still available:
 
 Use this if you prefer REST sensors/templates.
 
+## Optional control writes (experimental)
+
+VentReader write endpoints can be used from HA automations:
+- `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+- `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
+
+Active source requirements:
+- Modbus: `Data source=Modbus`, `Modbus enabled`, and `Enable remote control writes`.
+- BACnet: `Data source=BACnet` and `Enable BACnet writes`.
+
 ## Troubleshooting
 
 - No entities in HA:

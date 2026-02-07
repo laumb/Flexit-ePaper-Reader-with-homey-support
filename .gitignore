@@ -1,1 +1,16 @@
+# macOS
 .DS_Store
+*.DS_Store
+
+# Local secrets (never commit)
+secrets.h
+
+# Build artifacts
+build/
+*.bin
+*.elf
+*.map
+
+# Arduino IDE / misc
+*.swp
+*.tmp

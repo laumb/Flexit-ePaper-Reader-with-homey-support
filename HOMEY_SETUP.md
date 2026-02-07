@@ -10,7 +10,7 @@ Goal of this guide:
 1. Verify `Homey/API` is enabled in VentReader admin.
 2. Verify data source is configured:
    - `Modbus (experimental, local)`, or
-   - `BACnet (local, read-only)` with local BACnet config (IP + Device ID).
+   - `BACnet (local)` with local BACnet config (IP + Device ID).
 3. Click **Export Homey setup** in admin.
 4. Mobile: use **Share file (mobile)** and send to your own email.
 5. Desktop: download file directly.
@@ -113,10 +113,9 @@ Optional:
 
 ## 8) Optional control from Homey (mode + setpoint)
 
-Requires in VentReader:
-1. Data source = `Modbus`
-2. `Modbus`
-3. `Enable remote control writes (experimental)`
+Requires in VentReader (one of):
+1. Data source = `Modbus` + `Modbus` enabled + `Enable remote control writes (experimental)`
+2. Data source = `BACnet` + `Enable BACnet writes (experimental)`
 
 Endpoints:
 1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
@@ -127,8 +126,9 @@ Endpoints:
 - `401 missing/invalid token`: wrong token in URL/script.
 - `403 api disabled`: `Homey/API` disabled.
 - `403 control disabled`: write control disabled.
+- `403 bacnet write disabled`: BACnet write not enabled.
 - `409 modbus disabled`: `Modbus` disabled for write calls.
-- `500 write ... failed`: Modbus settings/transport/physical bus issue.
+- `500 write ... failed`: issue on active write source (Modbus or BACnet).
 - No updates in Homey: check flow trigger and capability IDs.
 
 ## 10) Operations and security

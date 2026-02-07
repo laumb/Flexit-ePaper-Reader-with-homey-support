@@ -8,6 +8,8 @@ void flexit_bacnet_set_runtime_config(const DeviceConfig& cfg);
 bool flexit_bacnet_poll(FlexitData& out);
 const char* flexit_bacnet_last_error();
 bool flexit_bacnet_is_ready();
+bool flexit_bacnet_write_mode(const String& modeCmd);
+bool flexit_bacnet_write_setpoint(const String& profile, float value);
 
 // Active test against configured BACnet target.
 // Returns false and fills reason on transport/protocol/object errors.

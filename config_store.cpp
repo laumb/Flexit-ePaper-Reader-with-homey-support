@@ -104,6 +104,7 @@ DeviceConfig config_load() {
   c.modbus_enabled = prefs.getBool("modbus", false);
   c.homey_enabled  = prefs.getBool("homey", true);
   c.ha_enabled     = prefs.getBool("ha", true);
+  c.display_enabled = prefs.getBool("disp", true);
   c.ha_mqtt_enabled = prefs.getBool("hamqtt", false);
   c.control_enabled = prefs.getBool("ctrl", false);
   c.data_source = normalize_data_source(prefs.getString("src", "MODBUS"));
@@ -134,6 +135,7 @@ DeviceConfig config_load() {
   if (bct < 300) bct = 300;
   if (bct > 8000) bct = 8000;
   c.bacnet_timeout_ms = (uint16_t)bct;
+  c.bacnet_write_enabled = prefs.getBool("bacwr", false);
   c.bacnet_obj_outdoor = prefs.getString("baout", "ai:1");
   c.bacnet_obj_supply  = prefs.getString("basup", "ai:4");
   c.bacnet_obj_extract = prefs.getString("baext", "ai:59");
@@ -141,6 +143,8 @@ DeviceConfig config_load() {
   c.bacnet_obj_fan     = prefs.getString("bafan", "ao:3");
   c.bacnet_obj_heat    = prefs.getString("baheat", "ao:29");
   c.bacnet_obj_mode    = prefs.getString("bamode", "av:0");
+  c.bacnet_obj_setpoint_home = prefs.getString("bashome", "av:5");
+  c.bacnet_obj_setpoint_away = prefs.getString("basaway", "av:100");
   c.bacnet_mode_map    = prefs.getString("bamap", "1:AWAY,2:HOME,3:HIGH,4:FIRE");
 
   // Migrate old BACnet placeholder defaults to better Nordic S3 candidates.
@@ -150,6 +154,8 @@ DeviceConfig config_load() {
   if (c.bacnet_obj_fan == "av:1") c.bacnet_obj_fan = "ao:3";
   if (c.bacnet_obj_heat == "av:2") c.bacnet_obj_heat = "ao:29";
   if (c.bacnet_obj_mode == "msv:1") c.bacnet_obj_mode = "av:0";
+  if (c.bacnet_obj_setpoint_home.length() == 0) c.bacnet_obj_setpoint_home = "av:5";
+  if (c.bacnet_obj_setpoint_away.length() == 0) c.bacnet_obj_setpoint_away = "av:100";
   c.ui_language = normalize_lang(prefs.getString("lang", "no"));
   c.modbus_transport_mode = prefs.getString("mbtr", "");
   if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")
@@ -195,6 +201,7 @@ void config_save(const DeviceConfig& c) {
   prefs.putBool("modbus", c.modbus_enabled);
   prefs.putBool("homey", c.homey_enabled);
   prefs.putBool("ha", c.ha_enabled);
+  prefs.putBool("disp", c.display_enabled);
   prefs.putBool("hamqtt", c.ha_mqtt_enabled);
   prefs.putBool("ctrl", c.control_enabled);
   prefs.putString("src", normalize_data_source(c.data_source));
@@ -227,6 +234,7 @@ void config_save(const DeviceConfig& c) {
   if (bct < 300) bct = 300;
   if (bct > 8000) bct = 8000;
   prefs.putInt("bacto", bct);
+  prefs.putBool("bacwr", c.bacnet_write_enabled);
   prefs.putString("baout", c.bacnet_obj_outdoor);
   prefs.putString("basup", c.bacnet_obj_supply);
   prefs.putString("baext", c.bacnet_obj_extract);
@@ -234,6 +242,8 @@ void config_save(const DeviceConfig& c) {
   prefs.putString("bafan", c.bacnet_obj_fan);
   prefs.putString("baheat", c.bacnet_obj_heat);
   prefs.putString("bamode", c.bacnet_obj_mode);
+  prefs.putString("bashome", c.bacnet_obj_setpoint_home);
+  prefs.putString("basaway", c.bacnet_obj_setpoint_away);
   prefs.putString("bamap", c.bacnet_mode_map);
   prefs.putString("lang", normalize_lang(c.ui_language));
   prefs.putString("mbtr", c.modbus_transport_mode);

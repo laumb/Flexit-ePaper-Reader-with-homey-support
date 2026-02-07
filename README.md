@@ -1,11 +1,22 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.0.4)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.0)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
 
-Default behavior is read-only monitoring. Modbus write control is optional and disabled by default.
+Default behavior is read-focused monitoring. Write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.2.0
+- Added experimental BACnet write support for mode and setpoint.
+- Added BACnet write settings in setup/admin (`Enable BACnet writes`, setpoint object mapping for `home/away`).
+- `/api/control/*` and admin quick control now write through the active data source (Modbus or BACnet).
+
+### v4.1.0
+- Added `Headless mode (no display mounted)` in setup wizard and admin.
+- Firmware now skips all ePaper init/render calls when headless is enabled, so unit runs stable without physical display.
+- Added clear one-click API shortcuts inside admin (`Vanlig API` + `Pretty API`) with token prefilled.
+- Added `display_enabled`/`headless` fields in status payload.
 
 ### v4.0.4
 - Added native Home Assistant MQTT Discovery integration (standard MQTT entities, no custom HA component).
@@ -30,11 +41,11 @@ Default behavior is read-only monitoring. Modbus write control is optional and d
 - Added `data_time` to status payload for explicit last data-update timestamp.
 
 ### v4.0.0
-- New optional data source: `BACnet (local, read-only)` as an alternative to local Modbus.
+- New optional data source: `BACnet (local)` as an alternative to local Modbus.
 - New BACnet settings in wizard/admin: device IP, Device ID, object mapping, polling `5-60 min`, test and autodiscover.
-- Control writes are now allowed only when data source is `Modbus`.
+- At this version stage, control writes were limited to data source `Modbus`.
 - Separate API tokens for `main/control`, `Homey (/status)`, and `Home Assistant (/ha/*)` plus rotate buttons in admin.
-- `Modbus` is marked experimental. `BACnet` is production-ready (read-only).
+- `Modbus` is marked experimental. `BACnet` read path is production-ready.
 
 ### v3.7.0
 - Setup wizard step 3 now requires explicit enable/disable selection for `Homey/API` and `Home Assistant/API`.
@@ -61,6 +72,18 @@ On first start:
 2. Use password shown on the display.
 3. Open the displayed IP in browser (auto-redirects to setup).
 
+## Headless quick start (no display mounted)
+
+1. Power the unit.
+2. Connect to AP `VentReader-Setup-XXXX` (password `ventreader`).
+3. Open `http://192.168.4.1/admin/setup`.
+4. In setup step 3, enable `Headless mode (no display mounted)`.
+5. Complete setup and reboot.
+
+For already configured units, use:
+- `http://<device-ip>/admin`
+- Login: `admin` + your configured password
+
 ## Factory login
 
 - User: `admin`
@@ -78,9 +101,10 @@ Wizard has 3 steps:
 Step 3 now requires explicit selection for both:
 - `Homey/API`: Enable or Disable
 - `Home Assistant/API`: Enable or Disable
+- `Headless mode (no display mounted)`: Enable if running without physical ePaper
 - Data source:
   - `Modbus (experimental, local)`
-  - `BACnet (local, read-only)` with separate polling interval (`5-60 min`)
+  - `BACnet (local)` with separate polling interval (`5-60 min`)
 
 Press **Complete & restart** to persist settings and reboot.
 
@@ -94,7 +118,7 @@ After setup is complete:
 
 ## BACnet local source (optional)
 
-If you do not want Modbus wiring, select `BACnet (local, read-only)` as data source.
+If you do not want Modbus wiring, select `BACnet (local)` as data source.
 
 Required:
 1. Flexit device IP (same LAN/VLAN).
@@ -105,14 +129,6 @@ Recommended:
 1. Use **Autodiscover** in admin to prefill IP + Device ID.
 2. Run **Test BACnet** before saving.
 3. Verify/adjust BACnet object mapping in advanced fields.
-
-## Local concept test in Safari
-
-For a quick standalone test page (outside firmware/admin), open:
-
-- `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/flexit_local_test.html`
-
-This page can test local HTTP auth/data endpoints, but cannot access BACnet/UDP directly from a browser.
 
 ## Quick start: Homey
 
@@ -135,10 +151,9 @@ This page can test local HTTP auth/data endpoints, but cannot access BACnet/UDP 
 
 ## Mode/setpoint writes (optional)
 
-Requires all enabled in admin:
-1. Data source = `Modbus`
-2. `Modbus`
-3. `Enable remote control writes (experimental)`
+Requires one of:
+1. `Data source = Modbus`, `Modbus enabled`, and `Enable remote control writes (experimental)`.
+2. `Data source = BACnet` and `Enable BACnet writes (experimental)`.
 
 When enabled:
 - Admin quick control becomes available.
@@ -194,7 +209,7 @@ Recommended method is now native Home Assistant MQTT Discovery (no custom compon
 Status payload includes:
 - Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
 - Aggregates: `fan`, `heat`, `efficiency`
-- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`, `ha_mqtt_enabled`
+- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`, `ha_mqtt_enabled`, `display_enabled`, `headless`
 
 ### History
 - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
@@ -207,7 +222,9 @@ Status payload includes:
 - `GET /status/storage?token=<HOMEY_TOKEN>`
 
 ### Control (experimental)
-Requires data source `Modbus`, `Modbus` enabled, and `Enable remote control writes`:
+Writes through active data source:
+- Modbus path requires `Modbus` + `Enable remote control writes`.
+- BACnet path requires `Enable BACnet writes`.
 - `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
 - `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
 

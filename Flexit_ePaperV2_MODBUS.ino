@@ -12,6 +12,12 @@
 #include "homey_http.h" // web portal + /status API
 #include "ha_mqtt.h"
 
+// Optional hard override for "light/headless build".
+// Keep 0 for normal runtime-configurable behavior.
+#ifndef VENTREADER_FORCE_HEADLESS
+#define VENTREADER_FORCE_HEADLESS 0
+#endif
+
 // Keep credentials/tokens out of source control
 
 // WiFi credentials live in secrets.h
@@ -119,6 +125,11 @@ static uint32_t lastBacnetPollMs = 0;
 static uint32_t UI_REFRESH_MS = 10UL * 60UL * 1000UL;
 static uint32_t lastRefresh = 0;
 static String lastUiLanguageApplied = "";
+
+static bool displayActive()
+{
+  return (cfg.display_enabled && VENTREADER_FORCE_HEADLESS == 0);
+}
 
 static String modelLabel(const String& key)
 {
@@ -322,11 +333,19 @@ void setup()
   const bool setup_done = cfg.setup_completed;
 
 // TVUNGEN reset av e-paper etter flashing / cold boot
-ui_epaper_hard_clear();
+  if (displayActive())
+    ui_epaper_hard_clear();
 
-  ui_init();
-  ui_set_language(cfg.ui_language);
-  lastUiLanguageApplied = cfg.ui_language;
+  if (displayActive())
+  {
+    ui_init();
+    ui_set_language(cfg.ui_language);
+    lastUiLanguageApplied = cfg.ui_language;
+  }
+  else
+  {
+    lastUiLanguageApplied = cfg.ui_language;
+  }
 
   // Apply poll interval from config
   UI_REFRESH_MS = cfg.poll_interval_ms;
@@ -357,7 +376,10 @@ if (cfg.wifi_ssid.length() > 0)
     String ip = sta_ok ? WiFi.localIP().toString() : apIp();
     String url = String("http://") + ip + "/admin/setup";
 
-    ui_render_onboarding(apSsid, PRODUCT_AP_PASS, ip, url);
+    if (displayActive())
+      ui_render_onboarding(apSsid, PRODUCT_AP_PASS, ip, url);
+    else
+      Serial.println(String("HEADLESS setup ready: open ") + url);
   }
   else if (!sta_ok)
   {
@@ -382,9 +404,10 @@ webportal_begin(cfg);
   ha_mqtt_begin(cfg);
 
   updateDataFromActiveSource(true);
+  if (!displayActive()) data.time = "--:--";
 
   // Only show dashboard after wizard is completed
-  if (setup_done)
+  if (setup_done && displayActive())
   {
     ui_set_language(cfg.ui_language);
     lastUiLanguageApplied = cfg.ui_language;
@@ -407,7 +430,7 @@ void loop()
   ArduinoOTA.handle();
 
   // Apply language changes from admin immediately on ePaper, without waiting for poll interval.
-  if (cfg.setup_completed && cfg.ui_language != lastUiLanguageApplied)
+  if (cfg.setup_completed && displayActive() && cfg.ui_language != lastUiLanguageApplied)
   {
     ui_set_language(cfg.ui_language);
     lastUiLanguageApplied = cfg.ui_language;
@@ -419,7 +442,8 @@ void loop()
   if (webportal_consume_refresh_request())
   {
     updateDataFromActiveSource(true);
-    if (cfg.setup_completed)
+    if (!displayActive()) data.time = "--:--";
+    if (cfg.setup_completed && displayActive())
     {
       ui_set_language(cfg.ui_language);
       lastUiLanguageApplied = cfg.ui_language;
@@ -439,7 +463,8 @@ void loop()
       setupTimeNTP();
 
     updateDataFromActiveSource(false);
-    if (cfg.setup_completed)
+    if (!displayActive()) data.time = "--:--";
+    if (cfg.setup_completed && displayActive())
     {
       ui_set_language(cfg.ui_language);
       lastUiLanguageApplied = cfg.ui_language;

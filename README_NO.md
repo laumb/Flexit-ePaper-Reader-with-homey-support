@@ -1,11 +1,25 @@
-# VentReader – Brukerveiledning (v4.0.4)
+# VentReader – Brukerveiledning (v4.2.0)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
 
-Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiveres i admin.
+Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.2.0
+
+- Ny eksperimentell BACnet-skrivestøtte for modus og settpunkt.
+- Nytt BACnet-valg i setup/admin: `Enable BACnet writes (experimental)`.
+- Nye BACnet-objektfelt for setpunkt (`home`/`away`).
+- `/api/control/*` og hurtigstyring i admin skriver nå via aktiv datakilde (Modbus eller BACnet).
+
+### v4.1.0
+
+- Nytt valg `Headless-modus (skjerm ikke montert)` i setupguide og admin.
+- Firmware hopper nå over all ePaper-init/render i headless-modus, slik at enheten kjører stabilt uten fysisk skjerm.
+- Ny statusblokk i innlogget admin med ett-klikk `Vanlig API` og `Pretty API` (token ferdig utfylt i URL).
+- Status-JSON inkluderer nå `display_enabled` og `headless`.
 
 ### v4.0.4
 
@@ -35,11 +49,11 @@ Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiv
 
 ### v4.0.0
 
-- Ny valgfri datakilde: `BACnet (lokal, kun lesing)` som alternativ til lokal Modbus.
+- Ny valgfri datakilde: `BACnet (lokal)` som alternativ til lokal Modbus.
 - Nye BACnet-innstillinger i wizard/admin: enhets-IP, Device ID, objektmapping, polling `5-60 min`, test og autodiscover.
 - Styringsskriving er nå kun tilgjengelig når datakilde er `Modbus`.
 - Egne API-tokens for `main/control`, `Homey (/status)` og `Home Assistant (/ha/*)` + rotasjonsknapper i admin.
-- `Modbus` er merket som eksperimentell datakilde. `BACnet` er produksjonsklar (read-only).
+- `Modbus` er merket som eksperimentell datakilde. `BACnet` lesing er produksjonsklar.
 
 ### v3.7.0
 
@@ -82,6 +96,18 @@ Når enheten startes første gang:
 3. Åpne nettleser og gå til IP-adressen som vises
    (du blir automatisk sendt til oppsett)
 
+## Headless hurtigstart (uten skjerm)
+
+1. Start enheten.
+2. Koble til AP `VentReader-Setup-XXXX` (passord `ventreader`).
+3. Åpne `http://192.168.4.1/admin/setup`.
+4. I steg 3: aktiver `Headless-modus (skjerm ikke montert)`.
+5. Fullfør oppsett og restart.
+
+For allerede konfigurert enhet:
+- `http://<enhet-ip>/admin`
+- innlogging `admin` + ditt admin-passord
+
 ---
 
 ## Innlogging
@@ -102,7 +128,8 @@ Oppsettet består av 3 steg:
 1. Velg nytt admin-passord
 2. Koble enheten til ditt WiFi
 3. Velg modell og funksjoner (Modbus, Homey/API, Home Assistant/API)
-   samt datakilde (`Modbus (eksperimentell)` eller `BACnet`).
+   samt datakilde (`Modbus (eksperimentell)` eller `BACnet`),
+   og eventuelt `Headless-modus` hvis skjerm ikke er montert.
 
 Når du trykker **Fullfør og restart**, lagres alt og enheten starter på nytt.
 
@@ -134,15 +161,6 @@ Valgfritt:
 
 ---
 
-## Lokal konsepttest i Safari
-
-For en rask, separat testside (uten firmware/admin), åpne:
-
-- `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/flexit_local_test.html`
-
-Siden kan teste HTTP-baserte auth/data-endepunkter lokalt, men ikke BACnet/UDP direkte fra nettleser.
-
----
 
 ## Homey-oppsett
 
@@ -168,7 +186,7 @@ Anbefalt metode er nå native MQTT Discovery i Home Assistant (ingen custom komp
   - `GET /status?token=<HOMEY_TOKEN>`
   - `GET /ha/status?token=<HA_TOKEN>` (krever `Home Assistant/API` aktivert)
   - Inkluderer `ts_epoch_ms` og `ts_iso` i hver datapakke for tidsserier/grafer
-  - Inkluderer `stale`-felt og `ha_mqtt_enabled` per datapakke
+  - Inkluderer `stale`-felt, `ha_mqtt_enabled`, `display_enabled` og `headless` per datapakke
 - Historikk:
   - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
   - `GET /ha/history?token=<HA_TOKEN>&limit=120`
@@ -177,7 +195,9 @@ Anbefalt metode er nå native MQTT Discovery i Home Assistant (ingen custom komp
 - Diagnostikk:
   - `GET /status/diag?token=<HOMEY_TOKEN>`
   - `GET /status/storage?token=<HOMEY_TOKEN>`
-- Styring (eksperimentelt, krever datakilde=`Modbus`, `Modbus` + `Control writes` aktivert):
+- Styring (eksperimentelt, via aktiv datakilde):
+  - Modbus: krever datakilde=`Modbus`, `Modbus` + `Control writes`
+  - BACnet: krever datakilde=`BACNET` + `Enable BACnet writes`
   - `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
   - `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
 

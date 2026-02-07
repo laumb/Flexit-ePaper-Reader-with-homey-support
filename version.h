@@ -2,4 +2,4 @@
 
 // Previous stable: 3.5.0
 // This change set:
-static const char* FW_VERSION = "4.0.4";
+static const char* FW_VERSION = "4.2.0";

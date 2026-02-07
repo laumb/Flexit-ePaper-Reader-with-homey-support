@@ -191,6 +191,7 @@ static String tr(const char* key)
   if (strcmp(key, "model") == 0) return en ? "Device model" : no ? "Enhetsmodell" : da ? "Enhedsmodel" : sv ? "Enhetsmodell" : fi ? "Laitemalli" : "Модель пристрою";
   if (strcmp(key, "homey_api") == 0) return en ? "Homey/API" : no ? "Homey/API" : da ? "Homey/API" : sv ? "Homey/API" : fi ? "Homey/API" : "Homey/API";
   if (strcmp(key, "ha_api") == 0) return en ? "Home Assistant/API" : no ? "Home Assistant/API" : da ? "Home Assistant/API" : sv ? "Home Assistant/API" : fi ? "Home Assistant/API" : "Home Assistant/API";
+  if (strcmp(key, "headless") == 0) return en ? "Headless mode (no display mounted)" : no ? "Headless-modus (skjerm ikke montert)" : da ? "Headless-tilstand (ingen skærm monteret)" : sv ? "Headless-lage (ingen skarm monterad)" : fi ? "Headless-tila (ei nayttoa asennettu)" : "Headless режим (без екрана)";
   if (strcmp(key, "ha_mqtt") == 0) return en ? "HA MQTT Discovery (native)" : no ? "HA MQTT Discovery (native)" : da ? "HA MQTT Discovery (native)" : sv ? "HA MQTT Discovery (native)" : fi ? "HA MQTT Discovery (native)" : "HA MQTT Discovery (native)";
   if (strcmp(key, "ha_mqtt_help") == 0) return en ? "Native HA entities via standard MQTT discovery. No custom integration needed." : no ? "Native HA-entities via standard MQTT discovery. Ingen custom-integrasjon trengs." : da ? "Native HA-enheder via standard MQTT discovery. Ingen custom-integration nodvendig." : sv ? "Native HA-entiteter via standard MQTT discovery. Ingen custom-integration behovs." : fi ? "Natiivit HA-entiteetit standardin MQTT discoveryn kautta. Ei custom-integraatiota." : "Нативні сутності HA через стандартний MQTT discovery.";
   if (strcmp(key, "ha_mqtt_host") == 0) return en ? "MQTT broker host/IP" : no ? "MQTT broker host/IP" : da ? "MQTT broker host/IP" : sv ? "MQTT broker host/IP" : fi ? "MQTT-valittajan host/IP" : "MQTT broker host/IP";
@@ -211,8 +212,8 @@ static String tr(const char* key)
   if (strcmp(key, "poll_sec") == 0) return en ? "Update interval (sec)" : no ? "Oppdateringsintervall (sek)" : da ? "Opdateringsinterval (sek)" : sv ? "Uppdateringsintervall (sek)" : fi ? "Päivitysväli (s)" : "Інтервал оновлення (с)";
   if (strcmp(key, "data_source") == 0) return en ? "Data source" : no ? "Datakilde" : da ? "Datakilde" : sv ? "Datakälla" : fi ? "Tietolähde" : "Джерело даних";
   if (strcmp(key, "source_modbus") == 0) return en ? "Modbus (experimental, local)" : no ? "Modbus (eksperimentell, lokal)" : da ? "Modbus (eksperimentel, lokal)" : sv ? "Modbus (experimentell, lokal)" : fi ? "Modbus (kokeellinen, paikallinen)" : "Modbus (експериментально, локально)";
-  if (strcmp(key, "source_bacnet") == 0) return en ? "BACnet (local read-only)" : no ? "BACnet (lokal, kun lesing)" : da ? "BACnet (lokal, kun laesning)" : sv ? "BACnet (lokal, endast lasning)" : fi ? "BACnet (paikallinen, vain luku)" : "BACnet (локально, лише читання)";
-  if (strcmp(key, "source_bacnet_help") == 0) return en ? "Uses local BACnet/IP over LAN. Modbus writes are disabled in this mode." : no ? "Bruker lokal BACnet/IP i LAN. Modbus-skriving er deaktivert i denne modusen." : da ? "Bruger lokal BACnet/IP pa LAN. Modbus-skrivning er deaktiveret i denne tilstand." : sv ? "Anvander lokal BACnet/IP over LAN. Modbus-skrivning ar av i detta lage." : fi ? "Kayttaa paikallista BACnet/IP-yhteytta LAN-verkossa. Modbus-kirjoitus ei ole kaytossa tassa tilassa." : "Використовує локальний BACnet/IP у LAN. Запис Modbus вимкнено в цьому режимі.";
+  if (strcmp(key, "source_bacnet") == 0) return en ? "BACnet (local)" : no ? "BACnet (lokal)" : da ? "BACnet (lokal)" : sv ? "BACnet (lokal)" : fi ? "BACnet (paikallinen)" : "BACnet (локально)";
+  if (strcmp(key, "source_bacnet_help") == 0) return en ? "Uses local BACnet/IP over LAN. Read is production-ready; writes are optional/experimental." : no ? "Bruker lokal BACnet/IP i LAN. Lesing er produksjonsklar; skriving er valgfri/eksperimentell." : da ? "Bruger lokal BACnet/IP pa LAN. Laesning er produktionsklar; skrivning er valgfri/eksperimentel." : sv ? "Anvander lokal BACnet/IP over LAN. Lasning ar produktionsklar; skrivning ar valfri/experimentell." : fi ? "Kayttaa paikallista BACnet/IP-yhteytta LAN-verkossa. Luku on tuotantovalmis; kirjoitus on valinnainen/kokeellinen." : "Використовує локальний BACnet/IP у LAN. Читання готове до продакшну; запис необов'язковий/експериментальний.";
   if (strcmp(key, "bac_ip") == 0) return en ? "BACnet device IP" : no ? "BACnet enhets-IP" : da ? "BACnet enheds-IP" : sv ? "BACnet enhets-IP" : fi ? "BACnet laitteen IP" : "IP пристрою BACnet";
   if (strcmp(key, "bac_device_id") == 0) return en ? "BACnet Device ID" : no ? "BACnet Device ID" : da ? "BACnet Device ID" : sv ? "BACnet Device ID" : fi ? "BACnet Device ID" : "BACnet Device ID";
   if (strcmp(key, "bac_port") == 0) return en ? "UDP port" : no ? "UDP-port" : da ? "UDP-port" : sv ? "UDP-port" : fi ? "UDP-portti" : "UDP-порт";
@@ -220,6 +221,9 @@ static String tr(const char* key)
   if (strcmp(key, "bac_timeout") == 0) return en ? "Request timeout (ms, 300-8000)" : no ? "Timeout per forespørsel (ms, 300-8000)" : da ? "Timeout per foresporgsel (ms, 300-8000)" : sv ? "Timeout per forfragan (ms, 300-8000)" : fi ? "Aikakatkaisu per pyynto (ms, 300-8000)" : "Таймаут запиту (мс, 300-8000)";
   if (strcmp(key, "bac_objects") == 0) return en ? "BACnet object mapping (advanced)" : no ? "BACnet objektmapping (avansert)" : da ? "BACnet objektmapping (avanceret)" : sv ? "BACnet objektmapping (avancerad)" : fi ? "BACnet-objektikartoitus (edistynyt)" : "Мапінг об'єктів BACnet (розширено)";
   if (strcmp(key, "bac_mode_map") == 0) return en ? "Mode enum map" : no ? "Modus enum-mapping" : da ? "Tilstand enum-mapping" : sv ? "Lagesmapping (enum)" : fi ? "Tilakartta (enum)" : "Мапа режимів (enum)";
+  if (strcmp(key, "bac_write_enable") == 0) return en ? "Enable BACnet writes (experimental)" : no ? "Aktiver BACnet-skriving (eksperimentell)" : da ? "Aktiver BACnet-skrivning (eksperimentel)" : sv ? "Aktivera BACnet-skrivning (experimentell)" : fi ? "Ota BACnet-kirjoitus kayttoon (kokeellinen)" : "Увімкнути запис BACnet (експериментально)";
+  if (strcmp(key, "bac_setpoint_home_obj") == 0) return en ? "Setpoint object (home profile)" : no ? "Settpunkt-objekt (hjem-profil)" : da ? "Setpunkt-objekt (hjem-profil)" : sv ? "Borvarde-objekt (hem-profil)" : fi ? "Asetusarvo-objekti (koti-profiili)" : "Об'єкт уставки (профіль home)";
+  if (strcmp(key, "bac_setpoint_away_obj") == 0) return en ? "Setpoint object (away profile)" : no ? "Settpunkt-objekt (borte-profil)" : da ? "Setpunkt-objekt (ude-profil)" : sv ? "Borvarde-objekt (borta-profil)" : fi ? "Asetusarvo-objekti (poissa-profiili)" : "Об'єкт уставки (профіль away)";
   if (strcmp(key, "language") == 0) return en ? "Language" : no ? "Språk" : da ? "Sprog" : sv ? "Språk" : fi ? "Kieli" : "Мова";
   if (strcmp(key, "control_enable") == 0) return en ? "Enable remote control writes (experimental)" : no ? "Aktiver fjernstyring med skriv (experimental)" : da ? "Aktivér fjernstyring med skriv (experimental)" : sv ? "Aktivera fjärrstyrning med skrivning (experimental)" : fi ? "Salli etäohjaus kirjoituksilla (experimental)" : "Увімкнути віддалене керування записом (experimental)";
   if (strcmp(key, "admin") == 0) return en ? "Admin" : no ? "Admin" : da ? "Admin" : sv ? "Admin" : fi ? "Admin" : "Адмін";
@@ -257,8 +261,8 @@ static String tr(const char* key)
   if (strcmp(key, "to_admin_page") == 0) return en ? "Back to admin" : no ? "Tilbake til admin" : da ? "Tilbage til admin" : sv ? "Tillbaka till admin" : fi ? "Takaisin adminiin" : "До адмін";
   if (strcmp(key, "graphs") == 0) return en ? "Graphs" : no ? "Grafer" : da ? "Grafer" : sv ? "Grafer" : fi ? "Kaaviot" : "Графіки";
   if (strcmp(key, "quick_control") == 0) return en ? "Quick control" : no ? "Hurtigstyring" : da ? "Hurtigstyring" : sv ? "Snabbstyrning" : fi ? "Pikaohjaus" : "Швидке керування";
-  if (strcmp(key, "quick_control_help") == 0) return en ? "Writes mode and setpoint directly over Modbus." : no ? "Skriver modus og settpunkt direkte over Modbus." : da ? "Skriver tilstand og setpunkt direkte over Modbus." : sv ? "Skriver lage och borvarde direkt over Modbus." : fi ? "Kirjoittaa tilan ja asetusarvon suoraan Modbusiin." : "Записує режим і уставку безпосередньо через Modbus.";
-  if (strcmp(key, "enable_control_hint") == 0) return en ? "Enable both Modbus and remote control writes to use quick control." : no ? "Aktiver både Modbus og fjernstyring med skriv for å bruke hurtigstyring." : da ? "Aktiver bade Modbus og fjernstyring med skriv for at bruge hurtigstyring." : sv ? "Aktivera bade Modbus och fjarrstyrning med skrivning for att anvanda snabbstyrning." : fi ? "Ota kayttoon Modbus ja etakirjoitus kayttaaksesi pikaohjausta." : "Увімкніть Modbus і віддалений запис для швидкого керування.";
+  if (strcmp(key, "quick_control_help") == 0) return en ? "Writes mode and setpoint through the active data source (Modbus or BACnet)." : no ? "Skriver modus og settpunkt via aktiv datakilde (Modbus eller BACnet)." : da ? "Skriver tilstand og setpunkt via aktiv datakilde (Modbus eller BACnet)." : sv ? "Skriver lage och borvarde via aktiv datakalla (Modbus eller BACnet)." : fi ? "Kirjoittaa tilan ja asetusarvon aktiivisen datalahteen kautta (Modbus tai BACnet)." : "Записує режим і уставку через активне джерело даних (Modbus або BACnet).";
+  if (strcmp(key, "enable_control_hint") == 0) return en ? "Enable write control for the active source to use quick control." : no ? "Aktiver skrivekontroll for aktiv kilde for å bruke hurtigstyring." : da ? "Aktiver skrivekontrol for aktiv kilde for at bruge hurtigstyring." : sv ? "Aktivera skrivstyrning for aktiv kalla for att anvanda snabbstyrning." : fi ? "Ota aktiivisen lahteen kirjoitusohjaus kayttoon kayttaaksesi pikaohjausta." : "Увімкніть керування записом для активного джерела, щоб використовувати швидке керування.";
   if (strcmp(key, "mode_away") == 0) return en ? "Away" : no ? "Borte" : da ? "Ude" : sv ? "Borta" : fi ? "Poissa" : "Away";
   if (strcmp(key, "mode_home") == 0) return en ? "Home" : no ? "Hjem" : da ? "Hjemme" : sv ? "Hemma" : fi ? "Koti" : "Home";
   if (strcmp(key, "mode_high") == 0) return en ? "High" : no ? "Hoy" : da ? "Hoj" : sv ? "Hog" : fi ? "Teho" : "High";
@@ -325,6 +329,7 @@ static void applyPostedModbusSettings()
 
 static void applyPostedBACnetSettings()
 {
+  g_cfg->bacnet_write_enabled = server.hasArg("bacwr");
   if (server.hasArg("bacip"))
   {
     String s = server.arg("bacip");
@@ -364,7 +369,20 @@ static void applyPostedBACnetSettings()
   if (server.hasArg("bafan")) g_cfg->bacnet_obj_fan = server.arg("bafan");
   if (server.hasArg("baheat")) g_cfg->bacnet_obj_heat = server.arg("baheat");
   if (server.hasArg("bamode")) g_cfg->bacnet_obj_mode = server.arg("bamode");
+  if (server.hasArg("bashome")) g_cfg->bacnet_obj_setpoint_home = server.arg("bashome");
+  if (server.hasArg("basaway")) g_cfg->bacnet_obj_setpoint_away = server.arg("basaway");
   if (server.hasArg("bamap")) g_cfg->bacnet_mode_map = server.arg("bamap");
+
+  if (g_cfg->bacnet_obj_outdoor.length() == 0) g_cfg->bacnet_obj_outdoor = "ai:1";
+  if (g_cfg->bacnet_obj_supply.length() == 0) g_cfg->bacnet_obj_supply = "ai:4";
+  if (g_cfg->bacnet_obj_extract.length() == 0) g_cfg->bacnet_obj_extract = "ai:59";
+  if (g_cfg->bacnet_obj_exhaust.length() == 0) g_cfg->bacnet_obj_exhaust = "ai:11";
+  if (g_cfg->bacnet_obj_fan.length() == 0) g_cfg->bacnet_obj_fan = "ao:3";
+  if (g_cfg->bacnet_obj_heat.length() == 0) g_cfg->bacnet_obj_heat = "ao:29";
+  if (g_cfg->bacnet_obj_mode.length() == 0) g_cfg->bacnet_obj_mode = "av:0";
+  if (g_cfg->bacnet_obj_setpoint_home.length() == 0) g_cfg->bacnet_obj_setpoint_home = "av:5";
+  if (g_cfg->bacnet_obj_setpoint_away.length() == 0) g_cfg->bacnet_obj_setpoint_away = "av:100";
+  if (g_cfg->bacnet_mode_map.length() == 0) g_cfg->bacnet_mode_map = "1:AWAY,2:HOME,3:HIGH,4:FIRE";
 }
 
 static void applyPostedHAMqttSettings()
@@ -791,8 +809,11 @@ static String buildStatusJson(bool pretty)
     out += "\"data_source\":" + quoted(src) + ",";
     out += "\"homey_enabled\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
     out += "\"ha_enabled\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
+    out += "\"display_enabled\":" + String(g_cfg->display_enabled ? "true" : "false") + ",";
+    out += "\"headless\":" + String(g_cfg->display_enabled ? "false" : "true") + ",";
     out += "\"ha_mqtt_enabled\":" + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",";
-    out += "\"modbus_enabled\":" + String(g_cfg->modbus_enabled ? "true" : "false");
+    out += "\"modbus_enabled\":" + String(g_cfg->modbus_enabled ? "true" : "false") + ",";
+    out += "\"bacnet_write_enabled\":" + String(g_cfg->bacnet_write_enabled ? "true" : "false");
     out += "}";
     return out;
   }
@@ -814,8 +835,11 @@ static String buildStatusJson(bool pretty)
   out += "    \"modbus\": " + quoted(sourceStatus) + ",\n";
   out += "    \"modbus_enabled\": " + String(g_cfg->modbus_enabled ? "true" : "false") + ",\n";
   out += "    \"homey_enabled\": " + String(g_cfg->homey_enabled ? "true" : "false") + ",\n";
-  out += "    \"ha_enabled\": " + String(g_cfg->ha_enabled ? "true" : "false") + ",\n";
-  out += "    \"ha_mqtt_enabled\": " + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + "\n";
+    out += "    \"ha_enabled\": " + String(g_cfg->ha_enabled ? "true" : "false") + ",\n";
+    out += "    \"display_enabled\": " + String(g_cfg->display_enabled ? "true" : "false") + ",\n";
+    out += "    \"headless\": " + String(g_cfg->display_enabled ? "false" : "true") + ",\n";
+    out += "    \"ha_mqtt_enabled\": " + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",\n";
+    out += "    \"bacnet_write_enabled\": " + String(g_cfg->bacnet_write_enabled ? "true" : "false") + "\n";
   out += "  },\n";
   out += "  \"network\": {\n";
   out += "    \"wifi\": " + quoted(wifi) + ",\n";
@@ -838,6 +862,9 @@ static String buildStatusJson(bool pretty)
   out += "    \"data_time\": \"Last successful datasource update (HH:MM)\",\n";
   out += "    \"source_status\": \"Datasource status string (MB/BACNET + state)\",\n";
   out += "    \"modbus\": \"Alias for source_status (legacy compatibility)\",\n";
+  out += "    \"display_enabled\": \"True when physical display rendering is enabled\",\n";
+  out += "    \"headless\": \"True when running without display rendering\",\n";
+  out += "    \"bacnet_write_enabled\": \"True when experimental BACnet writes are enabled\",\n";
   out += "    \"mode\": \"Ventilation mode\",\n";
   out += "    \"uteluft\": \"Outdoor temperature (C)\",\n";
   out += "    \"tilluft\": \"Supply temperature (C)\",\n";
@@ -867,7 +894,10 @@ static String buildHomeyExportJson()
 {
   const String base = currentBaseUrl();
   const String statusUrl = base + "/status?token=" + g_cfg->homey_api_token;
-  const bool controlActive = (normDataSource(g_cfg->data_source) == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled);
+  const String activeSrc = normDataSource(g_cfg->data_source);
+  const bool controlActive =
+      (activeSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+      (activeSrc == "BACNET" && g_cfg->bacnet_write_enabled);
   const uint64_t ts = nowEpochMs();
   const String tsIso = isoFromEpochMs(ts);
   const String tsStr = u64ToString(ts);
@@ -938,8 +968,11 @@ static String buildHomeyExportJson()
   out += "\"homey_api\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
   out += "\"home_assistant_api\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
   out += "\"home_assistant_mqtt\":" + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",";
+  out += "\"display_enabled\":" + String(g_cfg->display_enabled ? "true" : "false") + ",";
+  out += "\"headless\":" + String(g_cfg->display_enabled ? "false" : "true") + ",";
   out += "\"modbus\":" + String(g_cfg->modbus_enabled ? "true" : "false") + ",";
-  out += "\"control_writes\":" + String(g_cfg->control_enabled ? "true" : "false");
+  out += "\"control_writes\":" + String(controlActive ? "true" : "false") + ",";
+  out += "\"bacnet_write\":" + String(g_cfg->bacnet_write_enabled ? "true" : "false");
   out += "},";
   out += "\"endpoints\":{";
   out += "\"status\":\"" + jsonEscape(statusUrl) + "\",";
@@ -978,6 +1011,10 @@ static String buildHomeyExportText()
   const String base = currentBaseUrl();
   const String token = g_cfg->homey_api_token;
   const String statusUrl = base + "/status?token=" + token;
+  const String src = normDataSource(g_cfg->data_source);
+  const bool controlActive =
+      (src == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+      (src == "BACNET" && g_cfg->bacnet_write_enabled);
 
   String out;
   out.reserve(3600);
@@ -991,7 +1028,7 @@ static String buildHomeyExportText()
   out += "Enable in VentReader admin\n";
   out += "- Homey/API: " + String(g_cfg->homey_enabled ? "ON" : "OFF") + "\n";
   out += "- Modbus: " + String(g_cfg->modbus_enabled ? "ON" : "OFF") + "\n";
-  out += "- Control writes: " + String(g_cfg->control_enabled ? "ON" : "OFF") + " (optional)\n\n";
+  out += "- Control writes: " + String(controlActive ? "ON" : "OFF") + " (optional)\n\n";
   out += "Status endpoint\n";
   out += "- " + statusUrl + "\n\n";
   out += "Recommended virtual devices\n";
@@ -1072,10 +1109,11 @@ static String buildAdminManualText(bool noLang)
     out += "4) For Homey: bruk Eksporter Homey-oppsett.\n";
     out += "5) For HA: aktiver HA MQTT Discovery (native) i admin (anbefalt).\n";
     out += "   REST fallback: /ha/status?token=<HA_TOKEN>.\n";
-    out += "6) Datakilde: velg Modbus (eksperimentell, lokal) eller BACnet (lokal, kun lesing).\n\n";
-    out += "Modbus skriv (valgfritt)\n";
-    out += "- Aktiver Modbus\n";
-    out += "- Aktiver Enable remote control writes (experimental)\n";
+    out += "6) Datakilde: velg Modbus (eksperimentell, lokal) eller BACnet (lokal).\n";
+    out += "7) Uten skjerm: aktiver headless-modus i setup/admin og bruk /admin via IP.\n\n";
+    out += "Skriving (valgfritt)\n";
+    out += "- Modbus: Aktiver Modbus + Enable remote control writes (experimental)\n";
+    out += "- BACnet: Aktiver Enable BACnet writes (experimental)\n";
     out += "- API mode: POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE\n";
     out += "- API setpoint: POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5\n\n";
     out += "Feilsoking\n";
@@ -1083,7 +1121,8 @@ static String buildAdminManualText(bool noLang)
     out += "- 403 api disabled: modul er av\n";
     out += "- 403 control disabled: control writes er av\n";
     out += "- 409 modbus disabled: Modbus er av ved skrivekall\n";
-    out += "- 500 write failed: Modbus-transport eller fysisk bus-feil\n\n";
+    out += "- 403 bacnet write disabled: BACnet-skriving er av\n";
+    out += "- 500 write failed: transport/protokollfeil i aktiv datakilde\n\n";
     out += "Sikkerhet\n";
     out += "- Endre fabrikkpassord\n";
     out += "- Del Homey/HA-token kun med lokale, betrodde integrasjoner\n";
@@ -1100,10 +1139,11 @@ static String buildAdminManualText(bool noLang)
     out += "4) For Homey: use Export Homey setup.\n";
     out += "5) For HA: enable HA MQTT Discovery (native) in admin (recommended).\n";
     out += "   REST fallback: /ha/status?token=<HA_TOKEN>.\n";
-    out += "6) Data source: choose Modbus (experimental, local) or BACnet (local, read-only).\n\n";
-    out += "Modbus writes (optional)\n";
-    out += "- Enable Modbus\n";
-    out += "- Enable remote control writes (experimental)\n";
+    out += "6) Data source: choose Modbus (experimental, local) or BACnet (local).\n";
+    out += "7) No display mounted: enable headless mode in setup/admin and use /admin via device IP.\n\n";
+    out += "Writes (optional)\n";
+    out += "- Modbus: enable Modbus + Enable remote control writes (experimental)\n";
+    out += "- BACnet: enable Enable BACnet writes (experimental)\n";
     out += "- API mode: POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE\n";
     out += "- API setpoint: POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5\n\n";
     out += "Troubleshooting\n";
@@ -1111,7 +1151,8 @@ static String buildAdminManualText(bool noLang)
     out += "- 403 api disabled: module is disabled\n";
     out += "- 403 control disabled: control writes disabled\n";
     out += "- 409 modbus disabled: Modbus disabled for write call\n";
-    out += "- 500 write failed: Modbus transport or physical bus issue\n\n";
+    out += "- 403 bacnet write disabled: BACnet write is disabled\n";
+    out += "- 500 write failed: transport/protocol issue on active source\n\n";
     out += "Security\n";
     out += "- Change default admin password\n";
     out += "- Share Homey/HA tokens only with trusted local integrations\n";
@@ -1497,15 +1538,34 @@ static void handleHaHistoryCsv()
 static void handleControlMode()
 {
   if (!tokenOKControl()) { server.send(401, "text/plain", "missing/invalid token"); return; }
-  if (normDataSource(g_cfg->data_source) != "MODBUS") { server.send(403, "text/plain", "control disabled for selected data source"); return; }
-  if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
-  if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
   if (!server.hasArg("mode")) { server.send(400, "text/plain", "missing mode"); return; }
-
-  applyModbusApiRuntime();
-  if (!flexit_modbus_write_mode(server.arg("mode")))
+  const String src = normDataSource(g_cfg->data_source);
+  bool ok = false;
+  String err;
+  if (src == "MODBUS")
   {
-    server.send(500, "text/plain", String("write mode failed: ") + flexit_modbus_last_error());
+    if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
+    if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
+    applyModbusApiRuntime();
+    ok = flexit_modbus_write_mode(server.arg("mode"));
+    if (!ok) err = String("write mode failed: ") + flexit_modbus_last_error();
+  }
+  else if (src == "BACNET")
+  {
+    if (!g_cfg->bacnet_write_enabled) { server.send(403, "text/plain", "bacnet write disabled"); return; }
+    flexit_bacnet_set_runtime_config(*g_cfg);
+    ok = flexit_bacnet_write_mode(server.arg("mode"));
+    if (!ok) err = String("write mode failed: ") + flexit_bacnet_last_error();
+  }
+  else
+  {
+    server.send(403, "text/plain", "control disabled for selected data source");
+    return;
+  }
+
+  if (!ok)
+  {
+    server.send(500, "text/plain", err);
     return;
   }
 
@@ -1515,9 +1575,6 @@ static void handleControlMode()
 static void handleControlSetpoint()
 {
   if (!tokenOKControl()) { server.send(401, "text/plain", "missing/invalid token"); return; }
-  if (normDataSource(g_cfg->data_source) != "MODBUS") { server.send(403, "text/plain", "control disabled for selected data source"); return; }
-  if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
-  if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
   if (!server.hasArg("profile") || !server.hasArg("value"))
   {
     server.send(400, "text/plain", "missing profile/value");
@@ -1526,10 +1583,33 @@ static void handleControlSetpoint()
 
   const String profile = server.arg("profile");
   const float value = server.arg("value").toFloat();
-  applyModbusApiRuntime();
-  if (!flexit_modbus_write_setpoint(profile, value))
+  const String src = normDataSource(g_cfg->data_source);
+  bool ok = false;
+  String err;
+  if (src == "MODBUS")
   {
-    server.send(500, "text/plain", String("write setpoint failed: ") + flexit_modbus_last_error());
+    if (!g_cfg->control_enabled) { server.send(403, "text/plain", "control disabled"); return; }
+    if (!g_cfg->modbus_enabled) { server.send(409, "text/plain", "modbus disabled"); return; }
+    applyModbusApiRuntime();
+    ok = flexit_modbus_write_setpoint(profile, value);
+    if (!ok) err = String("write setpoint failed: ") + flexit_modbus_last_error();
+  }
+  else if (src == "BACNET")
+  {
+    if (!g_cfg->bacnet_write_enabled) { server.send(403, "text/plain", "bacnet write disabled"); return; }
+    flexit_bacnet_set_runtime_config(*g_cfg);
+    ok = flexit_bacnet_write_setpoint(profile, value);
+    if (!ok) err = String("write setpoint failed: ") + flexit_bacnet_last_error();
+  }
+  else
+  {
+    server.send(403, "text/plain", "control disabled for selected data source");
+    return;
+  }
+
+  if (!ok)
+  {
+    server.send(500, "text/plain", err);
     return;
   }
 
@@ -1539,16 +1619,36 @@ static void handleControlSetpoint()
 static void handleAdminControlMode()
 {
   if (!checkAdminAuth()) return;
-  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled || normDataSource(g_cfg->data_source) != "MODBUS" || !server.hasArg("mode"))
+  if (!server.hasArg("mode"))
   {
     redirectTo("/admin");
     return;
   }
-
-  applyModbusApiRuntime();
-  if (!flexit_modbus_write_mode(server.arg("mode")))
+  const String src = normDataSource(g_cfg->data_source);
+  bool ok = false;
+  String err;
+  if (src == "MODBUS")
   {
-    server.send(500, "text/plain", String("control mode failed: ") + flexit_modbus_last_error());
+    if (!g_cfg->control_enabled || !g_cfg->modbus_enabled) { redirectTo("/admin"); return; }
+    applyModbusApiRuntime();
+    ok = flexit_modbus_write_mode(server.arg("mode"));
+    if (!ok) err = String("control mode failed: ") + flexit_modbus_last_error();
+  }
+  else if (src == "BACNET")
+  {
+    if (!g_cfg->bacnet_write_enabled) { redirectTo("/admin"); return; }
+    flexit_bacnet_set_runtime_config(*g_cfg);
+    ok = flexit_bacnet_write_mode(server.arg("mode"));
+    if (!ok) err = String("control mode failed: ") + flexit_bacnet_last_error();
+  }
+  else
+  {
+    redirectTo("/admin");
+    return;
+  }
+  if (!ok)
+  {
+    server.send(500, "text/plain", err);
     return;
   }
   redirectTo("/admin");
@@ -1557,17 +1657,36 @@ static void handleAdminControlMode()
 static void handleAdminControlSetpoint()
 {
   if (!checkAdminAuth()) return;
-  if (!g_cfg->control_enabled || !g_cfg->modbus_enabled || normDataSource(g_cfg->data_source) != "MODBUS" ||
-      !server.hasArg("profile") || !server.hasArg("value"))
+  if (!server.hasArg("profile") || !server.hasArg("value"))
   {
     redirectTo("/admin");
     return;
   }
-
-  applyModbusApiRuntime();
-  if (!flexit_modbus_write_setpoint(server.arg("profile"), server.arg("value").toFloat()))
+  const String src = normDataSource(g_cfg->data_source);
+  bool ok = false;
+  String err;
+  if (src == "MODBUS")
   {
-    server.send(500, "text/plain", String("control setpoint failed: ") + flexit_modbus_last_error());
+    if (!g_cfg->control_enabled || !g_cfg->modbus_enabled) { redirectTo("/admin"); return; }
+    applyModbusApiRuntime();
+    ok = flexit_modbus_write_setpoint(server.arg("profile"), server.arg("value").toFloat());
+    if (!ok) err = String("control setpoint failed: ") + flexit_modbus_last_error();
+  }
+  else if (src == "BACNET")
+  {
+    if (!g_cfg->bacnet_write_enabled) { redirectTo("/admin"); return; }
+    flexit_bacnet_set_runtime_config(*g_cfg);
+    ok = flexit_bacnet_write_setpoint(server.arg("profile"), server.arg("value").toFloat());
+    if (!ok) err = String("control setpoint failed: ") + flexit_bacnet_last_error();
+  }
+  else
+  {
+    redirectTo("/admin");
+    return;
+  }
+  if (!ok)
+  {
+    server.send(500, "text/plain", err);
     return;
   }
   redirectTo("/admin");
@@ -1696,12 +1815,16 @@ static void handleRoot()
   s += "<div class='kv'><div class='k'>Datakilde</div><div class='v'>" + dataSourceLabel(g_cfg->data_source) + "</div></div>";
   s += "<div class='kv'><div class='k'>Homey/API</div><div class='v'>" + boolLabel(g_cfg->homey_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>Home Assistant/API</div><div class='v'>" + boolLabel(g_cfg->ha_enabled) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Display</div><div class='v'>" + String(g_cfg->display_enabled ? "ON" : "HEADLESS") + "</div></div>";
   s += "<div class='kv'><div class='k'>HA MQTT Discovery</div><div class='v'>" + boolLabel(g_cfg->ha_mqtt_enabled) + "</div></div>";
   if (g_cfg->ha_mqtt_enabled)
     s += "<div class='kv'><div class='k'>" + tr("ha_mqtt_status") + "</div><div class='v'>" + (ha_mqtt_is_active() ? "CONNECTED" : (ha_mqtt_last_error().length() ? ha_mqtt_last_error() : "CONNECTING")) + "</div></div>";
   s += "<div class='kv'><div class='k'>Modbus</div><div class='v'>" + boolLabel(g_cfg->modbus_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>BACnet (local)</div><div class='v'>" + boolLabel(normDataSource(g_cfg->data_source) == "BACNET") + "</div></div>";
-  const bool ctrlActive = (g_cfg->control_enabled && normDataSource(g_cfg->data_source) == "MODBUS");
+  const String srcCtrl = normDataSource(g_cfg->data_source);
+  const bool ctrlActive =
+      (srcCtrl == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+      (srcCtrl == "BACNET" && g_cfg->bacnet_write_enabled);
   s += "<div class='kv'><div class='k'>Control writes</div><div class='v'>" + boolLabel(ctrlActive) + "</div></div>";
   s += "</div>";
   s += "<div class='help'>Dette er lesbar oversikt uten innlogging. Konfigurasjon krever admin-login.</div>";
@@ -1828,6 +1951,8 @@ static void handleAdminSetup()
          + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
          + "> Deaktiver</label>";
     s += "<div class='sep-gold'></div>";
+    s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
+    s += "<div class='sep-gold'></div>";
     s += "<label><input id='hamqtt_setup' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
     s += "<div id='hamqtt_block_setup' style='display:" + String(g_cfg->ha_mqtt_enabled ? "block" : "none") + ";'>";
     s += "<div class='help'>" + tr("ha_mqtt_help") + "</div>";
@@ -1890,11 +2015,13 @@ static void handleAdminSetup()
     s += "<div><label>" + tr("bac_poll_min") + "</label><input name='bacpoll' type='number' min='5' max='60' value='" + String((int)g_cfg->bacnet_poll_minutes) + "'></div>";
     s += "<div><label>" + tr("bac_timeout") + "</label><input name='bacto' type='number' min='300' max='8000' value='" + String((int)g_cfg->bacnet_timeout_ms) + "'></div>";
     s += "</div>";
+    s += "<label><input type='checkbox' name='bacwr' " + String(g_cfg->bacnet_write_enabled ? "checked" : "") + "> " + tr("bac_write_enable") + "</label>";
     s += "<details style='margin-top:8px'><summary>" + tr("bac_objects") + "</summary>";
     s += "<div class='help'>Format for objekter: <code>ai:1</code>, <code>av:2</code>, <code>msv:1</code></div>";
     s += "<div class='row'><div><label>Uteluft</label><input name='baout' value='" + jsonEscape(g_cfg->bacnet_obj_outdoor) + "'></div><div><label>Tilluft</label><input name='basup' value='" + jsonEscape(g_cfg->bacnet_obj_supply) + "'></div></div>";
     s += "<div class='row'><div><label>Avtrekk</label><input name='baext' value='" + jsonEscape(g_cfg->bacnet_obj_extract) + "'></div><div><label>Avkast</label><input name='baexh' value='" + jsonEscape(g_cfg->bacnet_obj_exhaust) + "'></div></div>";
     s += "<div class='row'><div><label>Fan %</label><input name='bafan' value='" + jsonEscape(g_cfg->bacnet_obj_fan) + "'></div><div><label>Heat %</label><input name='baheat' value='" + jsonEscape(g_cfg->bacnet_obj_heat) + "'></div></div>";
+    s += "<div class='row'><div><label>" + tr("bac_setpoint_home_obj") + "</label><input name='bashome' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_home) + "'></div><div><label>" + tr("bac_setpoint_away_obj") + "</label><input name='basaway' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_away) + "'></div></div>";
     s += "<div class='row'><div><label>Mode object</label><input name='bamode' value='" + jsonEscape(g_cfg->bacnet_obj_mode) + "'></div><div><label>" + tr("bac_mode_map") + "</label><input name='bamap' value='" + jsonEscape(g_cfg->bacnet_mode_map) + "'></div></div>";
     s += "</details>";
   s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"setup_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"setup_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"setup_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"setup_form\")'>Object scan</button></div>";
@@ -1916,10 +2043,10 @@ static void handleAdminSetup()
          "if(!t||!a)return;"
          "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
          "function haEnabled(){for(var i=0;i<haModes.length;i++){if(haModes[i].checked)return haModes[i].value==='enable';}return true;}"
-         "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';if(hmb)hmb.style.display=(hm&&hm.checked&&haEnabled())?'block':'none';if(hm)hm.disabled=!haEnabled();}"
+         "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';if(hmb)hmb.style.display=(hm&&hm.checked&&haEnabled())?'block':'none';}"
          "function p(model){tr.value='AUTO';sf.value='8E1';bd.value='9600';id.value='1';of.value='0';}"
          "t.addEventListener('change',u);"
-         "if(hm)hm.addEventListener('change',u);"
+         "if(hm)hm.addEventListener('change',function(){if(hm.checked){for(var i=0;i<haModes.length;i++){if(haModes[i].value==='enable'){haModes[i].checked=true;break;}}}u();});"
          "for(var i=0;i<haModes.length;i++){haModes[i].addEventListener('change',u);}"
          "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
@@ -2109,12 +2236,14 @@ static void handleAdminSetupSave()
   }
   g_cfg->homey_enabled  = (homeyMode == "enable");
   g_cfg->ha_enabled     = (haMode == "enable");
+  g_cfg->display_enabled = !server.hasArg("disp");
   g_cfg->data_source = normDataSource(server.arg("src"));
   g_cfg->control_enabled = (g_cfg->data_source == "MODBUS") ? server.hasArg("ctrl") : false;
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
   applyPostedBACnetSettings();
   applyPostedHAMqttSettings();
+  if (g_cfg->ha_mqtt_enabled) g_cfg->ha_enabled = true;
   if (!g_cfg->ha_enabled) g_cfg->ha_mqtt_enabled = false;
   if (g_cfg->ha_mqtt_enabled && !ha_mqtt_lib_available())
   {
@@ -2209,6 +2338,7 @@ static void handleAdmin()
   s += "<div class='kv'><div class='k'>Fallback AP</div><div class='v'>" + String(apOnAdmin ? "ON" : "OFF") + "</div></div>";
   s += "<div class='kv'><div class='k'>Datakilde</div><div class='v'>" + dataSourceLabel(g_cfg->data_source) + "</div></div>";
   s += "<div class='kv'><div class='k'>Kilde-status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
+  s += "<div class='kv'><div class='k'>Display</div><div class='v'>" + String(g_cfg->display_enabled ? "ON" : "HEADLESS") + "</div></div>";
   s += "<div class='kv'><div class='k'>Ute / Tilluft</div><div class='v'>" + fOrDash(g_data.uteluft) + " / " + fOrDash(g_data.tilluft) + " C</div></div>";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
@@ -2257,6 +2387,7 @@ static void handleAdmin()
   s += "<p class='muted-title'>Moduler</p>";
   s += "<label><input type='checkbox' name='homey' " + String(g_cfg->homey_enabled ? "checked" : "") + "> " + tr("homey_api") + "</label>";
   s += "<label><input id='ha_toggle_admin' type='checkbox' name='ha' " + String(g_cfg->ha_enabled ? "checked" : "") + "> " + tr("ha_api") + "</label>";
+  s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
   s += "<label><input id='hamqtt_admin' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
   s += "<div id='hamqtt_block_admin' style='display:" + String((g_cfg->ha_enabled && g_cfg->ha_mqtt_enabled) ? "block" : "none") + ";'>";
   s += "<div class='help'>" + tr("ha_mqtt_help") + "</div>";
@@ -2323,11 +2454,13 @@ static void handleAdmin()
   s += "<div><label>" + tr("bac_poll_min") + "</label><input name='bacpoll' type='number' min='5' max='60' value='" + String((int)g_cfg->bacnet_poll_minutes) + "'></div>";
   s += "<div><label>" + tr("bac_timeout") + "</label><input name='bacto' type='number' min='300' max='8000' value='" + String((int)g_cfg->bacnet_timeout_ms) + "'></div>";
   s += "</div>";
+  s += "<label><input type='checkbox' name='bacwr' " + String(g_cfg->bacnet_write_enabled ? "checked" : "") + "> " + tr("bac_write_enable") + "</label>";
   s += "<details style='margin-top:8px'><summary>" + tr("bac_objects") + "</summary>";
   s += "<div class='help'>Format for objekter: <code>ai:1</code>, <code>av:2</code>, <code>msv:1</code></div>";
   s += "<div class='row'><div><label>Uteluft</label><input name='baout' value='" + jsonEscape(g_cfg->bacnet_obj_outdoor) + "'></div><div><label>Tilluft</label><input name='basup' value='" + jsonEscape(g_cfg->bacnet_obj_supply) + "'></div></div>";
   s += "<div class='row'><div><label>Avtrekk</label><input name='baext' value='" + jsonEscape(g_cfg->bacnet_obj_extract) + "'></div><div><label>Avkast</label><input name='baexh' value='" + jsonEscape(g_cfg->bacnet_obj_exhaust) + "'></div></div>";
   s += "<div class='row'><div><label>Fan %</label><input name='bafan' value='" + jsonEscape(g_cfg->bacnet_obj_fan) + "'></div><div><label>Heat %</label><input name='baheat' value='" + jsonEscape(g_cfg->bacnet_obj_heat) + "'></div></div>";
+  s += "<div class='row'><div><label>" + tr("bac_setpoint_home_obj") + "</label><input name='bashome' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_home) + "'></div><div><label>" + tr("bac_setpoint_away_obj") + "</label><input name='basaway' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_away) + "'></div></div>";
   s += "<div class='row'><div><label>Mode object</label><input name='bamode' value='" + jsonEscape(g_cfg->bacnet_obj_mode) + "'></div><div><label>" + tr("bac_mode_map") + "</label><input name='bamap' value='" + jsonEscape(g_cfg->bacnet_mode_map) + "'></div></div>";
   s += "</details>";
   s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"admin_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"admin_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"admin_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"admin_form\")'>Object scan</button></div>";
@@ -2347,10 +2480,10 @@ static void handleAdmin()
        "var id=document.getElementById('mbid_admin');var of=document.getElementById('mboff_admin');"
        "if(!t||!a)return;"
        "function srcVal(){for(var i=0;i<src.length;i++){if(src[i].checked)return src[i].value;}return 'MODBUS';}"
-       "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';if(hm)hm.disabled=!(ha&&ha.checked);if(hmb)hmb.style.display=(ha&&ha.checked&&hm&&hm.checked)?'block':'none';}"
+       "function u(){var useMb=(srcVal()==='MODBUS');if(mbb)mbb.style.display=useMb?'block':'none';if(bcb)bcb.style.display=useMb?'none':'block';a.style.display=(useMb&&t.checked)?'block':'none';if(fw)fw.style.display=useMb?'none':'block';if(hmb)hmb.style.display=(ha&&ha.checked&&hm&&hm.checked)?'block':'none';}"
        "function p(model){tr.value='AUTO';sf.value='8E1';bd.value='9600';id.value='1';of.value='0';}"
        "t.addEventListener('change',u);"
-       "if(ha)ha.addEventListener('change',u);if(hm)hm.addEventListener('change',u);"
+       "if(ha)ha.addEventListener('change',u);if(hm)hm.addEventListener('change',function(){if(hm.checked&&ha){ha.checked=true;}u();});"
        "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
        "u();"
@@ -2473,7 +2606,11 @@ static void handleAdmin()
 
   // Quick control panel (next-level UX)
   s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
-  if (g_cfg->modbus_enabled && g_cfg->control_enabled && normDataSource(g_cfg->data_source) == "MODBUS")
+  const String qcSrc = normDataSource(g_cfg->data_source);
+  const bool qcActive =
+      (qcSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
+      (qcSrc == "BACNET" && g_cfg->bacnet_write_enabled);
+  if (qcActive)
   {
     s += "<div class='help'>" + tr("quick_control_help") + "</div>";
     s += "<div class='actions'>";
@@ -2572,6 +2709,22 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.2.0</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Eksperimentell BACnet-skriving: modus og settpunkt kan n&aring; skrives via aktiv datakilde, inkl. API/hurtigstyring.";
+  else
+    s += "Experimental BACnet writes: mode and setpoint can now be written via active datasource, including API/quick control.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>v4.1.0</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Ny headless-modus i setup/admin. Enheten kan nå kjøres uten fysisk skjerm og admin har ett-klikk Vanlig/Pretty API-lenker med token.";
+  else
+    s += "New headless mode in setup/admin. Device can now run without physical display and admin includes one-click regular/pretty API links with token.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v4.0.4</strong></div>";
   s += "<div class='help'>";
   if (noLang)
@@ -2649,9 +2802,9 @@ static void handleAdminManual()
   s += "<div><strong>3) " + String(noLang ? "Datakilde" : "Data source") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Velg enten <code>Modbus (lokal)</code> eller <code>BACnet (lokal, kun lesing)</code>. BACnet krever lokal IP, Device ID og objektmapping.";
+    s += "Velg enten <code>Modbus (lokal)</code> eller <code>BACnet (lokal)</code>. BACnet krever lokal IP, Device ID og objektmapping.";
   else
-    s += "Choose either <code>Modbus (local)</code> or <code>BACnet (local, read-only)</code>. BACnet requires local IP, Device ID and object mapping.";
+    s += "Choose either <code>Modbus (local)</code> or <code>BACnet (local)</code>. BACnet requires local IP, Device ID and object mapping.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>4) Modbus</strong></div>";
@@ -2673,9 +2826,9 @@ static void handleAdminManual()
   s += "<div><strong>6) " + String(noLang ? "Fjernstyring (eksperimentell)" : "Remote control (experimental)") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Kun aktiv n&aring;r <code>Datakilde=Modbus</code>, <code>Modbus</code> og <code>Enable remote control writes</code> er p&aring;.";
+    s += "Aktiv n&aring;r skrivekontroll er aktivert for valgt datakilde: <code>Modbus</code> eller <code>BACnet</code>.";
   else
-    s += "Only active when <code>Data source=Modbus</code>, <code>Modbus</code> and <code>Enable remote control writes</code> are enabled.";
+    s += "Active when write control is enabled for selected data source: <code>Modbus</code> or <code>BACnet</code>.";
   s += " API: <code>POST /api/control/mode</code>, <code>POST /api/control/setpoint</code>.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
@@ -2828,12 +2981,14 @@ static void handleAdminSave()
   g_cfg->modbus_enabled = server.hasArg("modbus");
   g_cfg->homey_enabled  = server.hasArg("homey");
   g_cfg->ha_enabled     = server.hasArg("ha");
+  g_cfg->display_enabled = !server.hasArg("disp");
   g_cfg->data_source = normDataSource(server.arg("src"));
   g_cfg->control_enabled = (g_cfg->data_source == "MODBUS") ? server.hasArg("ctrl") : false;
   if (server.hasArg("lang")) g_cfg->ui_language = normLang(server.arg("lang"));
   applyPostedModbusSettings();
   applyPostedBACnetSettings();
   applyPostedHAMqttSettings();
+  if (g_cfg->ha_mqtt_enabled) g_cfg->ha_enabled = true;
   if (!g_cfg->ha_enabled) g_cfg->ha_mqtt_enabled = false;
   if (g_cfg->ha_mqtt_enabled && !ha_mqtt_lib_available())
   {
