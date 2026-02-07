@@ -13,8 +13,8 @@ Metoden under bruker:
 
 1. I VentReader admin (`/admin`), bekreft at `Homey/API` er aktivert.
 2. Bekreft datakilde:
-   - `Modbus (lokal)`, eller
-   - `FlexitWeb Cloud (kun lesing)` med gyldig cloud-login.
+   - `Modbus (eksperimentell, lokal)`, eller
+   - `BACnet (lokal, kun lesing)` med lokal BACnet-konfigurasjon (IP + Device ID).
 3. Klikk **Eksporter Homey-oppsett**.
 4. Mobil/nettbrett: trykk **Send til e-post (mobil)** for å åpne mailklient med ferdig utfylt innhold.
 5. PC: last ned `.json` eller `.txt` og åpne filen lokalt.
@@ -24,12 +24,12 @@ Metoden under bruker:
 
 I VentReader admin (`/admin`):
 1. Aktiver `Homey/API` (wizard steg 3 krever eksplisitt aktiver/deaktiver).
-2. Sett/bruk en sterk API-token.
-3. Velg datakilde (`Modbus` eller `FlexitWeb Cloud`).
+2. Sett/bruk sterk **Homey token (/status)** i admin.
+3. Velg datakilde (`Modbus` eller `BACnet`).
 4. Noter lokal IP-adresse til enheten.
 
 Test i nettleser:
-- `http://<VENTREADER_IP>/status?token=<TOKEN>&pretty=1`
+- `http://<VENTREADER_IP>/status?token=<HOMEY_TOKEN>&pretty=1`
 
 Du skal få JSON med felter som:
 - `uteluft`, `tilluft`, `avtrekk`, `avkast`
@@ -112,7 +112,7 @@ for (const [name, cfg] of Object.entries(MAP)) {
 
 if (ALARM_DEVICE) {
   const modbusStr = String(s.modbus || '');
-  const bad = !(modbusStr.startsWith('MB OK') || modbusStr.startsWith('WEB OK'));
+  const bad = !(modbusStr.startsWith('MB OK') || modbusStr.startsWith('BACNET OK'));
   await setByName(devices, ALARM_DEVICE, ALARM_CAP, bad);
 }
 
@@ -190,4 +190,4 @@ return 'Control writes OK';
 
 Sikkerhet:
 1. Hold skrivestyring avskrudd når den ikke trengs.
-2. Del kun API-token med lokale, pålitelige automasjoner.
+2. Del kun Homey-token med lokale, pålitelige automasjoner.

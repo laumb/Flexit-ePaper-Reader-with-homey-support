@@ -11,9 +11,9 @@ You get:
 
 1. Verify `Home Assistant/API` is enabled in VentReader admin.
 2. Verify data source is configured:
-   - `Modbus (local)`, or
-   - `FlexitWeb Cloud (read-only)` with valid cloud login.
-3. Test `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`.
+   - `Modbus (experimental, local)`, or
+   - `BACnet (local, read-only)` with local BACnet config (IP + Device ID).
+3. Test `http://<VENTREADER_IP>/ha/status?token=<HA_TOKEN>&pretty=1`.
 4. Add REST sensor in `configuration.yaml`.
 5. Add template sensors.
 6. Restart Home Assistant.
@@ -35,12 +35,12 @@ You get:
 
 In VentReader admin (`/admin`):
 1. Enable `Home Assistant/API`.
-2. Choose data source (`Modbus` or `FlexitWeb Cloud`).
-3. Keep a strong API token.
+2. Choose data source (`Modbus (experimental)` or `BACnet`).
+3. Keep a strong **Home Assistant token (/ha/*)**.
 4. Note local IP address.
 
 Test in browser:
-- `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`
+- `http://<VENTREADER_IP>/ha/status?token=<HA_TOKEN>&pretty=1`
 
 ## 2) Add REST sensor in Home Assistant
 

@@ -7,7 +7,7 @@
 #include "ui_display.h"
 #include "data_example.h"
 #include "flexit_modbus.h"
-#include "flexit_web.h"
+#include "flexit_bacnet.h"
 #include "config_store.h"
 #include "homey_http.h" // web portal + /status API
 
@@ -110,9 +110,9 @@ static FlexitData data;
 static String mbStatus = "MB OFF";
 static FlexitData lastGoodModbusData;
 static bool hasLastGoodModbusData = false;
-static FlexitData lastGoodWebData;
-static bool hasLastGoodWebData = false;
-static uint32_t lastFlexitWebPollMs = 0;
+static FlexitData lastGoodBacnetData;
+static bool hasLastGoodBacnetData = false;
+static uint32_t lastBacnetPollMs = 0;
 
 // UI refresh every 10 minutes
 static uint32_t UI_REFRESH_MS = 10UL * 60UL * 1000UL;
@@ -131,18 +131,18 @@ static String modelLabel(const String& key)
 
 static String normDataSource(const String& in)
 {
-  if (in == "FLEXITWEB") return "FLEXITWEB";
+  if (in == "BACNET" || in == "FLEXITWEB") return "BACNET";
   return "MODBUS";
 }
 
-static bool useFlexitWebSource()
+static bool useBacnetSource()
 {
-  return normDataSource(cfg.data_source) == "FLEXITWEB";
+  return normDataSource(cfg.data_source) == "BACNET";
 }
 
-static uint32_t flexitWebPollIntervalMs()
+static uint32_t bacnetPollIntervalMs()
 {
-  uint32_t m = cfg.flexitweb_poll_minutes;
+  uint32_t m = cfg.bacnet_poll_minutes;
   if (m < 5) m = 5;
   if (m > 60) m = 60;
   return m * 60UL * 1000UL;
@@ -229,42 +229,42 @@ static void updateDataFromModbusOrFallback()
   recomputeEfficiency();
 }
 
-static void updateDataFromFlexitWeb(bool forceRead)
+static void updateDataFromBacnet(bool forceRead)
 {
   updateCommonMeta();
-  flexit_web_set_runtime_config(cfg);
+  flexit_bacnet_set_runtime_config(cfg);
 
   const uint32_t nowMs = millis();
-  const uint32_t webIntMs = flexitWebPollIntervalMs();
-  const bool shouldRead = forceRead || !hasLastGoodWebData || (nowMs - lastFlexitWebPollMs >= webIntMs);
+  const uint32_t srcIntMs = bacnetPollIntervalMs();
+  const bool shouldRead = forceRead || !hasLastGoodBacnetData || (nowMs - lastBacnetPollMs >= srcIntMs);
 
   if (!shouldRead)
   {
-    data = lastGoodWebData;
+    data = lastGoodBacnetData;
     updateCommonMeta();
-    mbStatus = "WEB OK (cached)";
+    mbStatus = "BACNET OK (cached)";
   }
-  else if (flexit_web_poll(data))
+  else if (flexit_bacnet_poll(data))
   {
-    mbStatus = "WEB OK";
-    lastGoodWebData = data;
-    hasLastGoodWebData = true;
-    lastFlexitWebPollMs = nowMs;
+    mbStatus = "BACNET OK";
+    lastGoodBacnetData = data;
+    hasLastGoodBacnetData = true;
+    lastBacnetPollMs = nowMs;
   }
   else
   {
-    const char* err = flexit_web_last_error();
-    if (hasLastGoodWebData)
+    const char* err = flexit_bacnet_last_error();
+    if (hasLastGoodBacnetData)
     {
-      data = lastGoodWebData;
+      data = lastGoodBacnetData;
       updateCommonMeta();
-      mbStatus = String("WEB ") + (err ? err : "ERR") + " (stale)";
+      mbStatus = String("BACNET ") + (err ? err : "ERR") + " (stale)";
     }
     else
     {
       clearModbusDataUnknown();
       updateCommonMeta();
-      mbStatus = String("WEB ") + (err ? err : "ERR");
+      mbStatus = String("BACNET ") + (err ? err : "ERR");
     }
   }
 
@@ -273,8 +273,8 @@ static void updateDataFromFlexitWeb(bool forceRead)
 
 static void updateDataFromActiveSource(bool forceRead)
 {
-  if (useFlexitWebSource())
-    updateDataFromFlexitWeb(forceRead);
+  if (useBacnetSource())
+    updateDataFromBacnet(forceRead);
   else
     updateDataFromModbusOrFallback();
 }

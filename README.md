@@ -8,9 +8,11 @@ Default behavior is read-only monitoring. Modbus write control is optional and d
 ## Changelog (short)
 
 ### v4.0.0
-- New optional data source: `FlexitWeb Cloud` (read-only) as an alternative to local Modbus.
-- New cloud settings in wizard/admin: login, required serial, endpoint overrides, and polling `5-60 min`.
+- New optional data source: `BACnet (local, read-only)` as an alternative to local Modbus.
+- New BACnet settings in wizard/admin: device IP, Device ID, object mapping, polling `5-60 min`, test and autodiscover.
 - Control writes are now allowed only when data source is `Modbus`.
+- Separate API tokens for `main/control`, `Homey (/status)`, and `Home Assistant (/ha/*)` plus rotate buttons in admin.
+- `Modbus` is marked experimental. `BACnet` is production-ready (read-only).
 
 ### v3.7.0
 - Setup wizard step 3 now requires explicit enable/disable selection for `Homey/API` and `Home Assistant/API`.
@@ -55,8 +57,8 @@ Step 3 now requires explicit selection for both:
 - `Homey/API`: Enable or Disable
 - `Home Assistant/API`: Enable or Disable
 - Data source:
-  - `Modbus (local)`
-  - `FlexitWeb Cloud (read-only)` with separate cloud polling interval (`5-60 min`)
+  - `Modbus (experimental, local)`
+  - `BACnet (local, read-only)` with separate polling interval (`5-60 min`)
 
 Press **Complete & restart** to persist settings and reboot.
 
@@ -68,18 +70,27 @@ After setup is complete:
 - API availability follows your module selections.
 - Active data source is visible in public status/admin.
 
-## FlexitWeb Cloud source (optional)
+## BACnet local source (optional)
 
-If you do not want Modbus wiring, select `FlexitWeb Cloud (read-only)` as data source.
+If you do not want Modbus wiring, select `BACnet (local, read-only)` as data source.
 
 Required:
-1. Flexit app username/email.
-2. Flexit app password.
-3. Cloud polling interval (`5-60 min`).
+1. Flexit device IP (same LAN/VLAN).
+2. BACnet Device ID.
+3. BACnet polling interval (`5-60 min`).
 
-Optional:
-1. Device serial (required, tested before save).
-2. Endpoint override fields under advanced settings.
+Recommended:
+1. Use **Autodiscover** in admin to prefill IP + Device ID.
+2. Run **Test BACnet** before saving.
+3. Verify/adjust BACnet object mapping in advanced fields.
+
+## Local concept test in Safari
+
+For a quick standalone test page (outside firmware/admin), open:
+
+- `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/flexit_local_test.html`
+
+This page can test local HTTP auth/data endpoints, but cannot access BACnet/UDP directly from a browser.
 
 ## Quick start: Homey
 
@@ -153,8 +164,8 @@ Detailed guides:
 - `GET /health`
 
 ### Status
-- `GET /status?token=<TOKEN>`
-- `GET /ha/status?token=<TOKEN>` (requires `Home Assistant/API` enabled)
+- `GET /status?token=<HOMEY_TOKEN>`
+- `GET /ha/status?token=<HA_TOKEN>` (requires `Home Assistant/API` enabled)
 
 Status payload includes:
 - Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
@@ -162,19 +173,19 @@ Status payload includes:
 - Metadata: `mode`, `modbus`, `model`, `time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`
 
 ### History
-- `GET /status/history?token=<TOKEN>&limit=120`
-- `GET /ha/history?token=<TOKEN>&limit=120`
-- `GET /status/history.csv?token=<TOKEN>&limit=120`
-- `GET /ha/history.csv?token=<TOKEN>&limit=120`
+- `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
+- `GET /ha/history?token=<HA_TOKEN>&limit=120`
+- `GET /status/history.csv?token=<HOMEY_TOKEN>&limit=120`
+- `GET /ha/history.csv?token=<HA_TOKEN>&limit=120`
 
 ### Diagnostics
-- `GET /status/diag?token=<TOKEN>`
-- `GET /status/storage?token=<TOKEN>`
+- `GET /status/diag?token=<HOMEY_TOKEN>`
+- `GET /status/storage?token=<HOMEY_TOKEN>`
 
 ### Control (experimental)
 Requires data source `Modbus`, `Modbus` enabled, and `Enable remote control writes`:
-- `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-- `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+- `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+- `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
 
 ## OTA updates
 

@@ -36,7 +36,8 @@ static String normalize_lang(const String& in)
 
 static String normalize_data_source(const String& in)
 {
-  if (in == "FLEXITWEB") return "FLEXITWEB";
+  // Legacy migration: FLEXITWEB is mapped to local BACnet module.
+  if (in == "BACNET" || in == "FLEXITWEB") return "BACNET";
   return "MODBUS";
 }
 
@@ -63,8 +64,8 @@ void config_apply_model_modbus_defaults(DeviceConfig& c, bool force)
   // Current recommended defaults for Nordic Basic Modbus family.
   // Keep model switch explicit so future models can diverge safely.
   if (force || c.modbus_transport_mode.length() == 0) c.modbus_transport_mode = "AUTO";
-  if (force || c.modbus_serial_format.length() == 0) c.modbus_serial_format = "8N1";
-  if (force || c.modbus_baud == 0) c.modbus_baud = 19200;
+  if (force || c.modbus_serial_format.length() == 0) c.modbus_serial_format = "8E1";
+  if (force || c.modbus_baud == 0) c.modbus_baud = 9600;
   if (force || c.modbus_slave_id == 0) c.modbus_slave_id = 1;
   if (force) c.modbus_addr_offset = 0;
 }
@@ -76,6 +77,8 @@ DeviceConfig config_load() {
   c.wifi_pass = prefs.getString("wpass", "");
 
   c.api_token = prefs.getString("token", "");
+  c.homey_api_token = prefs.getString("htoken", "");
+  c.ha_api_token = prefs.getString("hatoken", "");
   c.token_generated = prefs.getBool("tgen", false);
   if (!c.token_generated || c.api_token.length() < 16 || c.api_token == "CHANGE_ME")
   {
@@ -85,6 +88,8 @@ DeviceConfig config_load() {
     prefs.putString("token", c.api_token);
     prefs.putBool("tgen", true);
   }
+  if (c.homey_api_token.length() < 16) c.homey_api_token = c.api_token;
+  if (c.ha_api_token.length() < 16) c.ha_api_token = c.api_token;
   c.admin_user = prefs.getString("auser", "admin");
   c.admin_pass = prefs.getString("apass", "ventreader");
   c.admin_pass_changed = prefs.getBool("apchg", false);
@@ -101,16 +106,35 @@ DeviceConfig config_load() {
   c.ha_enabled     = prefs.getBool("ha", true);
   c.control_enabled = prefs.getBool("ctrl", false);
   c.data_source = normalize_data_source(prefs.getString("src", "MODBUS"));
-  c.flexitweb_user = prefs.getString("fwuser", "");
-  c.flexitweb_pass = prefs.getString("fwpass", "");
-  c.flexitweb_serial = prefs.getString("fwserial", "");
-  c.flexitweb_auth_url = prefs.getString("fwauth", "https://userapi.climatixic.com/api/User/Authenticate");
-  c.flexitweb_device_url = prefs.getString("fwdev", "https://v2-api.climatixic.com/api/Device?searchText=");
-  c.flexitweb_datapoint_url = prefs.getString("fwdata", "https://v2-api.climatixic.com/api/Device/DataPoint/value/{serial}?lastRead=true&isStringValue=true");
-  int fwp = prefs.getInt("fwpoll", 10);
-  if (fwp < 5) fwp = 5;
-  if (fwp > 60) fwp = 60;
-  c.flexitweb_poll_minutes = (uint8_t)fwp;
+  c.bacnet_ip = prefs.getString("bacip", "");
+  c.bacnet_port = (uint16_t)prefs.getUInt("bacport", 47808);
+  if (c.bacnet_port == 0) c.bacnet_port = 47808;
+  c.bacnet_device_id = prefs.getUInt("bacid", 2);
+  if (c.bacnet_device_id == 0) c.bacnet_device_id = 2;
+  int bcp = prefs.getInt("bacpoll", 10);
+  if (bcp < 5) bcp = 5;
+  if (bcp > 60) bcp = 60;
+  c.bacnet_poll_minutes = (uint8_t)bcp;
+  int bct = prefs.getInt("bacto", 1500);
+  if (bct < 300) bct = 300;
+  if (bct > 8000) bct = 8000;
+  c.bacnet_timeout_ms = (uint16_t)bct;
+  c.bacnet_obj_outdoor = prefs.getString("baout", "ai:1");
+  c.bacnet_obj_supply  = prefs.getString("basup", "ai:4");
+  c.bacnet_obj_extract = prefs.getString("baext", "ai:59");
+  c.bacnet_obj_exhaust = prefs.getString("baexh", "ai:11");
+  c.bacnet_obj_fan     = prefs.getString("bafan", "ao:3");
+  c.bacnet_obj_heat    = prefs.getString("baheat", "ao:29");
+  c.bacnet_obj_mode    = prefs.getString("bamode", "av:0");
+  c.bacnet_mode_map    = prefs.getString("bamap", "1:AWAY,2:HOME,3:HIGH,4:FIRE");
+
+  // Migrate old BACnet placeholder defaults to better Nordic S3 candidates.
+  if (c.bacnet_obj_supply == "ai:2") c.bacnet_obj_supply = "ai:4";
+  if (c.bacnet_obj_extract == "ai:3") c.bacnet_obj_extract = "ai:59";
+  if (c.bacnet_obj_exhaust == "ai:4") c.bacnet_obj_exhaust = "ai:11";
+  if (c.bacnet_obj_fan == "av:1") c.bacnet_obj_fan = "ao:3";
+  if (c.bacnet_obj_heat == "av:2") c.bacnet_obj_heat = "ao:29";
+  if (c.bacnet_obj_mode == "msv:1") c.bacnet_obj_mode = "av:0";
   c.ui_language = normalize_lang(prefs.getString("lang", "no"));
   c.modbus_transport_mode = prefs.getString("mbtr", "");
   if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")
@@ -144,6 +168,8 @@ void config_save(const DeviceConfig& c) {
   prefs.putString("wpass", c.wifi_pass);
 
   prefs.putString("token", c.api_token);
+  prefs.putString("htoken", c.homey_api_token);
+  prefs.putString("hatoken", c.ha_api_token);
   prefs.putString("auser", c.admin_user);
   prefs.putString("apass", c.admin_pass);
   prefs.putBool("apchg", c.admin_pass_changed);
@@ -156,16 +182,27 @@ void config_save(const DeviceConfig& c) {
   prefs.putBool("ha", c.ha_enabled);
   prefs.putBool("ctrl", c.control_enabled);
   prefs.putString("src", normalize_data_source(c.data_source));
-  prefs.putString("fwuser", c.flexitweb_user);
-  prefs.putString("fwpass", c.flexitweb_pass);
-  prefs.putString("fwserial", c.flexitweb_serial);
-  prefs.putString("fwauth", c.flexitweb_auth_url);
-  prefs.putString("fwdev", c.flexitweb_device_url);
-  prefs.putString("fwdata", c.flexitweb_datapoint_url);
-  int fwp = (int)c.flexitweb_poll_minutes;
-  if (fwp < 5) fwp = 5;
-  if (fwp > 60) fwp = 60;
-  prefs.putInt("fwpoll", fwp);
+  prefs.putString("bacip", c.bacnet_ip);
+  uint32_t port = c.bacnet_port;
+  if (port == 0) port = 47808;
+  prefs.putUInt("bacport", port);
+  prefs.putUInt("bacid", c.bacnet_device_id);
+  int bcp = (int)c.bacnet_poll_minutes;
+  if (bcp < 5) bcp = 5;
+  if (bcp > 60) bcp = 60;
+  prefs.putInt("bacpoll", bcp);
+  int bct = (int)c.bacnet_timeout_ms;
+  if (bct < 300) bct = 300;
+  if (bct > 8000) bct = 8000;
+  prefs.putInt("bacto", bct);
+  prefs.putString("baout", c.bacnet_obj_outdoor);
+  prefs.putString("basup", c.bacnet_obj_supply);
+  prefs.putString("baext", c.bacnet_obj_extract);
+  prefs.putString("baexh", c.bacnet_obj_exhaust);
+  prefs.putString("bafan", c.bacnet_obj_fan);
+  prefs.putString("baheat", c.bacnet_obj_heat);
+  prefs.putString("bamode", c.bacnet_obj_mode);
+  prefs.putString("bamap", c.bacnet_mode_map);
   prefs.putString("lang", normalize_lang(c.ui_language));
   prefs.putString("mbtr", c.modbus_transport_mode);
   prefs.putString("mbser", c.modbus_serial_format);

@@ -9,8 +9,8 @@ Goal of this guide:
 
 1. Verify `Homey/API` is enabled in VentReader admin.
 2. Verify data source is configured:
-   - `Modbus (local)`, or
-   - `FlexitWeb Cloud (read-only)` with valid cloud login.
+   - `Modbus (experimental, local)`, or
+   - `BACnet (local, read-only)` with local BACnet config (IP + Device ID).
 3. Click **Export Homey setup** in admin.
 4. Mobile: use **Share file (mobile)** and send to your own email.
 5. Desktop: download file directly.
@@ -53,11 +53,11 @@ Distribution:
 
 In VentReader admin (`/admin`):
 1. Verify `Homey/API` enabled.
-2. Verify/update API token.
+2. Verify/update **Homey token (/status)**.
 3. Confirm local IP/hostname.
 
 Quick test:
-- `http://<VENTREADER_IP>/status?token=<TOKEN>&pretty=1`
+- `http://<VENTREADER_IP>/status?token=<HOMEY_TOKEN>&pretty=1`
 
 ## 2) Export Homey setup file
 
@@ -135,5 +135,5 @@ Endpoints:
 
 1. Use DHCP reservation for stable IP.
 2. Keep Homey and VentReader on same LAN/subnet.
-3. Share token only with trusted local automations.
+3. Share Homey token only with trusted local automations.
 4. Keep writes disabled unless needed.

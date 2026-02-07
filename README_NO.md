@@ -9,9 +9,11 @@ Standardoppsett er kun lesing. Eksperimentell styring via Modbus-skriv kan aktiv
 
 ### v4.0.0
 
-- Ny valgfri datakilde: `FlexitWeb Cloud` (kun lesing) som alternativ til lokal Modbus.
-- Nye cloud-innstillinger i wizard/admin: login, obligatorisk serienummer, endpoint-overstyring og polling `5-60 min`.
+- Ny valgfri datakilde: `BACnet (lokal, kun lesing)` som alternativ til lokal Modbus.
+- Nye BACnet-innstillinger i wizard/admin: enhets-IP, Device ID, objektmapping, polling `5-60 min`, test og autodiscover.
 - Styringsskriving er nå kun tilgjengelig når datakilde er `Modbus`.
+- Egne API-tokens for `main/control`, `Homey (/status)` og `Home Assistant (/ha/*)` + rotasjonsknapper i admin.
+- `Modbus` er merket som eksperimentell datakilde. `BACnet` er produksjonsklar (read-only).
 
 ### v3.7.0
 
@@ -74,7 +76,7 @@ Oppsettet består av 3 steg:
 1. Velg nytt admin-passord
 2. Koble enheten til ditt WiFi
 3. Velg modell og funksjoner (Modbus, Homey/API, Home Assistant/API)
-   samt datakilde (`Modbus` eller `FlexitWeb Cloud`).
+   samt datakilde (`Modbus (eksperimentell)` eller `BACnet`).
 
 Når du trykker **Fullfør og restart**, lagres alt og enheten starter på nytt.
 
@@ -91,18 +93,28 @@ Når oppsett er fullført:
 
 ---
 
-## FlexitWeb Cloud-datakilde (valgfritt)
+## BACnet lokal datakilde (valgfritt)
 
 Brukes når du vil hente data uten Modbus-kabling.
 
 Påkrevd:
-- Flexit-bruker/e-post
-- Flexit-passord
-- Cloud polling-intervall (`5-60 min`)
+- Enhets-IP (samme LAN/VLAN)
+- BACnet Device ID
+- BACnet polling-intervall (`5-60 min`)
 
 Valgfritt:
-- Serienummer (ellers auto-finnes første enhet)
-- Endpoint-overstyring i avanserte felt
+- Objektmapping i avanserte felt
+- Autodiscover for å finne IP + Device ID
+
+---
+
+## Lokal konsepttest i Safari
+
+For en rask, separat testside (uten firmware/admin), åpne:
+
+- `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/flexit_local_test.html`
+
+Siden kan teste HTTP-baserte auth/data-endepunkter lokalt, men ikke BACnet/UDP direkte fra nettleser.
 
 ---
 
@@ -125,21 +137,21 @@ Full steg-for-steg guider:
 - Helse:
   - `GET /health`
 - Status:
-  - `GET /status?token=<TOKEN>`
-  - `GET /ha/status?token=<TOKEN>` (krever `Home Assistant/API` aktivert)
+  - `GET /status?token=<HOMEY_TOKEN>`
+  - `GET /ha/status?token=<HA_TOKEN>` (krever `Home Assistant/API` aktivert)
   - Inkluderer `ts_epoch_ms` og `ts_iso` i hver datapakke for tidsserier/grafer
   - Inkluderer `stale`-felt per datapakke
 - Historikk:
-  - `GET /status/history?token=<TOKEN>&limit=120`
-  - `GET /ha/history?token=<TOKEN>&limit=120`
-  - `GET /status/history.csv?token=<TOKEN>&limit=120`
-  - `GET /ha/history.csv?token=<TOKEN>&limit=120`
+  - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
+  - `GET /ha/history?token=<HA_TOKEN>&limit=120`
+  - `GET /status/history.csv?token=<HOMEY_TOKEN>&limit=120`
+  - `GET /ha/history.csv?token=<HA_TOKEN>&limit=120`
 - Diagnostikk:
-  - `GET /status/diag?token=<TOKEN>`
-  - `GET /status/storage?token=<TOKEN>`
+  - `GET /status/diag?token=<HOMEY_TOKEN>`
+  - `GET /status/storage?token=<HOMEY_TOKEN>`
 - Styring (eksperimentelt, krever datakilde=`Modbus`, `Modbus` + `Control writes` aktivert):
-  - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-  - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+  - `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
+  - `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
 
 ---
 
@@ -169,7 +181,7 @@ Alt slettes og enheten starter på nytt som ny.
 
 - Standardpassord brukes kun før oppsett
 - Etter oppsett må eget passord brukes
-- Ingen data sendes til sky automatisk med mindre du aktivt velger `FlexitWeb Cloud` som datakilde
+- Ingen data sendes til sky automatisk (lokal BACnet og lokale API-kall)
 
 ---
 

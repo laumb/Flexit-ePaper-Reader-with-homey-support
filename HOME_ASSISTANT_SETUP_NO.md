@@ -11,12 +11,12 @@ Du får:
 
 I VentReader admin (`/admin`):
 1. Aktiver `Home Assistant/API` (wizard steg 3 krever eksplisitt aktiver/deaktiver).
-2. Velg datakilde (`Modbus` eller `FlexitWeb Cloud`).
-3. Bruk en sterk API-token.
+2. Velg datakilde (`Modbus (eksperimentell)` eller `BACnet`).
+3. Bruk en sterk **Home Assistant token (/ha/*)**.
 4. Noter lokal IP-adresse til VentReader.
 
 Test i nettleser:
-- `http://<VENTREADER_IP>/ha/status?token=<TOKEN>&pretty=1`
+- `http://<VENTREADER_IP>/ha/status?token=<HA_TOKEN>&pretty=1`
 
 ## 2) Legg til REST-sensor i Home Assistant
 

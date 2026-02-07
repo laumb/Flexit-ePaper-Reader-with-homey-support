@@ -7,6 +7,8 @@ struct DeviceConfig {
   String wifi_pass;
 
   String api_token;     // required for /status
+  String homey_api_token; // dedicated token for /status and Homey endpoints
+  String ha_api_token;    // dedicated token for /ha/* endpoints
   String admin_user;    // default: admin
   String admin_pass;    // default: flexit123 (until changed)
 
@@ -25,16 +27,24 @@ struct DeviceConfig {
   bool homey_enabled;
   bool ha_enabled;
   bool control_enabled; // allows Modbus write actions via API (experimental)
-  String data_source;   // "MODBUS" or "FLEXITWEB"
+  String data_source;   // "MODBUS" or "BACNET"
 
-  // Flexit cloud source (read-only)
-  String flexitweb_user;          // app login (email/user)
-  String flexitweb_pass;          // app password
-  String flexitweb_serial;        // optional serial override
-  String flexitweb_auth_url;      // auth endpoint
-  String flexitweb_device_url;    // device-list endpoint
-  String flexitweb_datapoint_url; // datapoints endpoint
-  uint8_t flexitweb_poll_minutes; // 5..60
+  // Local BACnet/IP source (read-only)
+  String bacnet_ip;             // target device IP (required)
+  uint16_t bacnet_port;         // UDP port, default 47808
+  uint32_t bacnet_device_id;    // required BACnet device instance
+  uint8_t bacnet_poll_minutes;  // 5..60
+  uint16_t bacnet_timeout_ms;   // per request timeout
+
+  // BACnet object mapping (format: "ai:1", "av:2", "msv:3")
+  String bacnet_obj_outdoor;
+  String bacnet_obj_supply;
+  String bacnet_obj_extract;
+  String bacnet_obj_exhaust;
+  String bacnet_obj_fan;
+  String bacnet_obj_heat;
+  String bacnet_obj_mode;
+  String bacnet_mode_map;       // e.g. "1:AWAY,2:HOME,3:HIGH,4:FIRE"
 
   String ui_language; // no, da, sv, fi, en, uk
 

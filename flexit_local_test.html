@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flexit Local Test</title>
+  <style>
+    :root {
+      --bg: #f3f5f7;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #5b6470;
+      --ok: #0d7a3a;
+      --err: #b42318;
+      --line: #d0d7de;
+      --btn: #0f5cc0;
+      --btnText: #ffffff;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 920px; margin: 20px auto; padding: 0 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    h1 { margin: 0 0 8px; font-size: 1.35rem; }
+    h2 { margin: 0 0 10px; font-size: 1.05rem; }
+    p { margin: 0 0 10px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 740px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; margin: 0 0 4px; font-size: 0.92rem; }
+    input, textarea, select {
+      width: 100%; box-sizing: border-box; border: 1px solid var(--line);
+      border-radius: 9px; padding: 9px 10px; font: inherit; background: #fff;
+    }
+    textarea { min-height: 90px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      border: 0; border-radius: 10px; padding: 9px 12px; cursor: pointer;
+      background: var(--btn); color: var(--btnText); font-weight: 600;
+    }
+    button.secondary { background: #e5eaf1; color: #223; }
+    .status { margin-top: 8px; font-weight: 600; }
+    .ok { color: var(--ok); }
+    .err { color: var(--err); }
+    pre {
+      margin: 8px 0 0; padding: 10px; border-radius: 10px;
+      border: 1px solid var(--line); background: #fafbfc;
+      overflow: auto; max-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.82rem;
+    }
+    .note { font-size: 0.9rem; color: #3f4b5a; }
+    .warn { color: #8a4b00; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Flexit Local Test (Safari)</h1>
+      <p>Denne siden er en konsepttest for lokal tilkobling. Den kan teste HTTP-endepunkter, men <strong>kan ikke</strong> snakke BACnet/UDP direkte fra nettleser.</p>
+      <p class="note"><span class="warn">Viktig:</span> Hvis Flexit kun eksponerer BACnet/IP (UDP 47808) og ikke HTTP API med CORS, vil nettlesertest feile selv om BACnet fungerer.</p>
+    </div>
+
+    <div class="card">
+      <h2>1) Basis: lokal host test</h2>
+      <div class="grid">
+        <div>
+          <label for="ip">Flexit IP / host</label>
+          <input id="ip" placeholder="f.eks. 192.168.1.50" />
+        </div>
+        <div>
+          <label for="scheme">Protokoll</label>
+          <select id="scheme">
+            <option value="http">http</option>
+            <option value="https">https</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnPing">Test host</button>
+      </div>
+      <div id="pingStatus" class="status"></div>
+      <pre id="pingOut"></pre>
+    </div>
+
+    <div class="card">
+      <h2>2) Valgfri auth + data test (HTTP)</h2>
+      <div class="grid">
+        <div>
+          <label for="authUrl">Auth URL</label>
+          <input id="authUrl" placeholder="http://192.168.1.50/api/auth" />
+        </div>
+        <div>
+          <label for="tokenKey">Token-felt i respons</label>
+          <input id="tokenKey" value="token" />
+        </div>
+      </div>
+      <label for="authBody" style="margin-top:8px">Auth JSON body</label>
+      <textarea id="authBody">{"username":"test","password":"test"}</textarea>
+
+      <div class="grid" style="margin-top:8px">
+        <div>
+          <label for="dataUrl">Data URL</label>
+          <input id="dataUrl" placeholder="http://192.168.1.50/api/data" />
+        </div>
+        <div>
+          <label for="method">Data metode</label>
+          <select id="method">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+          </select>
+        </div>
+      </div>
+      <label for="dataBody" style="margin-top:8px">Data body (valgfri)</label>
+      <textarea id="dataBody">{}</textarea>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnRun">Kjør auth + data test</button>
+        <button id="btnClear" class="secondary">Tøm logg</button>
+        <button id="btnDownload" class="secondary">Last ned logg (.txt)</button>
+      </div>
+      <div id="runStatus" class="status"></div>
+      <pre id="runOut"></pre>
+    </div>
+  </div>
+
+  <script>
+    const pingStatus = document.getElementById('pingStatus');
+    const pingOut = document.getElementById('pingOut');
+    const runStatus = document.getElementById('runStatus');
+    const runOut = document.getElementById('runOut');
+
+    let logs = [];
+    function log(line) {
+      const ts = new Date().toLocaleString();
+      logs.push(`[${ts}] ${line}`);
+      runOut.textContent = logs.join('\n');
+    }
+
+    function setStatus(el, ok, text) {
+      el.className = `status ${ok ? 'ok' : 'err'}`;
+      el.textContent = text;
+    }
+
+    function safeJson(str) {
+      try { return JSON.parse(str); } catch { return null; }
+    }
+
+    async function testHost() {
+      const ip = document.getElementById('ip').value.trim();
+      const scheme = document.getElementById('scheme').value;
+      if (!ip) {
+        setStatus(pingStatus, false, 'Mangler IP/host');
+        pingOut.textContent = '';
+        return;
+      }
+
+      const url = `${scheme}://${ip}/`;
+      const started = performance.now();
+      pingOut.textContent = `Tester ${url} ...`;
+
+      try {
+        const res = await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
+        const ms = Math.round(performance.now() - started);
+        setStatus(pingStatus, true, `Kontaktet host (opaque/no-cors) på ~${ms} ms`);
+        pingOut.textContent = `Nettleser nådde ${url}.\nMerk: no-cors gir ikke lesbar respons/status.`;
+      } catch (e) {
+        const ms = Math.round(performance.now() - started);
+        setStatus(pingStatus, false, `Host-test feilet etter ~${ms} ms`);
+        pingOut.textContent = `${url}\nFeil: ${e.message || e}`;
+      }
+    }
+
+    async function runFlow() {
+      runOut.textContent = '';
+      logs = [];
+      setStatus(runStatus, true, 'Kjører test...');
+
+      const authUrl = document.getElementById('authUrl').value.trim();
+      const authBodyRaw = document.getElementById('authBody').value;
+      const tokenKey = document.getElementById('tokenKey').value.trim() || 'token';
+      const dataUrl = document.getElementById('dataUrl').value.trim();
+      const method = document.getElementById('method').value;
+      const dataBodyRaw = document.getElementById('dataBody').value;
+
+      if (!authUrl || !dataUrl) {
+        setStatus(runStatus, false, 'Mangler auth URL og/eller data URL');
+        return;
+      }
+
+      const authBody = safeJson(authBodyRaw);
+      if (!authBody) {
+        setStatus(runStatus, false, 'Auth body må være gyldig JSON');
+        return;
+      }
+
+      let token = '';
+      try {
+        log(`AUTH -> ${authUrl}`);
+        const authRes = await fetch(authUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(authBody),
+          cache: 'no-store'
+        });
+
+        log(`AUTH status: ${authRes.status}`);
+        const authText = await authRes.text();
+        log(`AUTH response (første 700 tegn): ${authText.slice(0,700)}`);
+
+        if (!authRes.ok) {
+          setStatus(runStatus, false, `AUTH feilet med HTTP ${authRes.status}`);
+          return;
+        }
+
+        let authJson = null;
+        try { authJson = JSON.parse(authText); } catch {}
+        if (!authJson) {
+          setStatus(runStatus, false, 'AUTH svarte uten gyldig JSON');
+          return;
+        }
+
+        token = (authJson[tokenKey] || '').toString();
+        if (!token) {
+          setStatus(runStatus, false, `AUTH OK, men fant ikke token-felt '${tokenKey}'`);
+          return;
+        }
+        log(`Token funnet i felt '${tokenKey}' (${token.length} tegn)`);
+      } catch (e) {
+        setStatus(runStatus, false, `AUTH transport/CORS feil: ${e.message || e}`);
+        log(`AUTH exception: ${e.message || e}`);
+        return;
+      }
+
+      try {
+        log(`DATA -> ${dataUrl}`);
+        const dataReq = {
+          method,
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store'
+        };
+        if (method === 'POST') {
+          const bodyJson = safeJson(dataBodyRaw);
+          if (!bodyJson) {
+            setStatus(runStatus, false, 'Data body må være gyldig JSON ved POST');
+            return;
+          }
+          dataReq.headers['Content-Type'] = 'application/json';
+          dataReq.body = JSON.stringify(bodyJson);
+        }
+
+        const dataRes = await fetch(dataUrl, dataReq);
+        log(`DATA status: ${dataRes.status}`);
+        const text = await dataRes.text();
+        log(`DATA response (første 1200 tegn): ${text.slice(0,1200)}`);
+
+        if (!dataRes.ok) {
+          setStatus(runStatus, false, `DATA feilet med HTTP ${dataRes.status}`);
+          return;
+        }
+
+        setStatus(runStatus, true, 'Test OK: auth + data fullført');
+      } catch (e) {
+        setStatus(runStatus, false, `DATA transport/CORS feil: ${e.message || e}`);
+        log(`DATA exception: ${e.message || e}`);
+      }
+    }
+
+    document.getElementById('btnPing').addEventListener('click', testHost);
+    document.getElementById('btnRun').addEventListener('click', runFlow);
+    document.getElementById('btnClear').addEventListener('click', () => {
+      logs = [];
+      runOut.textContent = '';
+      runStatus.textContent = '';
+      runStatus.className = 'status';
+    });
+
+    document.getElementById('btnDownload').addEventListener('click', () => {
+      const content = (logs.length ? logs.join('\n') : 'Ingen logg enda') + '\n';
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'flexit-local-test-log.txt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 200);
+    });
+  </script>
+</body>
+</html>
