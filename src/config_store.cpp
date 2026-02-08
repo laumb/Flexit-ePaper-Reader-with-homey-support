@@ -144,8 +144,8 @@ DeviceConfig config_load() {
   c.bacnet_obj_fan     = prefs.getString("bafan", "ao:3");
   c.bacnet_obj_heat    = prefs.getString("baheat", "ao:29");
   c.bacnet_obj_mode    = prefs.getString("bamode", "av:0");
-  c.bacnet_obj_setpoint_home = prefs.getString("bashome", "av:5");
-  c.bacnet_obj_setpoint_away = prefs.getString("basaway", "av:100");
+  c.bacnet_obj_setpoint_home = prefs.getString("bashome", "av:126");
+  c.bacnet_obj_setpoint_away = prefs.getString("basaway", "av:96");
   c.bacnet_mode_map    = prefs.getString("bamap", "1:AWAY,2:HOME,3:HIGH,4:FIRE");
 
   // Migrate old BACnet placeholder defaults to better Nordic S3 candidates.
@@ -155,8 +155,12 @@ DeviceConfig config_load() {
   if (c.bacnet_obj_fan == "av:1") c.bacnet_obj_fan = "ao:3";
   if (c.bacnet_obj_heat == "av:2") c.bacnet_obj_heat = "ao:29";
   if (c.bacnet_obj_mode == "msv:1") c.bacnet_obj_mode = "av:0";
-  if (c.bacnet_obj_setpoint_home.length() == 0) c.bacnet_obj_setpoint_home = "av:5";
-  if (c.bacnet_obj_setpoint_away.length() == 0) c.bacnet_obj_setpoint_away = "av:100";
+  // Nordic S3 observed mapping: home setpoint -> av:126, away setpoint -> av:96.
+  // Migrate legacy defaults from earlier firmware generations.
+  if (c.bacnet_obj_setpoint_home == "av:5") c.bacnet_obj_setpoint_home = "av:126";
+  if (c.bacnet_obj_setpoint_away == "av:100") c.bacnet_obj_setpoint_away = "av:96";
+  if (c.bacnet_obj_setpoint_home.length() == 0) c.bacnet_obj_setpoint_home = "av:126";
+  if (c.bacnet_obj_setpoint_away.length() == 0) c.bacnet_obj_setpoint_away = "av:96";
   c.ui_language = normalize_lang(prefs.getString("lang", "no"));
   c.modbus_transport_mode = prefs.getString("mbtr", "");
   if (c.modbus_transport_mode != "AUTO" && c.modbus_transport_mode != "MANUAL")

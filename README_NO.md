@@ -13,6 +13,7 @@ Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv 
 - `set_temp` er lagt til i `/status` og `pretty` JSON (aktivt settpunkt fra datakilde, best-effort).
 - Oppsetts-SSID bruker nå prefiks `Ventreader` (uten bindestrek i navneprefiks).
 - Ny eksperimentell BACnet-knapp `Write probe` i setup/admin for å teste skrivekapasitet (modus/settpunkt) uten å lagre innstillinger.
+- Oppdatert BACnet setpoint-default/migrering for observert Nordic S3-mapping: `home=av:126`, `away=av:96` (legacy `av:5`/`av:100` migreres automatisk).
 
 ### v4.2.4
 
@@ -198,15 +199,19 @@ Valgfritt:
 
 Full steg-for-steg guider:
 
-- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOMEY_SETUP_NO.md`
-- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOMEY_SETUP.md`
+- Norsk: `docs/HOMEY_SETUP_NO.md`
+- English: `docs/HOMEY_SETUP.md`
 
 ## Home Assistant-oppsett
 
 Full steg-for-steg guider:
 
-- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOME_ASSISTANT_SETUP_NO.md`
-- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOME_ASSISTANT_SETUP.md`
+- Norsk: `docs/HOME_ASSISTANT_SETUP_NO.md`
+- English: `docs/HOME_ASSISTANT_SETUP.md`
+
+## BACnet/API full referanse
+
+- Komplett referanse (for mennesker + maskiner): `docs/BACNET_API.md`
 
 Anbefalt metode er nå native MQTT Discovery i Home Assistant (ingen custom komponent).
 

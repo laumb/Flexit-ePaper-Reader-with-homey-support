@@ -176,7 +176,9 @@ static void drawHeader(const FlexitData& d)
   }
 
   int modelW = textPixelWidthMono(modelTxt);
-  const int setW = textPixelWidthMono(setTxt);
+  display.setFont(&FreeSans9pt7b); // cleaner digit shapes in header (notably "4")
+  const int setW = textPixelWidth(setTxt);
+  display.setFont(&FreeMonoBold9pt7b);
   const int clockW = textPixelWidthMono(clockTxt);
   const int leftPad = 8;
   const int rightPad = 8;
@@ -202,8 +204,10 @@ static void drawHeader(const FlexitData& d)
 
   display.setCursor(leftPad, 20);
   display.print(modelTxt);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(setX, 20);
   display.print(setTxt);
+  display.setFont(&FreeMonoBold9pt7b);
   display.setCursor(clockX, 20);
   display.print(clockTxt);
   setTextBlack();

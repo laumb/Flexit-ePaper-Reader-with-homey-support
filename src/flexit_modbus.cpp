@@ -252,17 +252,9 @@ bool flexit_modbus_poll(FlexitData& data)
   if (readHolding((uint16_t)(FLEXIT_REG_SETPOINT_AWAY_HOLD + off), 2, t))
     spAway = decodeFloat32_BE(t[0], t[1]);
 
-  data.set_temp = NAN;
-  if (data.mode == "AWAY")
-  {
-    if (!isnan(spAway)) data.set_temp = spAway;
-    else if (!isnan(spHome)) data.set_temp = spHome;
-  }
-  else
-  {
-    if (!isnan(spHome)) data.set_temp = spHome;
-    else if (!isnan(spAway)) data.set_temp = spAway;
-  }
+  // Display set-temp should be stable and predictable:
+  // use HOME profile setpoint as primary value, AWAY only as fallback.
+  data.set_temp = !isnan(spHome) ? spHome : spAway;
 
   lastError = "OK";
   return true;

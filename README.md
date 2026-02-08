@@ -12,6 +12,7 @@ Default behavior is read-focused monitoring. Write control is optional and disab
 - Added `set_temp` to `/status` and `pretty` JSON output (active setpoint from datasource, best-effort).
 - Provisioning SSID prefix is now `Ventreader` (no hyphen in name prefix).
 - Added experimental BACnet `Write probe` button in setup/admin to test mode/setpoint write capability without saving changes.
+- Updated BACnet setpoint defaults/migration for Nordic S3 observed mapping: `home=av:126`, `away=av:96` (legacy `av:5`/`av:100` auto-migrated).
 
 ### v4.2.4
 - Onboarding/admin bugfix: BACnet settings can now be saved without requiring `Test BACnet` success first.
@@ -176,6 +177,10 @@ Recommended:
 5. Verify entities auto-appear in HA.
 6. Optional fallback: use `/ha/status` REST endpoint if you prefer REST sensors.
 
+## BACnet/API full reference
+
+- Complete reference (human + machine): `docs/BACNET_API.md`
+
 ## Mode/setpoint writes (optional)
 
 Requires one of:
@@ -214,14 +219,14 @@ When enabled:
 ## Homey setup
 
 Detailed guides:
-- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOMEY_SETUP.md`
-- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOMEY_SETUP_NO.md`
+- English: `docs/HOMEY_SETUP.md`
+- Norsk: `docs/HOMEY_SETUP_NO.md`
 
 ## Home Assistant setup
 
 Detailed guides:
-- English: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOME_ASSISTANT_SETUP.md`
-- Norsk: `/Users/laumb/Documents/GitHub/Flexit-ePaper-Reader-with-homey-support/docs/HOME_ASSISTANT_SETUP_NO.md`
+- English: `docs/HOME_ASSISTANT_SETUP.md`
+- Norsk: `docs/HOME_ASSISTANT_SETUP_NO.md`
 
 Recommended method is now native Home Assistant MQTT Discovery (no custom component).
 

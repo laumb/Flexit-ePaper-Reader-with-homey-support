@@ -1150,10 +1150,8 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
       g_last_error = "OK";
     }
   }
-  if (t.mode == "AWAY")
-    t.set_temp = !isnan(spAway) ? spAway : spHome;
-  else
-    t.set_temp = !isnan(spHome) ? spHome : spAway;
+  // Keep dashboard set-temp stable: HOME setpoint first, AWAY as fallback.
+  t.set_temp = !isnan(spHome) ? spHome : spAway;
 
   udp.stop();
 
