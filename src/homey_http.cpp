@@ -393,6 +393,8 @@ static String tr(const char* key)
   if (strcmp(key, "graphs") == 0) return en ? "Graphs" : no ? "Grafer" : da ? "Grafer" : sv ? "Grafer" : fi ? "Kaaviot" : "Графіки";
   if (strcmp(key, "quick_control") == 0) return en ? "Quick control" : no ? "Hurtigstyring" : da ? "Hurtigstyring" : sv ? "Snabbstyrning" : fi ? "Pikaohjaus" : "Швидке керування";
   if (strcmp(key, "quick_control_help") == 0) return en ? "Writes mode and setpoint through the active data source (Modbus or BACnet)." : no ? "Skriver modus og settpunkt via aktiv datakilde (Modbus eller BACnet)." : da ? "Skriver tilstand og setpunkt via aktiv datakilde (Modbus eller BACnet)." : sv ? "Skriver lage och borvarde via aktiv datakalla (Modbus eller BACnet)." : fi ? "Kirjoittaa tilan ja asetusarvon aktiivisen datalahteen kautta (Modbus tai BACnet)." : "Записує режим і уставку через активне джерело даних (Modbus або BACnet).";
+  if (strcmp(key, "quick_control_bacnet_hint") == 0) return en ? "BACnet write policy can vary by unit. If write fails, use Object/Write probe and verify writable objects." : no ? "BACnet-skrivepolicy varierer per enhet. Hvis skriving feiler, bruk objekt-/write-probe og verifiser skrivbare objekter." : da ? "BACnet-skrivepolitik varierer per enhed. Hvis skrivning fejler, brug objekt-/write-probe og verificer skrivbare objekter." : sv ? "BACnet-skrivpolicy varierar per enhet. Om skrivning misslyckas, anvand objekt-/write-probe och verifiera skrivbara objekt." : fi ? "BACnet-kirjoitusoikeudet vaihtelevat laitteittain. Jos kirjoitus epaonnistuu, kayta objekti-/write-probea ja varmista kirjoitettavat objektit." : "Політика запису BACnet залежить від пристрою. Якщо запис не вдається, використайте Object/Write probe і перевірте об'єкти для запису.";
+  if (strcmp(key, "quick_control_bacnet_mode_locked") == 0) return en ? "Mode write is currently locked by Flexit and unavailable." : no ? "Modus-skriving er foreløpig låst av Flexit og utilgjengelig." : da ? "Tilstandsskrivning er i øjeblikket låst af Flexit og utilgængelig." : sv ? "Lageskrivning ar for narvarande last av Flexit och inte tillganglig." : fi ? "Tilan kirjoitus on toistaiseksi Flexitin lukitsema eika ole kaytettavissa." : "Запис режиму наразі заблокований Flexit і недоступний.";
   if (strcmp(key, "enable_control_hint") == 0) return en ? "Enable write control for the active source to use quick control." : no ? "Aktiver skrivekontroll for aktiv kilde for å bruke hurtigstyring." : da ? "Aktiver skrivekontrol for aktiv kilde for at bruge hurtigstyring." : sv ? "Aktivera skrivstyrning for aktiv kalla for att anvanda snabbstyrning." : fi ? "Ota aktiivisen lahteen kirjoitusohjaus kayttoon kayttaaksesi pikaohjausta." : "Увімкніть керування записом для активного джерела, щоб використовувати швидке керування.";
   if (strcmp(key, "mode_away") == 0) return en ? "Away" : no ? "Borte" : da ? "Ude" : sv ? "Borta" : fi ? "Poissa" : "Away";
   if (strcmp(key, "mode_home") == 0) return en ? "Home" : no ? "Hjem" : da ? "Hjemme" : sv ? "Hemma" : fi ? "Koti" : "Home";
@@ -1817,6 +1819,45 @@ static bool isQuickControlActive()
          (src == "BACNET" && g_cfg->bacnet_write_enabled);
 }
 
+static bool bacnetErrAccessDenied(const String& s)
+{
+  return s.indexOf("class=2 code=40") >= 0;
+}
+
+static bool bacnetErrUnknownObject(const String& s)
+{
+  return s.indexOf("class=1 code=31") >= 0;
+}
+
+static void mapBacnetWriteError(const String& op, const String& profile, const String& raw,
+                                String& err, int& statusCode)
+{
+  if (bacnetErrAccessDenied(raw))
+  {
+    statusCode = 409;
+    if (op == "mode")
+    {
+      err = "bacnet mode write denied by unit policy (" + raw + ")";
+      return;
+    }
+    if (profile == "away")
+    {
+      err = "bacnet away setpoint write denied by unit policy (" + raw + ")";
+      return;
+    }
+    err = "bacnet setpoint write denied by unit policy (" + raw + ")";
+    return;
+  }
+  if (bacnetErrUnknownObject(raw))
+  {
+    statusCode = 409;
+    err = "bacnet object/property not writable on this unit (" + raw + ")";
+    return;
+  }
+  statusCode = 500;
+  err = "write failed: " + raw;
+}
+
 static bool runControlWriteMode(const String& mode, String& err, int& statusCode)
 {
   const String src = normDataSource(g_cfg->data_source);
@@ -1843,8 +1884,7 @@ static bool runControlWriteMode(const String& mode, String& err, int& statusCode
     flexit_bacnet_set_runtime_config(*g_cfg);
     if (!flexit_bacnet_write_mode(mode))
     {
-      err = String("write mode failed: ") + flexit_bacnet_last_error();
-      statusCode = 500;
+      mapBacnetWriteError("mode", "", String(flexit_bacnet_last_error()), err, statusCode);
       return false;
     }
     return true;
@@ -1881,8 +1921,7 @@ static bool runControlWriteSetpoint(const String& profile, float value, String& 
     flexit_bacnet_set_runtime_config(*g_cfg);
     if (!flexit_bacnet_write_setpoint(profile, value))
     {
-      err = String("write setpoint failed: ") + flexit_bacnet_last_error();
-      statusCode = 500;
+      mapBacnetWriteError("setpoint", profile, String(flexit_bacnet_last_error()), err, statusCode);
       return false;
     }
     return true;
@@ -1898,21 +1937,45 @@ static void appendQuickControlCard(String& s, bool publicPage)
   s += "<div class='card'><h2>" + tr("quick_control") + "</h2>";
   if (isQuickControlActive())
   {
+    const bool bacnetSrc = (normDataSource(g_cfg->data_source) == "BACNET");
+    String modeNow = g_data.mode;
+    modeNow.trim();
+    modeNow.toUpperCase();
+    if (modeNow == "VARME" || modeNow == "HJEM" || modeNow == "HJEMME") modeNow = "HOME";
+    if (modeNow == "BORTE") modeNow = "AWAY";
+    if (modeNow == "HOY" || modeNow == "HØY") modeNow = "HIGH";
+
+    const bool awayMode = (modeNow == "AWAY");
+    const String profileDefault = bacnetSrc ? "home" : (awayMode ? "away" : "home");
+    String setVal = "20.0";
+    if (!isnan(g_data.set_temp))
+    {
+      char b[16];
+      snprintf(b, sizeof(b), "%.1f", g_data.set_temp);
+      setVal = String(b);
+    }
+
+    const String awayBtnCls = String("btn secondary") + (modeNow == "AWAY" ? " mode-active" : "");
+    const String homeBtnCls = String("btn secondary") + (modeNow == "HOME" ? " mode-active" : "");
+    const String highBtnCls = String("btn secondary") + (modeNow == "HIGH" ? " mode-active" : "");
+    const String fireBtnCls = String("btn secondary") + (modeNow == "FIRE" ? " mode-active" : "");
+
     s += "<div class='help'>" + tr("quick_control_help") + "</div>";
     s += "<div class='actions'>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='btn secondary' type='submit'>" + tr("mode_away") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='btn secondary' type='submit'>" + tr("mode_home") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='btn secondary' type='submit'>" + tr("mode_high") + "</button></form>";
-    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='btn secondary' type='submit'>" + tr("mode_fire") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='AWAY'><button class='" + awayBtnCls + "' type='submit'>" + tr("mode_away") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HOME'><button class='" + homeBtnCls + "' type='submit'>" + tr("mode_home") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='HIGH'><button class='" + highBtnCls + "' type='submit'>" + tr("mode_high") + "</button></form>";
+    s += "<form method='POST' action='/admin/control/mode' style='margin:0'><input type='hidden' name='mode' value='FIRE'><button class='" + fireBtnCls + "' type='submit'>" + tr("mode_fire") + "</button></form>";
     s += "</div>";
     s += "<div class='sep-gold'></div>";
     s += "<form method='POST' action='/admin/control/setpoint'>";
     s += "<div class='row'>";
-    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'>home</option><option value='away'>away</option></select></div>";
-    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='20.0'></div>";
+    s += "<div><label>" + tr("profile") + "</label><select name='profile'><option value='home'" + String(profileDefault == "home" ? " selected" : "") + ">home</option><option value='away'" + String(profileDefault == "away" ? " selected" : "") + ">away</option></select></div>";
+    s += "<div><label>" + tr("setpoint") + "</label><input name='value' type='number' min='10' max='30' step='0.5' value='" + setVal + "'></div>";
     s += "</div>";
     s += "<div class='actions'><button class='btn secondary' type='submit'>" + tr("apply_setpoint") + "</button></div>";
     s += "</form>";
+    if (bacnetSrc) s += "<div class='help'>" + tr("quick_control_bacnet_hint") + "</div>";
     if (publicPage) s += "<div class='help'>Krever innlogging i admin ved aktivt system.</div>";
   }
   else
@@ -2157,6 +2220,8 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += ".brand{display:flex;flex-direction:column;line-height:1.15;}";
       s += ".brand h1{font-size:18px;margin:0;letter-spacing:.4px;}";
       s += ".brand small{color:var(--muted);}";
+      s += ".brand-actions{display:flex;gap:8px;margin-top:8px;}";
+      s += ".btn.mini{padding:6px 10px;border-radius:10px;font-size:12px;line-height:1.2;}";
       s += ".pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:var(--card);box-shadow:var(--shadow);}";
       s += ".dot{width:10px;height:10px;border-radius:50%;background:var(--muted);}";
       s += ".dot.ok{background:#22c55e;}.dot.warn{background:#f59e0b;}.dot.bad{background:#ef4444;}";
@@ -2176,6 +2241,7 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += ".row > *{flex:1 1 220px;}";
       s += ".btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;border-radius:12px;border:1px solid var(--border);background:var(--btn);color:var(--btnText);font-weight:600;cursor:pointer;}";
       s += ".btn.secondary{background:transparent;color:var(--text);}";
+      s += ".btn.mode-active{background:rgba(194,161,126,.20);border-color:var(--accent);color:var(--accent);}";
       s += ".btn.danger{background:#ef4444;border-color:#ef4444;color:#fff;}";
       s += ".actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}";
       s += ".action-grid{display:grid;grid-template-columns:1fr;gap:10px;}";
@@ -2208,6 +2274,10 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += "<div class='topbar'>";
       s += "<div class='brand'><h1>" + title + "</h1>";
       if (subtitle.length()) s += "<small>" + subtitle + "</small>";
+      if (title != "VentReader")
+      {
+        s += "<div class='brand-actions'><a class='btn secondary mini' href='/'>" + tr("back_home") + "</a></div>";
+      }
       s += "</div>";
       s += "<div style='display:flex;gap:8px;align-items:center;'>";
       if (g_cfg)
@@ -2618,8 +2688,8 @@ static void handleAdminSetup()
          "};"
          "window.clearBACnetDebug=async function(scope){"
          "var dbg=document.getElementById(scope==='admin'?'bacnet_debug_admin':'bacnet_debug_setup');"
-         "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});var en0=new URLSearchParams(); en0.append('enable','0'); await fetch('/admin/bacnet_debug_mode',{method:'POST',credentials:'same-origin',body:en0});}catch(e){}"
-         "if(dbg){dbg.dataset.on='0';dbg.style.display='none';dbg.textContent='';}"
+         "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});}catch(e){}"
+         "if(dbg){dbg.style.display='block';dbg.textContent='(tom logg)';}"
          "};"
          "})();</script>";
     s += "</div>";
@@ -3087,8 +3157,8 @@ static void handleAdmin()
        "};"
        "window.clearBACnetDebug=async function(scope){"
        "var dbg=document.getElementById(scope==='setup'?'bacnet_debug_setup':'bacnet_debug_admin');"
-       "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});var en0=new URLSearchParams(); en0.append('enable','0'); await fetch('/admin/bacnet_debug_mode',{method:'POST',credentials:'same-origin',body:en0});}catch(e){}"
-       "if(dbg){dbg.dataset.on='0';dbg.style.display='none';dbg.textContent='';}"
+       "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});}catch(e){}"
+       "if(dbg){dbg.style.display='block';dbg.textContent='(tom logg)';}"
        "};"
        "})();</script>";
   s += "</div>";

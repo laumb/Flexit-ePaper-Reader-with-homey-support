@@ -720,32 +720,52 @@ static bool parseReadPropertyAckValue(const uint8_t* p, size_t n, uint8_t invoke
   return false;
 }
 
-static bool parseWritePropertyResult(const uint8_t* p, size_t n, uint8_t invoke, String& errOut)
+// Return: 1=success, -1=definitive failure for this invoke, 0=not relevant/keep waiting.
+static int parseWritePropertyResult(const uint8_t* p, size_t n, uint8_t invoke, String& errOut)
 {
   errOut = "";
-  if (!p || n < 10) return false;
+  // Minimal BACnet/IP Simple-ACK can be 9 bytes:
+  // BVLC(4) + NPDU(2) + APDU(3)
+  if (!p || n < 9) return 0;
   size_t apduPos = 0, blen = 0;
-  if (!locateApdu(p, n, apduPos, blen)) return false;
+  if (!locateApdu(p, n, apduPos, blen)) return 0;
   size_t i = apduPos;
-  if (i >= blen) return false;
+  if (i >= blen) return 0;
   uint8_t apdu = p[i++];
 
   // Simple-ACK
   if ((apdu & 0xF0) == 0x20)
   {
-    if (i + 2 > blen) return false;
+    if (i + 2 > blen) return 0;
     uint8_t gotInvoke = p[i++];
     uint8_t service = p[i++];
-    return (gotInvoke == invoke && service == 0x0F);
+    if (service == 0x0F)
+    {
+      // Some devices appear to reply with a valid Simple-ACK but odd invoke-id.
+      // We accept this as success because writes are serialized on this UDP socket.
+      if (gotInvoke != invoke)
+      {
+        dbg(String("WRITE ACK invoke mismatch accepted got=") + gotInvoke + " expected=" + invoke);
+      }
+      return 1;
+    }
+    if (gotInvoke != invoke) return 0;
+    errOut = String("Simple-ACK for unexpected service=") + service;
+    return -1;
   }
 
   // Error-PDU
   if ((apdu & 0xF0) == 0x50)
   {
-    if (i + 2 > blen) return false;
+    if (i + 2 > blen) return 0;
     uint8_t gotInvoke = p[i++];
     uint8_t service = p[i++];
-    if (gotInvoke != invoke || service != 0x0F) return false;
+    if (gotInvoke != invoke) return 0;
+    if (service != 0x0F)
+    {
+      errOut = String("BACnet Error-PDU for service=") + service + " (expected 15)";
+      return -1;
+    }
 
     uint32_t errClass = 0, errCode = 0;
     size_t used = 0;
@@ -755,13 +775,36 @@ static bool parseWritePropertyResult(const uint8_t* p, size_t n, uint8_t invoke,
       if (parseEnumApp(p + i, blen - i, errCode, used))
       {
         errOut = String("BACnet Error-PDU class=") + errClass + " code=" + errCode + " service=" + service;
-        return false;
+        return -1;
       }
     }
     errOut = String("BACnet Error-PDU service=") + service;
-    return false;
+    return -1;
   }
-  return false;
+
+  // Reject-PDU
+  if ((apdu & 0xF0) == 0x60)
+  {
+    if (i + 2 > blen) return 0;
+    uint8_t gotInvoke = p[i++];
+    uint8_t reason = p[i++];
+    if (gotInvoke != invoke) return 0;
+    errOut = String("BACnet Reject-PDU reason=") + reason + " service=15";
+    return -1;
+  }
+
+  // Abort-PDU
+  if ((apdu & 0xF0) == 0x70)
+  {
+    if (i + 2 > blen) return 0;
+    uint8_t gotInvoke = p[i++];
+    uint8_t reason = p[i++];
+    if (gotInvoke != invoke) return 0;
+    errOut = String("BACnet Abort-PDU reason=") + reason + " service=15";
+    return -1;
+  }
+
+  return 0;
 }
 
 String flexit_bacnet_debug_dump_text()
@@ -858,6 +901,7 @@ static bool readOneNumeric(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
   const uint32_t t0 = millis();
   const uint16_t tout = g_cfg.bacnet_timeout_ms;
   bool gotFromTarget = false;
+  bool gotMatchingInvoke = false;
   while ((uint32_t)(millis() - t0) < tout)
   {
     int len = udp.parsePacket();
@@ -908,6 +952,7 @@ static bool readOneEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
   const uint32_t t0 = millis();
   const uint16_t tout = g_cfg.bacnet_timeout_ms;
   bool gotFromTarget = false;
+  bool gotMatchingInvoke = false;
   while ((uint32_t)(millis() - t0) < tout)
   {
     int len = udp.parsePacket();
@@ -953,6 +998,7 @@ static bool readDeviceVendorId(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
   const uint32_t t0 = millis();
   const uint16_t tout = g_cfg.bacnet_timeout_ms;
   bool gotFromTarget = false;
+  bool gotMatchingInvoke = false;
   while ((uint32_t)(millis() - t0) < tout)
   {
     int len = udp.parsePacket();
@@ -1208,6 +1254,7 @@ static bool writeOneModeEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port, c
   const uint32_t t0 = millis();
   const uint16_t tout = g_cfg.bacnet_timeout_ms;
   bool gotFromTarget = false;
+  bool gotMatchingInvoke = false;
   while ((uint32_t)(millis() - t0) < tout)
   {
     int len = udp.parsePacket();
@@ -1218,17 +1265,25 @@ static bool writeOneModeEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port, c
     if (rd <= 0) continue;
     if (udp.remoteIP() != ip) continue;
     gotFromTarget = true;
+    if (g_debug_enabled)
+    {
+      dbg(String("RX(write-mode) from ") + udp.remoteIP().toString() + ":" + String(udp.remotePort()) + " len=" + String(rd));
+      dbg(String("RX(write-mode) hex: ") + hexDump(buf, (size_t)rd));
+    }
 
     String err;
-    if (parseWritePropertyResult(buf, (size_t)rd, invoke, err)) return true;
-    if (err.length() > 0)
+    int wr = parseWritePropertyResult(buf, (size_t)rd, invoke, err);
+    if (wr == 1) return true;
+    if (wr == -1)
     {
       setErr("WRITE", err);
       return false;
     }
+    if (err.length() > 0) gotMatchingInvoke = true;
   }
 
-  if (gotFromTarget) { setErr("WRITE", "mode write reply not understood"); return false; }
+  if (gotMatchingInvoke) { setErr("WRITE", "mode write reply for invoke not understood"); return false; }
+  if (gotFromTarget) { setErr("WRITE", "mode write got unrelated BACnet traffic only"); return false; }
   setErr("WRITE", "mode write timeout");
   return false;
 }
@@ -1249,6 +1304,7 @@ static bool writeOneRealAttempt(WiFiUDP& udp, const IPAddress& ip, uint16_t port
   const uint32_t t0 = millis();
   const uint16_t tout = g_cfg.bacnet_timeout_ms;
   bool gotFromTarget = false;
+  bool gotMatchingInvoke = false;
   while ((uint32_t)(millis() - t0) < tout)
   {
     int len = udp.parsePacket();
@@ -1259,17 +1315,25 @@ static bool writeOneRealAttempt(WiFiUDP& udp, const IPAddress& ip, uint16_t port
     if (rd <= 0) continue;
     if (udp.remoteIP() != ip) continue;
     gotFromTarget = true;
+    if (g_debug_enabled)
+    {
+      dbg(String("RX(write-setpoint) from ") + udp.remoteIP().toString() + ":" + String(udp.remotePort()) + " len=" + String(rd));
+      dbg(String("RX(write-setpoint) hex: ") + hexDump(buf, (size_t)rd));
+    }
 
     String err;
-    if (parseWritePropertyResult(buf, (size_t)rd, invoke, err)) return true;
-    if (err.length() > 0)
+    int wr = parseWritePropertyResult(buf, (size_t)rd, invoke, err);
+    if (wr == 1) return true;
+    if (wr == -1)
     {
       outErr = err;
       return false;
     }
+    if (err.length() > 0) gotMatchingInvoke = true;
   }
 
-  if (gotFromTarget) { outErr = "setpoint write reply not understood"; return false; }
+  if (gotMatchingInvoke) { outErr = "setpoint write reply for invoke not understood"; return false; }
+  if (gotFromTarget) { outErr = "setpoint write got unrelated BACnet traffic only"; return false; }
   outErr = "setpoint write timeout";
   return false;
 }
