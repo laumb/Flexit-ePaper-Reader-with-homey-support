@@ -398,7 +398,7 @@ static String tr(const char* key)
   if (strcmp(key, "enable_control_hint") == 0) return en ? "Enable write control for the active source to use quick control." : no ? "Aktiver skrivekontroll for aktiv kilde for å bruke hurtigstyring." : da ? "Aktiver skrivekontrol for aktiv kilde for at bruge hurtigstyring." : sv ? "Aktivera skrivstyrning for aktiv kalla for att anvanda snabbstyrning." : fi ? "Ota aktiivisen lahteen kirjoitusohjaus kayttoon kayttaaksesi pikaohjausta." : "Увімкніть керування записом для активного джерела, щоб використовувати швидке керування.";
   if (strcmp(key, "mode_away") == 0) return en ? "Away" : no ? "Borte" : da ? "Ude" : sv ? "Borta" : fi ? "Poissa" : "Away";
   if (strcmp(key, "mode_home") == 0) return en ? "Home" : no ? "Hjem" : da ? "Hjemme" : sv ? "Hemma" : fi ? "Koti" : "Home";
-  if (strcmp(key, "mode_high") == 0) return en ? "High" : no ? "Hoy" : da ? "Hoj" : sv ? "Hog" : fi ? "Teho" : "High";
+  if (strcmp(key, "mode_high") == 0) return en ? "High" : no ? "High" : da ? "Hoj" : sv ? "Hog" : fi ? "Teho" : "High";
   if (strcmp(key, "mode_fire") == 0) return en ? "Fireplace" : no ? "Peis" : da ? "Pejs" : sv ? "Kamin" : fi ? "Takka" : "Fireplace";
   if (strcmp(key, "profile") == 0) return en ? "Profile" : no ? "Profil" : da ? "Profil" : sv ? "Profil" : fi ? "Profiili" : "Профіль";
   if (strcmp(key, "setpoint") == 0) return en ? "Setpoint (10..30 C)" : no ? "Settpunkt (10..30 C)" : da ? "Setpunkt (10..30 C)" : sv ? "Borvarde (10..30 C)" : fi ? "Asetusarvo (10..30 C)" : "Уставка (10..30 C)";
@@ -509,15 +509,15 @@ static void applyPostedBACnetSettings()
   if (server.hasArg("bamap")) g_cfg->bacnet_mode_map = server.arg("bamap");
 
   if (g_cfg->bacnet_obj_outdoor.length() == 0) g_cfg->bacnet_obj_outdoor = "ai:1";
-  if (g_cfg->bacnet_obj_supply.length() == 0) g_cfg->bacnet_obj_supply = "av:5";
+  if (g_cfg->bacnet_obj_supply.length() == 0) g_cfg->bacnet_obj_supply = "ai:4";
   if (g_cfg->bacnet_obj_extract.length() == 0) g_cfg->bacnet_obj_extract = "ai:59";
   if (g_cfg->bacnet_obj_exhaust.length() == 0) g_cfg->bacnet_obj_exhaust = "ai:11";
   if (g_cfg->bacnet_obj_fan.length() == 0) g_cfg->bacnet_obj_fan = "ao:3";
   if (g_cfg->bacnet_obj_heat.length() == 0) g_cfg->bacnet_obj_heat = "ao:29";
-  if (g_cfg->bacnet_obj_mode.length() == 0) g_cfg->bacnet_obj_mode = "av:0";
+  if (g_cfg->bacnet_obj_mode.length() == 0) g_cfg->bacnet_obj_mode = "msv:41";
   if (g_cfg->bacnet_obj_setpoint_home.length() == 0) g_cfg->bacnet_obj_setpoint_home = "av:126";
   if (g_cfg->bacnet_obj_setpoint_away.length() == 0) g_cfg->bacnet_obj_setpoint_away = "av:96";
-  if (g_cfg->bacnet_mode_map.length() == 0) g_cfg->bacnet_mode_map = "1:AWAY,2:HOME,3:HIGH,4:FIRE";
+  if (g_cfg->bacnet_mode_map.length() == 0) g_cfg->bacnet_mode_map = "2:AWAY,3:HOME,4:HIGH,5:FIRE";
 }
 
 static void applyPostedHAMqttSettings()

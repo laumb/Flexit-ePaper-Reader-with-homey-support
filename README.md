@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.7)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.10)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -6,6 +6,18 @@ It provides local ePaper display, local web admin, and Homey/Home Assistant inte
 Default behavior is read-focused monitoring. Write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.2.10
+- Rotated the ePaper UI orientation by 180° relative to previous firmware orientation.
+
+### v4.2.9
+- Fixed BACnet mode interpretation for MSV mode objects when older enum-map was still stored (`HIGH` no longer shown as `FIREPLACE` after switching to `msv:41` defaults).
+
+### v4.2.8
+- Updated BACnet mode default mapping for Nordic S3 behavior: mode object now defaults to `msv:41`.
+- Updated default BACnet mode enum map to `2:AWAY,3:HOME,4:HIGH,5:FIRE`.
+- Extended BACnet mode probe candidate order to prioritize observed `msv` mode objects (`msv:41`, `msv:42`, `msv:14`, `msv:19`).
+- Updated BACnet API reference defaults to match the new mode baseline.
 
 ### v4.2.7
 - Added admin topbar home button on admin/setup pages.

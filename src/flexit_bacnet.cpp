@@ -13,6 +13,8 @@ static String g_debug_log;
 static const size_t DEBUG_MAX_CHARS = 20000;
 static bool g_debug_enabled = false;
 static bool g_quiet_data_errors = false;
+static FlexitData g_last_partial_data;
+static bool g_has_last_partial_data = false;
 
 static void dbg(const String& msg)
 {
@@ -1161,21 +1163,28 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
   }
 
   FlexitData t;
-  bool ok = true;
-  ok = ok && readOneNumeric(udp, ip, g_cfg.bacnet_port, oOut, t.uteluft);
-  ok = ok && readOneNumeric(udp, ip, g_cfg.bacnet_port, oSup, t.tilluft);
-  ok = ok && readOneNumeric(udp, ip, g_cfg.bacnet_port, oExt, t.avtrekk);
-  ok = ok && readOneNumeric(udp, ip, g_cfg.bacnet_port, oExh, t.avkast);
+  bool gotOut = readOneNumeric(udp, ip, g_cfg.bacnet_port, oOut, t.uteluft);
+  bool gotSup = readOneNumeric(udp, ip, g_cfg.bacnet_port, oSup, t.tilluft);
+  bool gotExt = readOneNumeric(udp, ip, g_cfg.bacnet_port, oExt, t.avtrekk);
+  bool gotExh = readOneNumeric(udp, ip, g_cfg.bacnet_port, oExh, t.avkast);
   float fan = 0.0f;
   float heat = 0.0f;
-  ok = ok && readOneNumeric(udp, ip, g_cfg.bacnet_port, oFan, fan);
-  ok = ok && readOneNumeric(udp, ip, g_cfg.bacnet_port, oHeat, heat);
-  t.fan_percent = (int)lroundf(fan);
-  t.heat_element_percent = (int)lroundf(heat);
+  bool gotFan = readOneNumeric(udp, ip, g_cfg.bacnet_port, oFan, fan);
+  bool gotHeat = readOneNumeric(udp, ip, g_cfg.bacnet_port, oHeat, heat);
+  if (gotFan) t.fan_percent = (int)lroundf(fan);
+  if (gotHeat) t.heat_element_percent = (int)lroundf(heat);
 
   uint32_t modeEnum = 0;
-  ok = ok && readOneEnum(udp, ip, g_cfg.bacnet_port, oMode, modeEnum);
-  t.mode = mapModeFromEnum(modeEnum);
+  bool gotMode = readOneEnum(udp, ip, g_cfg.bacnet_port, oMode, modeEnum);
+  t.mode = gotMode ? mapModeFromEnum(modeEnum) : "N/A";
+  if (gotMode)
+  {
+    dbg(String("MODE read obj=") + g_cfg.bacnet_obj_mode + " enum=" + String(modeEnum) + " mapped=" + t.mode);
+  }
+  else
+  {
+    dbg(String("MODE read failed for obj=") + g_cfg.bacnet_obj_mode + " err=" + g_last_error);
+  }
 
   // Optional setpoint reads (best-effort); keep main BACnet poll green even if missing.
   float spHome = NAN;
@@ -1201,6 +1210,22 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
 
   udp.stop();
 
+  // Reuse previously known values for fields that failed in this cycle.
+  if (g_has_last_partial_data)
+  {
+    if (!gotOut) t.uteluft = g_last_partial_data.uteluft;
+    if (!gotSup) t.tilluft = g_last_partial_data.tilluft;
+    if (!gotExt) t.avtrekk = g_last_partial_data.avtrekk;
+    if (!gotExh) t.avkast = g_last_partial_data.avkast;
+    if (!gotFan) t.fan_percent = g_last_partial_data.fan_percent;
+    if (!gotHeat) t.heat_element_percent = g_last_partial_data.heat_element_percent;
+    if (!gotMode) t.mode = g_last_partial_data.mode;
+    if (isnan(t.set_temp)) t.set_temp = g_last_partial_data.set_temp;
+  }
+
+  // Accept partial data to avoid dashboard lockups on transient object failures.
+  // Require at least supply + fan + one other temperature.
+  const bool ok = gotSup && gotFan && (gotOut || gotExt || gotExh);
   if (!ok)
   {
     if (!discovered && probeErr.length() > 0)
@@ -1209,6 +1234,8 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
     return false;
   }
 
+  g_last_partial_data = t;
+  g_has_last_partial_data = true;
   g_last_error = "OK";
   if (outData) *outData = t;
   return true;
@@ -1641,12 +1668,12 @@ String flexit_bacnet_probe_configured_objects_json()
 
       // Candidate lists from observed Nordic S3 BACnet mappings.
       static const char* C_OUTDOOR[] = {"ai:1", "av:102", "av:104"};
-      static const char* C_SUPPLY[]  = {"av:5", "ai:4", "ai:75", "av:100"};
+      static const char* C_SUPPLY[]  = {"ai:4", "av:5", "ai:75", "av:100"};
       static const char* C_EXTRACT[] = {"ai:59", "av:131"};
       static const char* C_EXHAUST[] = {"ai:60", "ai:61", "av:132", "av:130", "av:127", "av:58"};
       static const char* C_FAN[]     = {"ao:3", "ao:4", "av:56", "av:57"};
       static const char* C_HEAT[]    = {"ao:29", "ao:28", "av:58"};
-      static const char* C_MODE[]    = {"av:0", "msv:60", "msv:61", "msv:62", "msv:63", "msv:64", "msv:65"};
+      static const char* C_MODE[]    = {"msv:41", "msv:42", "msv:14", "msv:19", "av:0", "msv:60", "msv:61", "msv:62", "msv:63", "msv:64", "msv:65"};
 
       const char* const* cand = nullptr;
       size_t candN = 0;

@@ -59,7 +59,7 @@ struct DeviceConfig {
   String bacnet_obj_mode;
   String bacnet_obj_setpoint_home;
   String bacnet_obj_setpoint_away;
-  String bacnet_mode_map;       // e.g. "1:AWAY,2:HOME,3:HIGH,4:FIRE"
+  String bacnet_mode_map;       // e.g. "2:AWAY,3:HOME,4:HIGH,5:FIRE"
 
   String ui_language; // no, da, sv, fi, en, uk
 

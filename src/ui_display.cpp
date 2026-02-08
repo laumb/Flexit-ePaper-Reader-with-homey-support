@@ -80,10 +80,10 @@ static String trModeValue(const String& rawMode)
   if (m == "OFF")   return (l == "en") ? "OFF"  : (l == "no") ? "AV"      : (l == "da") ? "FRA"      : (l == "sv") ? "AV"       : (l == "fi") ? "POIS"     : "OFF";
   if (m == "AWAY")  return (l == "en") ? "AWAY" : (l == "no") ? "BORTE"   : (l == "da") ? "UDE"      : (l == "sv") ? "BORTA"    : (l == "fi") ? "POISSA"   : "AWAY";
   if (m == "HOME")  return (l == "en") ? "HOME" : (l == "no") ? "HJEM"  : (l == "da") ? "HJEMME"   : (l == "sv") ? "HEMMA"    : (l == "fi") ? "KOTI"     : "HOME";
-  if (m == "HIGH")  return (l == "en") ? "HIGH" : (l == "no") ? "HOY"     : (l == "da") ? "HOJ"      : (l == "sv") ? "HOG"      : (l == "fi") ? "TEHO"     : "HIGH";
+  if (m == "HIGH")  return (l == "en") ? "HIGH" : (l == "no") ? "HIGH"    : (l == "da") ? "HOJ"      : (l == "sv") ? "HOG"      : (l == "fi") ? "TEHO"     : "HIGH";
   if (m == "FUME")  return (l == "en") ? "FUME" : (l == "no") ? "MATLAGING" : (l == "da") ? "MADLAVNING" : (l == "sv") ? "MATLAGNING" : (l == "fi") ? "RUUANLAITTO" : "FUME";
   if (m == "FIRE")  return (l == "en") ? "FIRE" : (l == "no") ? "PEIS"    : (l == "da") ? "PEJS"     : (l == "sv") ? "KAMIN"    : (l == "fi") ? "TAKKA"    : "FIRE";
-  if (m == "TMP HIGH") return (l == "en") ? "TMP HIGH" : (l == "no") ? "MIDL HOY" : (l == "da") ? "MIDL HOJ" : (l == "sv") ? "TILLF HOG" : (l == "fi") ? "VALIAIK TEHO" : "TMP HIGH";
+  if (m == "TMP HIGH") return (l == "en") ? "TMP HIGH" : (l == "no") ? "MIDL HIGH" : (l == "da") ? "MIDL HOJ" : (l == "sv") ? "TILLF HOG" : (l == "fi") ? "VALIAIK TEHO" : "TMP HIGH";
   if (m == "UNKNOWN") return (l == "en") ? "UNKNOWN" : (l == "no") ? "UKJENT" : (l == "da") ? "UKENDT" : (l == "sv") ? "OKAND" : (l == "fi") ? "TUNTEMATON" : "UNKNOWN";
 
   return rawMode;
@@ -324,7 +324,8 @@ void ui_init()
 {
   SPI.begin(PIN_SCK, -1, PIN_MOSI, PIN_CS);
   display.init(115200);
-  display.setRotation(2);
+  // User preference: rotate display 180 degrees from previous orientation.
+  display.setRotation(0);
 }
 
 void ui_set_language(const String& lang)

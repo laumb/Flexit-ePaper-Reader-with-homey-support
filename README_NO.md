@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v4.2.7)
+# VentReader – Brukerveiledning (v4.2.10)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -6,6 +6,21 @@ VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.2.10
+
+- Roterte ePaper-visningen 180° i forhold til forrige firmware-orientering.
+
+### v4.2.9
+
+- Fikset BACnet modus-tolkning for MSV-baserte modusobjekter når eldre enum-mapping fortsatt var lagret (`HIGH` vises ikke lenger som `PEIS` etter overgang til `msv:41`-default).
+
+### v4.2.8
+
+- Oppdatert BACnet default for modus på Nordic S3: modusobjekt bruker nå `msv:41`.
+- Oppdatert default enum-mapping for BACnet modus til `2:AWAY,3:HOME,4:HIGH,5:FIRE`.
+- Utvidet BACnet mode-probe kandidatliste med prioritet på observerte `msv`-objekter (`msv:41`, `msv:42`, `msv:14`, `msv:19`).
+- Oppdatert BACnet API-referansen slik at dokumenterte defaults matcher firmware.
 
 ### v4.2.7
 

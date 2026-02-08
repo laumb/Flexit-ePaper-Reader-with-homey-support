@@ -147,12 +147,12 @@ The following mapping has been observed in real-world testing and is a strong st
 | Exhaust temperature | `ai:11` |
 | Fan percent | `ao:3` |
 | Heat percent | `ao:29` |
-| Mode | `av:0` |
+| Mode | `msv:41` |
 | Setpoint (home) | `av:126` |
 | Setpoint (away) | `av:96` |
 
 Default mode map commonly used:
-- `1:AWAY,2:HOME,3:HIGH,4:FIRE`
+- `2:AWAY,3:HOME,4:HIGH,5:FIRE`
 
 Important:
 - This is not guaranteed for all models/firmware.
@@ -216,15 +216,15 @@ Before production:
     "exhaust": "ai:11",
     "fan": "ao:3",
     "heat": "ao:29",
-    "mode": "av:0",
+    "mode": "msv:41",
     "setpoint_home": "av:126",
     "setpoint_away": "av:96"
   },
   "mode_map": {
-    "1": "AWAY",
-    "2": "HOME",
-    "3": "HIGH",
-    "4": "FIRE"
+    "2": "AWAY",
+    "3": "HOME",
+    "4": "HIGH",
+    "5": "FIRE"
   }
 }
 ```

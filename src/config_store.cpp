@@ -138,15 +138,15 @@ DeviceConfig config_load() {
   c.bacnet_timeout_ms = (uint16_t)bct;
   c.bacnet_write_enabled = prefs.getBool("bacwr", false);
   c.bacnet_obj_outdoor = prefs.getString("baout", "ai:1");
-  c.bacnet_obj_supply  = prefs.getString("basup", "av:5");
+  c.bacnet_obj_supply  = prefs.getString("basup", "ai:4");
   c.bacnet_obj_extract = prefs.getString("baext", "ai:59");
   c.bacnet_obj_exhaust = prefs.getString("baexh", "ai:11");
   c.bacnet_obj_fan     = prefs.getString("bafan", "ao:3");
   c.bacnet_obj_heat    = prefs.getString("baheat", "ao:29");
-  c.bacnet_obj_mode    = prefs.getString("bamode", "av:0");
+  c.bacnet_obj_mode    = prefs.getString("bamode", "msv:41");
   c.bacnet_obj_setpoint_home = prefs.getString("bashome", "av:126");
   c.bacnet_obj_setpoint_away = prefs.getString("basaway", "av:96");
-  c.bacnet_mode_map    = prefs.getString("bamap", "1:AWAY,2:HOME,3:HIGH,4:FIRE");
+  c.bacnet_mode_map    = prefs.getString("bamap", "2:AWAY,3:HOME,4:HIGH,5:FIRE");
 
   // Migrate old BACnet placeholder defaults to better Nordic S3 candidates.
   if (c.bacnet_obj_supply == "ai:2") c.bacnet_obj_supply = "ai:4";
@@ -154,7 +154,10 @@ DeviceConfig config_load() {
   if (c.bacnet_obj_exhaust == "ai:4") c.bacnet_obj_exhaust = "ai:11";
   if (c.bacnet_obj_fan == "av:1") c.bacnet_obj_fan = "ao:3";
   if (c.bacnet_obj_heat == "av:2") c.bacnet_obj_heat = "ao:29";
-  if (c.bacnet_obj_mode == "msv:1") c.bacnet_obj_mode = "av:0";
+  if (c.bacnet_obj_mode == "msv:1" || c.bacnet_obj_mode == "av:0") c.bacnet_obj_mode = "msv:41";
+  // If mode object is MSV-based but old enum map is still present, shift to the observed Nordic S3 mapping.
+  if (c.bacnet_obj_mode.startsWith("msv:") && c.bacnet_mode_map == "1:AWAY,2:HOME,3:HIGH,4:FIRE")
+    c.bacnet_mode_map = "2:AWAY,3:HOME,4:HIGH,5:FIRE";
   // Nordic S3 observed mapping: home setpoint -> av:126, away setpoint -> av:96.
   // Migrate legacy defaults from earlier firmware generations.
   if (c.bacnet_obj_setpoint_home == "av:5") c.bacnet_obj_setpoint_home = "av:126";
