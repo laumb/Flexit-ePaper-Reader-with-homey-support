@@ -1641,7 +1641,7 @@ String flexit_bacnet_probe_configured_objects_json()
 
       // Candidate lists from observed Nordic S3 BACnet mappings.
       static const char* C_OUTDOOR[] = {"ai:1", "av:102", "av:104"};
-      static const char* C_SUPPLY[]  = {"ai:4", "av:5", "ai:75", "av:100"};
+      static const char* C_SUPPLY[]  = {"av:5", "ai:4", "ai:75", "av:100"};
       static const char* C_EXTRACT[] = {"ai:59", "av:131"};
       static const char* C_EXHAUST[] = {"ai:60", "ai:61", "av:132", "av:130", "av:127", "av:58"};
       static const char* C_FAN[]     = {"ao:3", "ao:4", "av:56", "av:57"};

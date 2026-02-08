@@ -509,14 +509,14 @@ static void applyPostedBACnetSettings()
   if (server.hasArg("bamap")) g_cfg->bacnet_mode_map = server.arg("bamap");
 
   if (g_cfg->bacnet_obj_outdoor.length() == 0) g_cfg->bacnet_obj_outdoor = "ai:1";
-  if (g_cfg->bacnet_obj_supply.length() == 0) g_cfg->bacnet_obj_supply = "ai:4";
+  if (g_cfg->bacnet_obj_supply.length() == 0) g_cfg->bacnet_obj_supply = "av:5";
   if (g_cfg->bacnet_obj_extract.length() == 0) g_cfg->bacnet_obj_extract = "ai:59";
   if (g_cfg->bacnet_obj_exhaust.length() == 0) g_cfg->bacnet_obj_exhaust = "ai:11";
   if (g_cfg->bacnet_obj_fan.length() == 0) g_cfg->bacnet_obj_fan = "ao:3";
   if (g_cfg->bacnet_obj_heat.length() == 0) g_cfg->bacnet_obj_heat = "ao:29";
   if (g_cfg->bacnet_obj_mode.length() == 0) g_cfg->bacnet_obj_mode = "av:0";
-  if (g_cfg->bacnet_obj_setpoint_home.length() == 0) g_cfg->bacnet_obj_setpoint_home = "av:5";
-  if (g_cfg->bacnet_obj_setpoint_away.length() == 0) g_cfg->bacnet_obj_setpoint_away = "av:100";
+  if (g_cfg->bacnet_obj_setpoint_home.length() == 0) g_cfg->bacnet_obj_setpoint_home = "av:126";
+  if (g_cfg->bacnet_obj_setpoint_away.length() == 0) g_cfg->bacnet_obj_setpoint_away = "av:96";
   if (g_cfg->bacnet_mode_map.length() == 0) g_cfg->bacnet_mode_map = "1:AWAY,2:HOME,3:HIGH,4:FIRE";
 }
 
@@ -2885,7 +2885,9 @@ static void handleAdmin()
   s += "<div class='actions'>";
   s += "<a class='btn secondary' target='_blank' rel='noopener' href='" + statusApiUrl + "'>Vanlig API</a>";
   s += "<a class='btn secondary' target='_blank' rel='noopener' href='" + statusApiPrettyUrl + "'>Pretty API</a>";
+  s += "<button class='btn secondary' type='button' onclick='refreshNow()'>Hent ferske data + refresh skjerm</button>";
   s += "</div>";
+  s += "<div id='refresh_now_result' class='help'></div>";
   s += "<div class='help'>Lenkene er sikre admin-forhandsvisninger. Ekstern API bruker Bearer-token i Authorization-header.</div>";
   s += "</div>";
 
@@ -3234,6 +3236,16 @@ static void handleAdmin()
        "const subject='VentReader Homey setup';"
        "window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(txt);"
        "}catch(e){alert('Homey eksport feilet: '+e.message);}"
+       "};"
+       "window.refreshNow=async function(){"
+       "var out=document.getElementById('refresh_now_result');"
+       "if(out){out.style.color='var(--muted)';out.textContent='Henter ferske data...';}"
+       "try{"
+       "const r=await fetch('/admin/refresh_now',{method:'POST',credentials:'same-origin'});"
+       "if(!r.ok) throw new Error('HTTP '+r.status);"
+       "if(out){out.style.color='#166534';out.textContent='Oppdatering trigget. Data/visning oppdateres straks.';}"
+       "setTimeout(function(){window.location.reload();},1200);"
+       "}catch(e){if(out){out.style.color='#b91c1c';out.textContent='Oppdatering feilet: '+e.message;}}"
        "};"
        "})();</script>";
 

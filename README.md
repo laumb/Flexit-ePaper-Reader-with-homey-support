@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.6)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.7)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -7,12 +7,20 @@ Default behavior is read-focused monitoring. Write control is optional and disab
 
 ## Changelog (short)
 
+### v4.2.7
+- Added admin topbar home button on admin/setup pages.
+- Added admin action to fetch fresh data and refresh display without reboot (`/admin/refresh_now`).
+- BACnet defaults aligned to observed Nordic S3 mapping updates (supply default `av:5` and consistent fallback handling).
+- Improved BACnet write diagnostics and parser handling for minimal Simple-ACK responses.
+- “Clear debug log” now clears content without hiding/closing the debug panel.
+
 ### v4.2.6
 - Display header now uses compact model title (`NORDIC <model>`) and shows active setpoint (`SET xx.xC`) between model and clock.
 - Added `set_temp` to `/status` and `pretty` JSON output (active setpoint from datasource, best-effort).
 - Provisioning SSID prefix is now `Ventreader` (no hyphen in name prefix).
 - Added experimental BACnet `Write probe` button in setup/admin to test mode/setpoint write capability without saving changes.
 - Updated BACnet setpoint defaults/migration for Nordic S3 observed mapping: `home=av:126`, `away=av:96` (legacy `av:5`/`av:100` auto-migrated).
+- Updated BACnet supply default mapping to `av:5` (was `ai:4`) based on verified Nordic S3 live values.
 
 ### v4.2.4
 - Onboarding/admin bugfix: BACnet settings can now be saved without requiring `Test BACnet` success first.

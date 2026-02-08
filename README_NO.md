@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v4.2.6)
+# VentReader – Brukerveiledning (v4.2.7)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -6,6 +6,14 @@ VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.2.7
+
+- Lagt til enkel hjem-knapp i topplinjen på admin/setup-sider.
+- Lagt til admin-handling for å hente ferske data og refreshe skjerm uten reboot (`/admin/refresh_now`).
+- BACnet-defaults er justert etter verifisert Nordic S3-mapping (tilluft default `av:5` og konsistente fallback-verdier).
+- Forbedret BACnet write-diagnostikk og parser for minimale Simple-ACK-responser.
+- `Tøm debuglogg` tømmer nå kun innhold og lukker ikke/skjuler ikke loggvinduet.
 
 ### v4.2.6
 

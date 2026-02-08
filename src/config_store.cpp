@@ -138,7 +138,7 @@ DeviceConfig config_load() {
   c.bacnet_timeout_ms = (uint16_t)bct;
   c.bacnet_write_enabled = prefs.getBool("bacwr", false);
   c.bacnet_obj_outdoor = prefs.getString("baout", "ai:1");
-  c.bacnet_obj_supply  = prefs.getString("basup", "ai:4");
+  c.bacnet_obj_supply  = prefs.getString("basup", "av:5");
   c.bacnet_obj_extract = prefs.getString("baext", "ai:59");
   c.bacnet_obj_exhaust = prefs.getString("baexh", "ai:11");
   c.bacnet_obj_fan     = prefs.getString("bafan", "ao:3");

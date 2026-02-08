@@ -142,14 +142,14 @@ The following mapping has been observed in real-world testing and is a strong st
 | Semantic | Candidate BACnet object |
 |---|---|
 | Outdoor temperature | `ai:1` |
-| Supply temperature | `ai:4` |
+| Supply temperature | `av:5` |
 | Extract temperature | `ai:59` |
 | Exhaust temperature | `ai:11` |
 | Fan percent | `ao:3` |
 | Heat percent | `ao:29` |
 | Mode | `av:0` |
-| Setpoint (home) | `av:5` |
-| Setpoint (away) | `av:100` |
+| Setpoint (home) | `av:126` |
+| Setpoint (away) | `av:96` |
 
 Default mode map commonly used:
 - `1:AWAY,2:HOME,3:HIGH,4:FIRE`
@@ -211,14 +211,14 @@ Before production:
   },
   "objects": {
     "outdoor": "ai:1",
-    "supply": "ai:4",
+    "supply": "av:5",
     "extract": "ai:59",
     "exhaust": "ai:11",
     "fan": "ao:3",
     "heat": "ao:29",
     "mode": "av:0",
-    "setpoint_home": "av:5",
-    "setpoint_away": "av:100"
+    "setpoint_home": "av:126",
+    "setpoint_away": "av:96"
   },
   "mode_map": {
     "1": "AWAY",
