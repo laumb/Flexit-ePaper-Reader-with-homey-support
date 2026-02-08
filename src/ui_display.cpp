@@ -113,6 +113,15 @@ static int textPixelWidth(const String& txt)
   return (int)w;
 }
 
+static int textPixelWidthMono(const String& txt)
+{
+  int16_t x1 = 0, y1 = 0;
+  uint16_t w = 0, h = 0;
+  display.setFont(&FreeMonoBold9pt7b);
+  display.getTextBounds(txt, 0, 0, &x1, &y1, &w, &h);
+  return (int)w;
+}
+
 static void drawIconV2(int x, int y, IconType t)
 {
   switch (t)
@@ -154,19 +163,57 @@ static void drawHeader(const FlexitData& d)
   display.fillRect(-2, 0, display.width()+4, 32, GxEPD_BLACK);
   setTextWhite();
   display.setFont(&FreeMonoBold9pt7b);
-  display.setCursor(10, 20);
   String model = d.device_model.length() ? d.device_model : "S3";
-  display.print(String("FLEXIT NORDIC ") + model);
-  display.setCursor(display.width() - 60, 20);
-  display.print(d.time);
+  String modelTxt = String("NORDIC ") + model;
+  String clockTxt = d.time;
+
+  String setTxt = "SET --.-C";
+  if (!isnan(d.set_temp))
+  {
+    char sb[24];
+    snprintf(sb, sizeof(sb), "SET %.1fC", d.set_temp);
+    setTxt = String(sb);
+  }
+
+  int modelW = textPixelWidthMono(modelTxt);
+  const int setW = textPixelWidthMono(setTxt);
+  const int clockW = textPixelWidthMono(clockTxt);
+  const int leftPad = 8;
+  const int rightPad = 8;
+  const int headerGap = 10;
+
+  int clockX = display.width() - rightPad - clockW;
+  int setX = (display.width() - setW) / 2;
+  const int minSetX = leftPad + modelW + headerGap;
+  const int maxSetX = clockX - headerGap - setW;
+  if (setX < minSetX) setX = minSetX;
+  if (setX > maxSetX) setX = maxSetX;
+  if (setX < leftPad + 70) setX = leftPad + 70;
+
+  int maxModelW = setX - leftPad - headerGap;
+  if (maxModelW < 40) maxModelW = 40;
+  if (modelW > maxModelW)
+  {
+    while (modelTxt.length() > 3 && textPixelWidthMono(modelTxt + "...") > maxModelW)
+      modelTxt.remove(modelTxt.length() - 1);
+    modelTxt += "...";
+    modelW = textPixelWidthMono(modelTxt);
+  }
+
+  display.setCursor(leftPad, 20);
+  display.print(modelTxt);
+  display.setCursor(setX, 20);
+  display.print(setTxt);
+  display.setCursor(clockX, 20);
+  display.print(clockTxt);
   setTextBlack();
 
   // chips line (stable widths so percentages are always visible)
   const int y = 38;
   const int h = 22;
   const int startX = 6;
-  const int gap = 6;
-  const int avail = display.width() - (startX * 2) - (gap * 2);
+  const int chipGap = 6;
+  const int avail = display.width() - (startX * 2) - (chipGap * 2);
   const int minMode = 140;
   const int minFan = 96;
   const int minEff = 96;
@@ -202,8 +249,8 @@ static void drawHeader(const FlexitData& d)
   }
 
   const int x1 = startX;
-  const int x2 = x1 + wMode + gap;
-  const int x3 = x2 + wFan + gap;
+  const int x2 = x1 + wMode + chipGap;
+  const int x3 = x2 + wFan + chipGap;
 
   drawChip(x1, y, wMode, h, modeTxt);
   drawChip(x2, y, wFan,  h, fanTxt);

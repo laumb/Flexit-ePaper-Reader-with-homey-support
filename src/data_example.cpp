@@ -9,6 +9,7 @@ void data_example_fill(FlexitData& data)
 
   data.fan_percent          = 55;
   data.heat_element_percent = 43;
+  data.set_temp             = 22.0f;
 
   data.mode          = "HOME";
   data.filter_status = "OK";

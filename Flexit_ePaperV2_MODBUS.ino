@@ -35,7 +35,7 @@ static const char* TZ_INFO = "CET-1CEST,M3.5.0/2,M10.5.0/3";
 // =======================
 // Visible device name for users (WiFi AP / mDNS). Keep this generic for commercialization.
 static const char* PRODUCT_DEVICE_NAME = "vent-reader";     // used as hostname/mDNS base
-static const char* PRODUCT_AP_PREFIX   = "Vent-reader";     // shown to user in WiFi list
+static const char* PRODUCT_AP_PREFIX   = "Ventreader";      // shown to user in WiFi list
 static const char* PRODUCT_AP_PASS     = "ventreader";      // WPA2 (>=8 chars). Change in config later if desired.
 
 
@@ -200,6 +200,7 @@ static void clearModbusDataUnknown()
   data.tilluft = NAN;
   data.avtrekk = NAN;
   data.avkast = NAN;
+  data.set_temp = NAN;
   data.fan_percent = 0;
   data.heat_element_percent = 0;
   data.mode = "N/A";

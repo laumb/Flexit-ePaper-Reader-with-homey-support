@@ -243,6 +243,27 @@ bool flexit_modbus_poll(FlexitData& data)
   if (!readInput((uint16_t)(activeMap->reg_mode_in + off), 1, &m)) { lastError = "MODE"; return false; }
   data.mode = flexit_mode_to_text(m);
 
+  // Active setpoint (best-effort): read both profiles and select by mode.
+  // Do not fail polling if these reads are unavailable on a specific model/fw.
+  float spHome = NAN;
+  float spAway = NAN;
+  if (readHolding((uint16_t)(FLEXIT_REG_SETPOINT_HOME_HOLD + off), 2, t))
+    spHome = decodeFloat32_BE(t[0], t[1]);
+  if (readHolding((uint16_t)(FLEXIT_REG_SETPOINT_AWAY_HOLD + off), 2, t))
+    spAway = decodeFloat32_BE(t[0], t[1]);
+
+  data.set_temp = NAN;
+  if (data.mode == "AWAY")
+  {
+    if (!isnan(spAway)) data.set_temp = spAway;
+    else if (!isnan(spHome)) data.set_temp = spHome;
+  }
+  else
+  {
+    if (!isnan(spHome)) data.set_temp = spHome;
+    else if (!isnan(spAway)) data.set_temp = spAway;
+  }
+
   lastError = "OK";
   return true;
 }

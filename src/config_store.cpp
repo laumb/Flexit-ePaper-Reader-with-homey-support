@@ -80,6 +80,7 @@ DeviceConfig config_load() {
   c.homey_api_token = prefs.getString("htoken", "");
   c.ha_api_token = prefs.getString("hatoken", "");
   c.token_generated = prefs.getBool("tgen", false);
+  c.api_panic_stop = prefs.getBool("apikill", false);
   if (!c.token_generated || c.api_token.length() < 16 || c.api_token == "CHANGE_ME")
   {
     c.api_token = gen_token(16);
@@ -191,6 +192,7 @@ void config_save(const DeviceConfig& c) {
   prefs.putString("token", c.api_token);
   prefs.putString("htoken", c.homey_api_token);
   prefs.putString("hatoken", c.ha_api_token);
+  prefs.putBool("apikill", c.api_panic_stop);
   prefs.putString("auser", c.admin_user);
   prefs.putString("apass", c.admin_pass);
   prefs.putBool("apchg", c.admin_pass_changed);

@@ -11,6 +11,7 @@ struct FlexitData {
   int fan_percent = 0;
   int heat_element_percent = 0;
   int efficiency_percent = 0; // ETA/GJENV in %
+  float set_temp = NAN;        // active setpoint in C (best-effort from datasource)
 
   String mode = "N/A";
   String filter_status = "N/A";

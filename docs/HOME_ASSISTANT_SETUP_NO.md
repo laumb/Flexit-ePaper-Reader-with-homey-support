@@ -39,17 +39,17 @@ Du trenger ingen custom komponent.
 ## REST-fallback (fortsatt støttet)
 
 Eksisterende REST API er fortsatt tilgjengelig:
-- `GET /ha/status?token=<HA_TOKEN>&pretty=1`
-- `GET /ha/history?token=<HA_TOKEN>&limit=120`
-- `GET /ha/history.csv?token=<HA_TOKEN>&limit=120`
+- `GET /ha/status?pretty=1` med header `Authorization: Bearer <HA_TOKEN>`
+- `GET /ha/history?limit=120` med header `Authorization: Bearer <HA_TOKEN>`
+- `GET /ha/history.csv?limit=120` med header `Authorization: Bearer <HA_TOKEN>`
 
 Bruk dette hvis du heller vil bygge REST-sensorer manuelt.
 
 ## Valgfri styring (eksperimentell)
 
 VentReader sine skrive-endepunkt kan brukes fra HA-automatiseringer:
-- `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-- `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
+- `POST /api/control/mode` med header `Authorization: Bearer <MAIN_TOKEN>` + `mode=AWAY|HOME|HIGH|FIRE`
+- `POST /api/control/setpoint` med header `Authorization: Bearer <MAIN_TOKEN>` + `profile=home|away&value=18.5`
 
 Krav per aktiv kilde:
 - Modbus: `Datakilde=Modbus`, `Modbus aktivert` og `Enable remote control writes`.

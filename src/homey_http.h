@@ -7,19 +7,20 @@
 // WEB PORTAL (Product Admin + Homey/HA API)
 // ---------------------------------------------------------
 // - GET  /health -> ok (no auth)
-// - GET  /status?token=... [&pretty=1] -> JSON (token required)
-// - GET  /status/history?token=... [&limit=120] -> JSON history buffer
-// - GET  /status/history.csv?token=... [&limit=120] -> CSV history export
-// - GET  /status/diag?token=... -> JSON diagnostics counters
-// - GET  /status/storage?token=... -> JSON storage/heap status
-// - GET  /ha/status?token=... [&pretty=1] -> JSON (token required + HA enabled)
-// - GET  /ha/history?token=... [&limit=120] -> JSON history buffer
-// - GET  /ha/history.csv?token=... [&limit=120] -> CSV history export
-// - POST /api/control/mode?token=...&mode=AWAY|HOME|HIGH|FIRE
-// - POST /api/control/setpoint?token=...&profile=home|away&value=18.5
+// - GET  /status[?pretty=1] -> JSON (Authorization: Bearer <token>)
+// - GET  /status/history[?limit=120] -> JSON history buffer (Bearer)
+// - GET  /status/history.csv[?limit=120] -> CSV history export (Bearer)
+// - GET  /status/diag -> JSON diagnostics counters (Bearer)
+// - GET  /status/storage -> JSON storage/heap status (Bearer)
+// - GET  /ha/status[?pretty=1] -> JSON (Bearer + HA enabled)
+// - GET  /ha/history[?limit=120] -> JSON history buffer (Bearer)
+// - GET  /ha/history.csv[?limit=120] -> CSV history export (Bearer)
+// - POST /api/control/mode?mode=AWAY|HOME|HIGH|FIRE (Bearer)
+// - POST /api/control/setpoint?profile=home|away&value=18.5 (Bearer)
 //   (control endpoints use active source:
 //    - Modbus requires Modbus + control writes
 //    - BACnet requires BACnet writes enabled)
+// - POST /admin/api_emergency_stop (admin auth) toggles API kill switch
 // - Admin UI (Basic Auth):
 //     GET  /admin
 //     GET  /admin/setup        (forced on first login until password changed)
@@ -34,7 +35,7 @@
 //     PASS: product AP password (default: ventreader)
 //
 // First boot onboarding:
-// - API token is auto-generated securely on first boot (stored in NVS).
+// - API bearer tokens are auto-generated securely on first boot (stored in NVS).
 // Default admin creds are same for all units (as requested):
 //     user: admin
 //     pass: ventreader

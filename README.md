@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.2)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.6)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -6,6 +6,22 @@ It provides local ePaper display, local web admin, and Homey/Home Assistant inte
 Default behavior is read-focused monitoring. Write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.2.6
+- Display header now uses compact model title (`NORDIC <model>`) and shows active setpoint (`SET xx.xC`) between model and clock.
+- Added `set_temp` to `/status` and `pretty` JSON output (active setpoint from datasource, best-effort).
+- Provisioning SSID prefix is now `Ventreader` (no hyphen in name prefix).
+- Added experimental BACnet `Write probe` button in setup/admin to test mode/setpoint write capability without saving changes.
+
+### v4.2.4
+- Onboarding/admin bugfix: BACnet settings can now be saved without requiring `Test BACnet` success first.
+- BACnet validation remains available as a separate explicit test action after save.
+
+### v4.2.3
+- API authentication now uses `Authorization: Bearer <token>` (query token auth removed from API endpoints).
+- Added API emergency stop in admin: instantly blocks all token-protected API calls until re-enabled.
+- Added admin API preview endpoints (`/admin/api/preview` + `?pretty=1`) for quick browser inspection.
+- Status payload now includes `api_panic_stop`.
 
 ### v4.2.2
 - Internal codebase refactor for maintainability: shared control-write engine and shared quick-control UI renderer.
@@ -26,7 +42,7 @@ Default behavior is read-focused monitoring. Write control is optional and disab
 ### v4.1.0
 - Added `Headless mode (no display mounted)` in setup wizard and admin.
 - Firmware now skips all ePaper init/render calls when headless is enabled, so unit runs stable without physical display.
-- Added clear one-click API shortcuts inside admin (`Vanlig API` + `Pretty API`) with token prefilled.
+- Added clear one-click API shortcuts inside admin (`Vanlig API` + `Pretty API`).
 - Added `display_enabled`/`headless` fields in status payload.
 
 ### v4.0.4
@@ -86,7 +102,7 @@ On first start:
 ## Headless quick start (no display mounted)
 
 1. Power the unit.
-2. Connect to AP `VentReader-Setup-XXXX` (password `ventreader`).
+2. Connect to AP `Ventreader-XXXXXX` (password `ventreader`).
 3. Open `http://192.168.4.1/admin/setup`.
 4. In setup step 3, enable `Headless mode (no display mounted)`.
 5. Complete setup and reboot.
@@ -169,8 +185,8 @@ Requires one of:
 When enabled:
 - Admin quick control becomes available.
 - API write endpoints are active:
-  - `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-  - `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+  - `POST /api/control/mode` + header `Authorization: Bearer <TOKEN>` + `mode=AWAY|HOME|HIGH|FIRE`
+  - `POST /api/control/setpoint` + header `Authorization: Bearer <TOKEN>` + `profile=home|away&value=18.5`
 
 ## Required vs optional
 
@@ -187,7 +203,8 @@ When enabled:
 
 ## Troubleshooting (quick)
 
-- `401 missing/invalid token`: wrong or missing token.
+- `401 missing/invalid bearer token`: wrong/missing `Authorization: Bearer ...`.
+- `503 api emergency stop active`: API panic-stop is enabled in admin.
 - `403 api disabled`: selected API module is disabled.
 - `403 control disabled`: write control disabled.
 - `409 modbus disabled`: Modbus is disabled for write operations.
@@ -214,30 +231,30 @@ Recommended method is now native Home Assistant MQTT Discovery (no custom compon
 - `GET /health`
 
 ### Status
-- `GET /status?token=<HOMEY_TOKEN>`
-- `GET /ha/status?token=<HA_TOKEN>` (requires `Home Assistant/API` enabled)
+- `GET /status` with header `Authorization: Bearer <HOMEY_TOKEN>`
+- `GET /ha/status` with header `Authorization: Bearer <HA_TOKEN>` (requires `Home Assistant/API` enabled)
 
 Status payload includes:
 - Temperatures: `uteluft`, `tilluft`, `avtrekk`, `avkast`
 - Aggregates: `fan`, `heat`, `efficiency`
-- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`, `ha_mqtt_enabled`, `display_enabled`, `headless`
+- Metadata: `mode`, `modbus`, `source_status`, `model`, `time`, `screen_time`, `data_time`, `ts_epoch_ms`, `ts_iso`, `stale`, `data_source`, `ha_mqtt_enabled`, `display_enabled`, `headless`, `api_panic_stop`
 
 ### History
-- `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
-- `GET /ha/history?token=<HA_TOKEN>&limit=120`
-- `GET /status/history.csv?token=<HOMEY_TOKEN>&limit=120`
-- `GET /ha/history.csv?token=<HA_TOKEN>&limit=120`
+- `GET /status/history?limit=120` with Bearer header
+- `GET /ha/history?limit=120` with Bearer header
+- `GET /status/history.csv?limit=120` with Bearer header
+- `GET /ha/history.csv?limit=120` with Bearer header
 
 ### Diagnostics
-- `GET /status/diag?token=<HOMEY_TOKEN>`
-- `GET /status/storage?token=<HOMEY_TOKEN>`
+- `GET /status/diag` with Bearer header
+- `GET /status/storage` with Bearer header
 
 ### Control (experimental)
 Writes through active data source:
 - Modbus path requires `Modbus` + `Enable remote control writes`.
 - BACnet path requires `Enable BACnet writes`.
-- `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-- `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
+- `POST /api/control/mode` with Bearer header and `mode=AWAY|HOME|HIGH|FIRE`
+- `POST /api/control/setpoint` with Bearer header and `profile=home|away&value=18.5`
 
 ## OTA updates
 
@@ -253,7 +270,7 @@ Hold `BOOT` while powering on for ~6 seconds.
 ## Security
 
 - Change default password on first boot.
-- Share API token only with trusted local integrations.
+- Share API bearer tokens only with trusted local integrations.
 - Keep write control disabled unless required.
 
 ---

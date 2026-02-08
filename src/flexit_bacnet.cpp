@@ -320,7 +320,7 @@ static bool sendReadProperty(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
 
 static bool sendWritePropertyReal(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
                                   uint8_t invoke, uint16_t objType, uint32_t objInst,
-                                  uint32_t propId, float value)
+                                  uint32_t propId, float value, int priority = -1)
 {
   uint8_t pkt[48];
   size_t n = 0;
@@ -363,6 +363,13 @@ static bool sendWritePropertyReal(WiFiUDP& udp, const IPAddress& ip, uint16_t po
   putU32BE(pkt + n, raw); n += 4;
   pkt[n++] = 0x3F; // closing tag 3
 
+  // Optional BACnet command priority (1..16) as context tag 4.
+  if (priority >= 1 && priority <= 16)
+  {
+    pkt[n++] = 0x49; // context tag 4, len 1
+    pkt[n++] = (uint8_t)priority;
+  }
+
   putU16BE(pkt + 2, (uint16_t)n);
   if (!udp.beginPacket(ip, port)) return false;
   size_t w = udp.write(pkt, n);
@@ -372,6 +379,7 @@ static bool sendWritePropertyReal(WiFiUDP& udp, const IPAddress& ip, uint16_t po
       " obj=" + String(objType) + ":" + String(objInst) +
       " prop=" + String(propId) +
       " val=" + String(value, 2) +
+      (priority >= 1 && priority <= 16 ? (String(" prio=") + String(priority)) : "") +
       " -> " + ip.toString() + ":" + String(port) +
       (ok ? " ok" : " fail"));
   return ok;
@@ -1077,6 +1085,8 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
   ObjRef oFan = parseObjRef(g_cfg.bacnet_obj_fan);
   ObjRef oHeat = parseObjRef(g_cfg.bacnet_obj_heat);
   ObjRef oMode = parseObjRef(g_cfg.bacnet_obj_mode);
+  ObjRef oSetHome = parseObjRef(g_cfg.bacnet_obj_setpoint_home);
+  ObjRef oSetAway = parseObjRef(g_cfg.bacnet_obj_setpoint_away);
   if (!oOut.valid || !oSup.valid || !oExt.valid || !oExh.valid || !oFan.valid || !oHeat.valid || !oMode.valid)
   {
     setErr("CFG", "one or more BACnet object mappings invalid");
@@ -1121,6 +1131,30 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
   ok = ok && readOneEnum(udp, ip, g_cfg.bacnet_port, oMode, modeEnum);
   t.mode = mapModeFromEnum(modeEnum);
 
+  // Optional setpoint reads (best-effort); keep main BACnet poll green even if missing.
+  float spHome = NAN;
+  float spAway = NAN;
+  if (oSetHome.valid)
+  {
+    if (!readOneNumeric(udp, ip, g_cfg.bacnet_port, oSetHome, spHome))
+    {
+      spHome = NAN;
+      g_last_error = "OK";
+    }
+  }
+  if (oSetAway.valid)
+  {
+    if (!readOneNumeric(udp, ip, g_cfg.bacnet_port, oSetAway, spAway))
+    {
+      spAway = NAN;
+      g_last_error = "OK";
+    }
+  }
+  if (t.mode == "AWAY")
+    t.set_temp = !isnan(spAway) ? spAway : spHome;
+  else
+    t.set_temp = !isnan(spHome) ? spHome : spAway;
+
   udp.stop();
 
   if (!ok)
@@ -1149,6 +1183,7 @@ bool flexit_bacnet_poll(FlexitData& out)
   out.fan_percent = t.fan_percent;
   out.heat_element_percent = t.heat_element_percent;
   out.mode = t.mode;
+  out.set_temp = t.set_temp;
   return true;
 }
 
@@ -1200,18 +1235,16 @@ static bool writeOneModeEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port, c
   return false;
 }
 
-static bool writeOneReal(WiFiUDP& udp, const IPAddress& ip, uint16_t port, const ObjRef& ref, float value)
+static bool writeOneRealAttempt(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
+                                const ObjRef& ref, float value, int priority, String& outErr)
 {
-  if (!ref.valid)
-  {
-    setErr("CFG", "bad setpoint object mapping");
-    return false;
-  }
+  outErr = "";
+  if (!ref.valid) { outErr = "bad setpoint object mapping"; return false; }
 
   uint8_t invoke = g_invoke++;
-  if (!sendWritePropertyReal(udp, ip, port, invoke, ref.type, ref.instance, 85, value))
+  if (!sendWritePropertyReal(udp, ip, port, invoke, ref.type, ref.instance, 85, value, priority))
   {
-    setErr("NET", "send setpoint write failed");
+    outErr = "send setpoint write failed";
     return false;
   }
 
@@ -1233,13 +1266,53 @@ static bool writeOneReal(WiFiUDP& udp, const IPAddress& ip, uint16_t port, const
     if (parseWritePropertyResult(buf, (size_t)rd, invoke, err)) return true;
     if (err.length() > 0)
     {
-      setErr("WRITE", err);
+      outErr = err;
       return false;
     }
   }
 
-  if (gotFromTarget) { setErr("WRITE", "setpoint write reply not understood"); return false; }
-  setErr("WRITE", "setpoint write timeout");
+  if (gotFromTarget) { outErr = "setpoint write reply not understood"; return false; }
+  outErr = "setpoint write timeout";
+  return false;
+}
+
+static bool writeOneReal(WiFiUDP& udp, const IPAddress& ip, uint16_t port, const ObjRef& ref, float value)
+{
+  if (!ref.valid)
+  {
+    setErr("CFG", "bad setpoint object mapping");
+    return false;
+  }
+
+  String err;
+  if (writeOneRealAttempt(udp, ip, port, ref, value, -1, err)) return true;
+  String firstErr = err;
+  String lastErr = err;
+
+  // Flexit variants may require priority on WriteProperty, or expose writable sibling object type.
+  const bool accessDenied = (firstErr.indexOf("class=2 code=40") >= 0);
+  if (accessDenied)
+  {
+    dbg("WRITE setpoint fallback: retry with priority=16");
+    if (writeOneRealAttempt(udp, ip, port, ref, value, 16, err)) return true;
+    lastErr = err;
+
+    if (ref.type == 2 || ref.type == 1) // av <-> ao sibling fallback
+    {
+      ObjRef alt = ref;
+      alt.type = (ref.type == 2) ? 1 : 2;
+      dbg(String("WRITE setpoint fallback: retry alt object type ") + String(alt.type) + ":" + String(alt.instance));
+      if (writeOneRealAttempt(udp, ip, port, alt, value, 16, err)) return true;
+      lastErr = err;
+      if (writeOneRealAttempt(udp, ip, port, alt, value, -1, err)) return true;
+      lastErr = err;
+    }
+  }
+
+  if (lastErr.length() > 0 && lastErr != firstErr)
+    setErr("WRITE", firstErr + String(" | fallback: ") + lastErr);
+  else
+    setErr("WRITE", firstErr);
   return false;
 }
 

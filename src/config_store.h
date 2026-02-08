@@ -15,6 +15,7 @@ struct DeviceConfig {
   bool admin_pass_changed; // must be true before allowing normal admin actions
 
   bool token_generated; // set once after secure token is generated
+  bool api_panic_stop;  // emergency stop for all token-protected API endpoints
 
   // Setup flow
   bool setup_completed; // true after wizard is finished

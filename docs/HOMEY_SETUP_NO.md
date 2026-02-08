@@ -24,12 +24,12 @@ Metoden under bruker:
 
 I VentReader admin (`/admin`):
 1. Aktiver `Homey/API` (wizard steg 3 krever eksplisitt aktiver/deaktiver).
-2. Sett/bruk sterk **Homey token (/status)** i admin.
+2. Sett/bruk sterk **Homey Bearer-token (/status)** i admin.
 3. Velg datakilde (`Modbus` eller `BACnet`).
 4. Noter lokal IP-adresse til enheten.
 
 Test i nettleser:
-- `http://<VENTREADER_IP>/status?token=<HOMEY_TOKEN>&pretty=1`
+- `GET http://<VENTREADER_IP>/status?pretty=1` med header `Authorization: Bearer <HOMEY_TOKEN>`
 
 Du skal få JSON med felter som:
 - `uteluft`, `tilluft`, `avtrekk`, `avkast`
@@ -66,7 +66,9 @@ Lim inn og rediger:
 
 ```javascript
 // VentReader -> Homey virtuelle enheter
-const VENTREADER_URL = 'http://192.168.1.50/status?token=REPLACE_TOKEN';
+const BASE = 'http://192.168.1.50';
+const TOKEN = 'REPLACE_TOKEN';
+const VENTREADER_URL = `${BASE}/status`;
 
 // Mapping: Homey enhetsnavn -> capability id
 const MAP = {
@@ -98,7 +100,7 @@ async function setByName(devices, name, capability, value) {
   await d.setCapabilityValue(capability, value);
 }
 
-const res = await fetch(VENTREADER_URL);
+const res = await fetch(VENTREADER_URL, { headers: { Authorization: `Bearer ${TOKEN}` } });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 const s = await res.json();
 
@@ -168,8 +170,8 @@ I VentReader admin (`/admin`), aktiver ett av disse:
 2. Datakilde `BACnet` + `Enable BACnet writes (experimental)`
 
 Styrings-endepunkt:
-1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-2. `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+1. `POST /api/control/mode` med header `Authorization: Bearer <TOKEN>` + `mode=AWAY|HOME|HIGH|FIRE`
+2. `POST /api/control/setpoint` med header `Authorization: Bearer <TOKEN>` + `profile=home|away&value=18.5`
 
 Eksempel HomeyScript handling:
 
@@ -178,11 +180,11 @@ const BASE = 'http://192.168.1.50';
 const TOKEN = 'REPLACE_TOKEN';
 
 // Sett modus HOME
-let res = await fetch(`${BASE}/api/control/mode?token=${TOKEN}&mode=HOME`, { method: 'POST' });
+let res = await fetch(`${BASE}/api/control/mode?mode=HOME`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}` } });
 if (!res.ok) throw new Error(`Mode write failed: HTTP ${res.status}`);
 
 // Sett HOME setpunkt til 20.5 C
-res = await fetch(`${BASE}/api/control/setpoint?token=${TOKEN}&profile=home&value=20.5`, { method: 'POST' });
+res = await fetch(`${BASE}/api/control/setpoint?profile=home&value=20.5`, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}` } });
 if (!res.ok) throw new Error(`Setpoint write failed: HTTP ${res.status}`);
 
 return 'Control writes OK';
@@ -190,4 +192,4 @@ return 'Control writes OK';
 
 Sikkerhet:
 1. Hold skrivestyring avskrudd når den ikke trengs.
-2. Del kun Homey-token med lokale, pålitelige automasjoner.
+2. Del kun Homey Bearer-token med lokale, pålitelige automasjoner.

@@ -32,6 +32,136 @@ static FlexitData g_data;
 static String g_mb = "MB OFF";
 
 static bool checkAdminAuth();
+static String buildStatusJson(bool pretty);
+static void redirectTo(const String& path);
+static String jsonEscape(const String& s);
+
+static String jsonUnescape(const String& in)
+{
+  String out;
+  out.reserve(in.length());
+  for (size_t i = 0; i < in.length(); i++)
+  {
+    char c = in[i];
+    if (c == '\\' && i + 1 < in.length())
+    {
+      char n = in[++i];
+      if (n == 'n') out += '\n';
+      else if (n == 'r') out += '\r';
+      else if (n == 't') out += '\t';
+      else out += n;
+    }
+    else out += c;
+  }
+  return out;
+}
+
+static bool jsonFindKey(const String& json, const char* key, int& valStart)
+{
+  const String pat = String("\"") + key + "\"";
+  int p = json.indexOf(pat);
+  if (p < 0) return false;
+  p = json.indexOf(':', p + pat.length());
+  if (p < 0) return false;
+  p++;
+  while (p < (int)json.length() && (json[p] == ' ' || json[p] == '\n' || json[p] == '\r' || json[p] == '\t')) p++;
+  if (p >= (int)json.length()) return false;
+  valStart = p;
+  return true;
+}
+
+static bool jsonGetString(const String& json, const char* key, String& out)
+{
+  int p = 0;
+  if (!jsonFindKey(json, key, p)) return false;
+  if (json[p] != '\"') return false;
+  p++;
+  String raw;
+  for (; p < (int)json.length(); p++)
+  {
+    char c = json[p];
+    if (c == '\"' && (p == 0 || json[p - 1] != '\\')) break;
+    raw += c;
+  }
+  out = jsonUnescape(raw);
+  return true;
+}
+
+static bool jsonGetBool(const String& json, const char* key, bool& out)
+{
+  int p = 0;
+  if (!jsonFindKey(json, key, p)) return false;
+  if (json.substring(p, p + 4) == "true") { out = true; return true; }
+  if (json.substring(p, p + 5) == "false") { out = false; return true; }
+  return false;
+}
+
+static bool jsonGetInt(const String& json, const char* key, int& out)
+{
+  int p = 0;
+  if (!jsonFindKey(json, key, p)) return false;
+  int e = p;
+  while (e < (int)json.length() && (json[e] == '-' || (json[e] >= '0' && json[e] <= '9'))) e++;
+  if (e == p) return false;
+  out = json.substring(p, e).toInt();
+  return true;
+}
+
+static String buildConfigExportJson()
+{
+  String out;
+  out.reserve(4096);
+  out += "{\n";
+  out += "  \"export\": \"ventreader_config_v1\",\n";
+  out += "  \"fw\": \"" + jsonEscape(String(FW_VERSION)) + "\",\n";
+  out += "  \"config\": {\n";
+  out += "    \"wifi_ssid\": \"" + jsonEscape(g_cfg->wifi_ssid) + "\",\n";
+  out += "    \"wifi_pass\": \"" + jsonEscape(g_cfg->wifi_pass) + "\",\n";
+  out += "    \"api_token\": \"" + jsonEscape(g_cfg->api_token) + "\",\n";
+  out += "    \"homey_api_token\": \"" + jsonEscape(g_cfg->homey_api_token) + "\",\n";
+  out += "    \"ha_api_token\": \"" + jsonEscape(g_cfg->ha_api_token) + "\",\n";
+  out += "    \"model\": \"" + jsonEscape(g_cfg->model) + "\",\n";
+  out += "    \"modbus_enabled\": " + String(g_cfg->modbus_enabled ? "true" : "false") + ",\n";
+  out += "    \"homey_enabled\": " + String(g_cfg->homey_enabled ? "true" : "false") + ",\n";
+  out += "    \"ha_enabled\": " + String(g_cfg->ha_enabled ? "true" : "false") + ",\n";
+  out += "    \"display_enabled\": " + String(g_cfg->display_enabled ? "true" : "false") + ",\n";
+  out += "    \"ha_mqtt_enabled\": " + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",\n";
+  out += "    \"control_enabled\": " + String(g_cfg->control_enabled ? "true" : "false") + ",\n";
+  out += "    \"data_source\": \"" + jsonEscape(g_cfg->data_source) + "\",\n";
+  out += "    \"ha_mqtt_host\": \"" + jsonEscape(g_cfg->ha_mqtt_host) + "\",\n";
+  out += "    \"ha_mqtt_port\": " + String((int)g_cfg->ha_mqtt_port) + ",\n";
+  out += "    \"ha_mqtt_user\": \"" + jsonEscape(g_cfg->ha_mqtt_user) + "\",\n";
+  out += "    \"ha_mqtt_pass\": \"" + jsonEscape(g_cfg->ha_mqtt_pass) + "\",\n";
+  out += "    \"ha_mqtt_prefix\": \"" + jsonEscape(g_cfg->ha_mqtt_prefix) + "\",\n";
+  out += "    \"ha_mqtt_topic_base\": \"" + jsonEscape(g_cfg->ha_mqtt_topic_base) + "\",\n";
+  out += "    \"ha_mqtt_interval_s\": " + String((int)g_cfg->ha_mqtt_interval_s) + ",\n";
+  out += "    \"bacnet_ip\": \"" + jsonEscape(g_cfg->bacnet_ip) + "\",\n";
+  out += "    \"bacnet_port\": " + String((int)g_cfg->bacnet_port) + ",\n";
+  out += "    \"bacnet_device_id\": " + String(g_cfg->bacnet_device_id) + ",\n";
+  out += "    \"bacnet_poll_minutes\": " + String((int)g_cfg->bacnet_poll_minutes) + ",\n";
+  out += "    \"bacnet_timeout_ms\": " + String((int)g_cfg->bacnet_timeout_ms) + ",\n";
+  out += "    \"bacnet_write_enabled\": " + String(g_cfg->bacnet_write_enabled ? "true" : "false") + ",\n";
+  out += "    \"bacnet_obj_outdoor\": \"" + jsonEscape(g_cfg->bacnet_obj_outdoor) + "\",\n";
+  out += "    \"bacnet_obj_supply\": \"" + jsonEscape(g_cfg->bacnet_obj_supply) + "\",\n";
+  out += "    \"bacnet_obj_extract\": \"" + jsonEscape(g_cfg->bacnet_obj_extract) + "\",\n";
+  out += "    \"bacnet_obj_exhaust\": \"" + jsonEscape(g_cfg->bacnet_obj_exhaust) + "\",\n";
+  out += "    \"bacnet_obj_fan\": \"" + jsonEscape(g_cfg->bacnet_obj_fan) + "\",\n";
+  out += "    \"bacnet_obj_heat\": \"" + jsonEscape(g_cfg->bacnet_obj_heat) + "\",\n";
+  out += "    \"bacnet_obj_mode\": \"" + jsonEscape(g_cfg->bacnet_obj_mode) + "\",\n";
+  out += "    \"bacnet_obj_setpoint_home\": \"" + jsonEscape(g_cfg->bacnet_obj_setpoint_home) + "\",\n";
+  out += "    \"bacnet_obj_setpoint_away\": \"" + jsonEscape(g_cfg->bacnet_obj_setpoint_away) + "\",\n";
+  out += "    \"bacnet_mode_map\": \"" + jsonEscape(g_cfg->bacnet_mode_map) + "\",\n";
+  out += "    \"ui_language\": \"" + jsonEscape(g_cfg->ui_language) + "\",\n";
+  out += "    \"modbus_transport_mode\": \"" + jsonEscape(g_cfg->modbus_transport_mode) + "\",\n";
+  out += "    \"modbus_serial_format\": \"" + jsonEscape(g_cfg->modbus_serial_format) + "\",\n";
+  out += "    \"modbus_baud\": " + String((int)g_cfg->modbus_baud) + ",\n";
+  out += "    \"modbus_slave_id\": " + String((int)g_cfg->modbus_slave_id) + ",\n";
+  out += "    \"modbus_addr_offset\": " + String((int)g_cfg->modbus_addr_offset) + ",\n";
+  out += "    \"poll_interval_ms\": " + String((int)g_cfg->poll_interval_ms) + "\n";
+  out += "  }\n";
+  out += "}\n";
+  return out;
+}
 
 static uint64_t nowEpochMs()
 {
@@ -214,6 +344,7 @@ static String tr(const char* key)
   if (strcmp(key, "source_modbus") == 0) return en ? "Modbus (experimental, local)" : no ? "Modbus (eksperimentell, lokal)" : da ? "Modbus (eksperimentel, lokal)" : sv ? "Modbus (experimentell, lokal)" : fi ? "Modbus (kokeellinen, paikallinen)" : "Modbus (експериментально, локально)";
   if (strcmp(key, "source_bacnet") == 0) return en ? "BACnet (local)" : no ? "BACnet (lokal)" : da ? "BACnet (lokal)" : sv ? "BACnet (lokal)" : fi ? "BACnet (paikallinen)" : "BACnet (локально)";
   if (strcmp(key, "source_bacnet_help") == 0) return en ? "Uses local BACnet/IP over LAN. Read is production-ready; writes are optional/experimental." : no ? "Bruker lokal BACnet/IP i LAN. Lesing er produksjonsklar; skriving er valgfri/eksperimentell." : da ? "Bruger lokal BACnet/IP pa LAN. Laesning er produktionsklar; skrivning er valgfri/eksperimentel." : sv ? "Anvander lokal BACnet/IP over LAN. Lasning ar produktionsklar; skrivning ar valfri/experimentell." : fi ? "Kayttaa paikallista BACnet/IP-yhteytta LAN-verkossa. Luku on tuotantovalmis; kirjoitus on valinnainen/kokeellinen." : "Використовує локальний BACnet/IP у LAN. Читання готове до продакшну; запис необов'язковий/експериментальний.";
+  if (strcmp(key, "source_bacnet_default_map_hint") == 0) return en ? "Default object mapping is preconfigured for most users. Run scan/probe only if values look wrong." : no ? "Standard objektmapping er forhåndsutfylt for de fleste. Kjør scan/probe kun hvis verdiene ser feil ut." : da ? "Standard objektmapping er forudfyldt for de fleste. Kor scan/probe kun hvis vaerdierne ser forkerte ud." : sv ? "Standard objektmappning ar forifylld for de flesta. Kor scan/probe endast om vardena ser fel ut." : fi ? "Oletusobjektikartoitus on esiasetettu useimmille. Kayta scan/probe-toimintoja vain, jos arvot nayttavat vaarilta." : "Стандартне зіставлення об'єктів уже задане для більшості. Запускайте scan/probe лише якщо значення виглядають неправильними.";
   if (strcmp(key, "bac_ip") == 0) return en ? "BACnet device IP" : no ? "BACnet enhets-IP" : da ? "BACnet enheds-IP" : sv ? "BACnet enhets-IP" : fi ? "BACnet laitteen IP" : "IP пристрою BACnet";
   if (strcmp(key, "bac_device_id") == 0) return en ? "BACnet Device ID" : no ? "BACnet Device ID" : da ? "BACnet Device ID" : sv ? "BACnet Device ID" : fi ? "BACnet Device ID" : "BACnet Device ID";
   if (strcmp(key, "bac_port") == 0) return en ? "UDP port" : no ? "UDP-port" : da ? "UDP-port" : sv ? "UDP-port" : fi ? "UDP-portti" : "UDP-порт";
@@ -275,6 +406,8 @@ static String tr(const char* key)
   if (strcmp(key, "refresh") == 0) return en ? "Refresh" : no ? "Oppdater" : da ? "Opdater" : sv ? "Uppdatera" : fi ? "Paivita" : "Оновити";
   if (strcmp(key, "history_limit") == 0) return en ? "Points" : no ? "Punkter" : da ? "Punkter" : sv ? "Punkter" : fi ? "Pisteet" : "Точки";
   if (strcmp(key, "loading") == 0) return en ? "Loading..." : no ? "Laster..." : da ? "Indlaeser..." : sv ? "Laddar..." : fi ? "Ladataan..." : "Завантаження...";
+  if (strcmp(key, "mdns_return_hint") == 0) return en ? "If mDNS is enabled on your network, click below to go to your device." : no ? "Om du har mDNS aktivert i nettverket ditt, klikk under for å gå til enheten din." : da ? "Hvis mDNS er aktiveret i dit netværk, klik nedenfor for at gå til din enhed." : sv ? "Om mDNS är aktiverat i ditt nätverk, klicka nedan för att gå till din enhet." : fi ? "Jos mDNS on käytössä verkossasi, klikkaa alta siirtyäksesi laitteellesi." : "Якщо mDNS увімкнено у вашій мережі, натисніть нижче, щоб перейти до вашого пристрою.";
+  if (strcmp(key, "mdns_open_device") == 0) return en ? "Open device via mDNS" : no ? "Åpne enheten via mDNS" : da ? "Åbn enheden via mDNS" : sv ? "Öppna enheten via mDNS" : fi ? "Avaa laite mDNS:n kautta" : "Відкрити пристрій через mDNS";
   if (strcmp(key, "temp_graph") == 0) return en ? "Temperatures" : no ? "Temperaturer" : da ? "Temperaturer" : sv ? "Temperaturer" : fi ? "Lampotilat" : "Температури";
   if (strcmp(key, "perf_graph") == 0) return en ? "Performance" : no ? "Ytelse" : da ? "Ydelse" : sv ? "Prestanda" : fi ? "Suorituskyky" : "Продуктивність";
   if (strcmp(key, "export_csv") == 0) return en ? "Export CSV" : no ? "Eksporter CSV" : da ? "Eksporter CSV" : sv ? "Exportera CSV" : fi ? "Vie CSV" : "Експорт CSV";
@@ -637,6 +770,76 @@ static void handleAdminBACnetObjectScan()
   server.send(200, "application/json", out);
 }
 
+static void handleAdminBACnetWriteProbe()
+{
+  if (!checkAdminAuth()) return;
+
+  DeviceConfig tmp = *g_cfg;
+  tmp.data_source = "BACNET";
+  tmp.bacnet_write_enabled = true; // probe endpoint is explicitly experimental
+  if (server.hasArg("bacip")) tmp.bacnet_ip = server.arg("bacip");
+  if (server.hasArg("bacid")) tmp.bacnet_device_id = (uint32_t)server.arg("bacid").toInt();
+  if (server.hasArg("bacport")) tmp.bacnet_port = (uint16_t)server.arg("bacport").toInt();
+  if (server.hasArg("bacto")) tmp.bacnet_timeout_ms = (uint16_t)server.arg("bacto").toInt();
+  if (server.hasArg("bashome")) tmp.bacnet_obj_setpoint_home = server.arg("bashome");
+  if (server.hasArg("basaway")) tmp.bacnet_obj_setpoint_away = server.arg("basaway");
+  if (server.hasArg("bamode")) tmp.bacnet_obj_mode = server.arg("bamode");
+  if (server.hasArg("bamap")) tmp.bacnet_mode_map = server.arg("bamap");
+
+  String why;
+  FlexitData t = g_data;
+  if (!runBACnetPreflight(tmp, &t, &why))
+  {
+    String out = "{\"ok\":false,\"error\":\"" + jsonEscape(why) + "\"";
+    out += ",\"debug\":\"" + jsonEscape(flexit_bacnet_debug_dump_text()) + "\"}";
+    server.send(200, "application/json", out);
+    return;
+  }
+
+  float probeSet = !isnan(t.set_temp) ? t.set_temp : (!isnan(t.tilluft) ? t.tilluft : 21.0f);
+  if (probeSet < 10.0f) probeSet = 10.0f;
+  if (probeSet > 30.0f) probeSet = 30.0f;
+  const String modeNow = t.mode;
+
+  flexit_bacnet_set_runtime_config(tmp);
+
+  bool modeTried = false;
+  bool modeOk = false;
+  String modeErr = "skipped (unsupported current mode)";
+  String modeUpper = modeNow;
+  modeUpper.toUpperCase();
+  if (modeUpper == "AWAY" || modeUpper == "HOME" || modeUpper == "HIGH" || modeUpper == "FIRE")
+  {
+    modeTried = true;
+    modeOk = flexit_bacnet_write_mode(modeUpper);
+    if (!modeOk) modeErr = String(flexit_bacnet_last_error());
+    else modeErr = "OK";
+  }
+
+  bool homeOk = flexit_bacnet_write_setpoint("home", probeSet);
+  String homeErr = homeOk ? "OK" : String(flexit_bacnet_last_error());
+  bool awayOk = flexit_bacnet_write_setpoint("away", probeSet);
+  String awayErr = awayOk ? "OK" : String(flexit_bacnet_last_error());
+
+  bool ok = (homeOk || awayOk || modeOk);
+  String out = "{\"ok\":";
+  out += (ok ? "true" : "false");
+  out += ",\"experimental\":true";
+  out += ",\"probe_set_temp\":" + fOrNullCompact(probeSet);
+  out += ",\"current_mode\":\"" + jsonEscape(modeNow) + "\"";
+  out += ",\"results\":{";
+  out += "\"mode\":{\"tried\":" + String(modeTried ? "true" : "false") + ",\"ok\":" + String(modeOk ? "true" : "false") + ",\"error\":\"" + jsonEscape(modeErr) + "\"},";
+  out += "\"setpoint_home\":{\"ok\":" + String(homeOk ? "true" : "false") + ",\"error\":\"" + jsonEscape(homeErr) + "\"},";
+  out += "\"setpoint_away\":{\"ok\":" + String(awayOk ? "true" : "false") + ",\"error\":\"" + jsonEscape(awayErr) + "\"}";
+  out += "}";
+  if (!ok)
+  {
+    out += ",\"error\":\"" + jsonEscape(String("No BACnet write variant succeeded")) + "\"";
+  }
+  out += ",\"debug\":\"" + jsonEscape(flexit_bacnet_debug_dump_text()) + "\"}";
+  server.send(200, "application/json", out);
+}
+
 static void handleAdminBACnetDebug()
 {
   if (!checkAdminAuth()) return;
@@ -672,28 +875,66 @@ static bool tokenMatches(const String& got, const String& expected)
   return (got.length() > 0 && expected.length() > 0 && got == expected);
 }
 
-// Status/Homey endpoints use the dedicated Homey token (fallback to main token for compatibility).
-static bool tokenOKHomey()
+enum ApiScope : uint8_t {
+  API_SCOPE_HOMEY_READ = 1,
+  API_SCOPE_HA_READ = 2,
+  API_SCOPE_CONTROL_WRITE = 4
+};
+
+static bool apiPanicActive()
 {
-  if (!server.hasArg("token")) return false;
-  const String t = server.arg("token");
-  return tokenMatches(t, g_cfg->homey_api_token) || tokenMatches(t, g_cfg->api_token);
+  return g_cfg && g_cfg->api_panic_stop;
 }
 
-// HA endpoints use the dedicated HA token (fallback to main token for compatibility).
-static bool tokenOKHA()
+static String bearerToken()
 {
-  if (!server.hasArg("token")) return false;
-  const String t = server.arg("token");
-  return tokenMatches(t, g_cfg->ha_api_token) || tokenMatches(t, g_cfg->api_token);
+  if (!server.hasHeader("Authorization")) return "";
+  String h = server.header("Authorization");
+  h.trim();
+  if (!h.startsWith("Bearer ")) return "";
+  String t = h.substring(7);
+  t.trim();
+  return t;
 }
 
-// Control endpoints keep strict main-token authentication.
-static bool tokenOKControl()
+static bool tokenScopeOK(const String& token, ApiScope scope)
 {
-  if (!server.hasArg("token")) return false;
-  const String t = server.arg("token");
-  return tokenMatches(t, g_cfg->api_token);
+  if (!g_cfg) return false;
+  if (tokenMatches(token, g_cfg->api_token))
+  {
+    // Main token can read + write control.
+    return true;
+  }
+  if (scope == API_SCOPE_HOMEY_READ && tokenMatches(token, g_cfg->homey_api_token))
+  {
+    return true;
+  }
+  if (scope == API_SCOPE_HA_READ && tokenMatches(token, g_cfg->ha_api_token))
+  {
+    return true;
+  }
+  return false;
+}
+
+static bool requireApiScope(ApiScope scope)
+{
+  if (apiPanicActive())
+  {
+    server.send(503, "text/plain", "api emergency stop active");
+    return false;
+  }
+  const String t = bearerToken();
+  if (t.length() == 0)
+  {
+    server.send(401, "text/plain", "missing/invalid bearer token");
+    return false;
+  }
+  if (!tokenScopeOK(t, scope))
+  {
+    server.send(401, "text/plain", "missing/invalid bearer token");
+    return false;
+  }
+  return true;
 }
 
 static String genWebToken(size_t bytes = 16)
@@ -731,6 +972,33 @@ static void handleAdminNewToken()
   server.send(200, "application/json", out);
 }
 
+static void handleAdminApiEmergencyStop()
+{
+  if (!checkAdminAuth()) return;
+  bool enable = false;
+  if (server.hasArg("enable"))
+  {
+    String e = server.arg("enable");
+    e.toLowerCase();
+    enable = (e == "1" || e == "true" || e == "on" || e == "yes");
+  }
+  g_cfg->api_panic_stop = enable;
+  config_save(*g_cfg);
+  redirectTo("/admin");
+}
+
+static void handleAdminApiPreview()
+{
+  if (!checkAdminAuth()) return;
+  bool pretty = false;
+  if (server.hasArg("pretty"))
+  {
+    String v = server.arg("pretty");
+    pretty = (v == "1" || v == "true" || v == "yes");
+  }
+  server.send(200, "application/json", buildStatusJson(pretty));
+}
+
 static bool checkAdminAuth()
 {
   // First-boot onboarding is intentionally pre-auth until setup is completed.
@@ -761,6 +1029,16 @@ static String buildStatusJson(bool pretty)
   const String src = jsonEscape(normDataSource(g_cfg->data_source));
   const String model = jsonEscape(g_data.device_model);
   const String fw = jsonEscape(String(FW_VERSION));
+  const String bacOutdoor = jsonEscape(g_cfg->bacnet_obj_outdoor);
+  const String bacSupply = jsonEscape(g_cfg->bacnet_obj_supply);
+  const String bacExtract = jsonEscape(g_cfg->bacnet_obj_extract);
+  const String bacExhaust = jsonEscape(g_cfg->bacnet_obj_exhaust);
+  const String bacFan = jsonEscape(g_cfg->bacnet_obj_fan);
+  const String bacHeat = jsonEscape(g_cfg->bacnet_obj_heat);
+  const String bacMode = jsonEscape(g_cfg->bacnet_obj_mode);
+  const String bacSetHome = jsonEscape(g_cfg->bacnet_obj_setpoint_home);
+  const String bacSetAway = jsonEscape(g_cfg->bacnet_obj_setpoint_away);
+  const String bacModeMap = jsonEscape(g_cfg->bacnet_mode_map);
 
   const uint64_t tsEpochMs = nowEpochMs();
   const String tsIso = jsonEscape(isoFromEpochMs(tsEpochMs));
@@ -780,6 +1058,7 @@ static String buildStatusJson(bool pretty)
   const String ti = fOrNull(g_data.tilluft);
   const String av = fOrNull(g_data.avtrekk);
   const String ak = fOrNull(g_data.avkast);
+  const String st = fOrNull(g_data.set_temp);
 
   String out;
   out.reserve(pretty ? 2600 : 1200);
@@ -799,6 +1078,7 @@ static String buildStatusJson(bool pretty)
     out += "\"tilluft\":" + ti + ",";
     out += "\"avtrekk\":" + av + ",";
     out += "\"avkast\":" + ak + ",";
+    out += "\"set_temp\":" + st + ",";
     out += "\"fan\":" + String(g_data.fan_percent) + ",";
     out += "\"heat\":" + String(g_data.heat_element_percent) + ",";
     out += "\"efficiency\":" + String(g_data.efficiency_percent) + ",";
@@ -809,6 +1089,38 @@ static String buildStatusJson(bool pretty)
     out += "\"source_status\":" + quoted(sourceStatus) + ",";
     out += "\"modbus\":" + quoted(sourceStatus) + ",";
     out += "\"data_source\":" + quoted(src) + ",";
+    out += "\"source_points\":{";
+    out += "\"bacnet\":{";
+    out += "\"ip\":" + quoted(jsonEscape(g_cfg->bacnet_ip)) + ",";
+    out += "\"port\":" + String((int)g_cfg->bacnet_port) + ",";
+    out += "\"device_id\":" + String((unsigned long)g_cfg->bacnet_device_id) + ",";
+    out += "\"outdoor\":" + quoted(bacOutdoor) + ",";
+    out += "\"supply\":" + quoted(bacSupply) + ",";
+    out += "\"extract\":" + quoted(bacExtract) + ",";
+    out += "\"exhaust\":" + quoted(bacExhaust) + ",";
+    out += "\"fan\":" + quoted(bacFan) + ",";
+    out += "\"heat\":" + quoted(bacHeat) + ",";
+    out += "\"mode\":" + quoted(bacMode) + ",";
+    out += "\"setpoint_home\":" + quoted(bacSetHome) + ",";
+    out += "\"setpoint_away\":" + quoted(bacSetAway) + ",";
+    out += "\"mode_map\":" + quoted(bacModeMap);
+    out += "},";
+    out += "\"modbus\":{";
+    out += "\"slave_id\":" + String((int)g_cfg->modbus_slave_id) + ",";
+    out += "\"baud\":" + String((unsigned long)g_cfg->modbus_baud) + ",";
+    out += "\"serial_format\":" + quoted(jsonEscape(g_cfg->modbus_serial_format)) + ",";
+    out += "\"addr_offset\":" + String((int)g_cfg->modbus_addr_offset) + ",";
+    out += "\"reg_uteluft_in\":" + String((int)FLEXIT_REG_UTELUFT_IN) + ",";
+    out += "\"reg_tilluft_in\":" + String((int)FLEXIT_REG_TILLUFT_IN) + ",";
+    out += "\"reg_avtrekk_in\":" + String((int)FLEXIT_REG_AVTREKK_IN) + ",";
+    out += "\"reg_avkast_in\":" + String((int)FLEXIT_REG_AVKAST_IN) + ",";
+    out += "\"reg_fan_pct_hold\":" + String((int)FLEXIT_REG_FAN_PCT_HOLD) + ",";
+    out += "\"reg_heat_pct_hold\":" + String((int)FLEXIT_REG_HEAT_PCT_HOLD) + ",";
+    out += "\"reg_mode_in\":" + String((int)FLEXIT_REG_MODE_IN) + ",";
+    out += "\"reg_setpoint_home_hold\":" + String((int)FLEXIT_REG_SETPOINT_HOME_HOLD) + ",";
+    out += "\"reg_setpoint_away_hold\":" + String((int)FLEXIT_REG_SETPOINT_AWAY_HOLD);
+    out += "}";
+    out += "},";
     out += "\"homey_enabled\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
     out += "\"ha_enabled\":" + String(g_cfg->ha_enabled ? "true" : "false") + ",";
     out += "\"display_enabled\":" + String(g_cfg->display_enabled ? "true" : "false") + ",";
@@ -816,6 +1128,7 @@ static String buildStatusJson(bool pretty)
     out += "\"ha_mqtt_enabled\":" + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",";
     out += "\"modbus_enabled\":" + String(g_cfg->modbus_enabled ? "true" : "false") + ",";
     out += "\"bacnet_write_enabled\":" + String(g_cfg->bacnet_write_enabled ? "true" : "false");
+    out += ",\"api_panic_stop\":" + String(g_cfg->api_panic_stop ? "true" : "false");
     out += "}";
     return out;
   }
@@ -841,7 +1154,40 @@ static String buildStatusJson(bool pretty)
     out += "    \"display_enabled\": " + String(g_cfg->display_enabled ? "true" : "false") + ",\n";
     out += "    \"headless\": " + String(g_cfg->display_enabled ? "false" : "true") + ",\n";
     out += "    \"ha_mqtt_enabled\": " + String(g_cfg->ha_mqtt_enabled ? "true" : "false") + ",\n";
-    out += "    \"bacnet_write_enabled\": " + String(g_cfg->bacnet_write_enabled ? "true" : "false") + "\n";
+    out += "    \"bacnet_write_enabled\": " + String(g_cfg->bacnet_write_enabled ? "true" : "false") + ",\n";
+    out += "    \"api_panic_stop\": " + String(g_cfg->api_panic_stop ? "true" : "false") + "\n";
+  out += "  },\n";
+  out += "  \"known_source_points\": {\n";
+  out += "    \"bacnet\": {\n";
+  out += "      \"ip\": " + quoted(jsonEscape(g_cfg->bacnet_ip)) + ",\n";
+  out += "      \"port\": " + String((int)g_cfg->bacnet_port) + ",\n";
+  out += "      \"device_id\": " + String((unsigned long)g_cfg->bacnet_device_id) + ",\n";
+  out += "      \"outdoor\": " + quoted(bacOutdoor) + ",\n";
+  out += "      \"supply\": " + quoted(bacSupply) + ",\n";
+  out += "      \"extract\": " + quoted(bacExtract) + ",\n";
+  out += "      \"exhaust\": " + quoted(bacExhaust) + ",\n";
+  out += "      \"fan\": " + quoted(bacFan) + ",\n";
+  out += "      \"heat\": " + quoted(bacHeat) + ",\n";
+  out += "      \"mode\": " + quoted(bacMode) + ",\n";
+  out += "      \"setpoint_home\": " + quoted(bacSetHome) + ",\n";
+  out += "      \"setpoint_away\": " + quoted(bacSetAway) + ",\n";
+  out += "      \"mode_map\": " + quoted(bacModeMap) + "\n";
+  out += "    },\n";
+  out += "    \"modbus\": {\n";
+  out += "      \"slave_id\": " + String((int)g_cfg->modbus_slave_id) + ",\n";
+  out += "      \"baud\": " + String((unsigned long)g_cfg->modbus_baud) + ",\n";
+  out += "      \"serial_format\": " + quoted(jsonEscape(g_cfg->modbus_serial_format)) + ",\n";
+  out += "      \"addr_offset\": " + String((int)g_cfg->modbus_addr_offset) + ",\n";
+  out += "      \"reg_uteluft_in\": " + String((int)FLEXIT_REG_UTELUFT_IN) + ",\n";
+  out += "      \"reg_tilluft_in\": " + String((int)FLEXIT_REG_TILLUFT_IN) + ",\n";
+  out += "      \"reg_avtrekk_in\": " + String((int)FLEXIT_REG_AVTREKK_IN) + ",\n";
+  out += "      \"reg_avkast_in\": " + String((int)FLEXIT_REG_AVKAST_IN) + ",\n";
+  out += "      \"reg_fan_pct_hold\": " + String((int)FLEXIT_REG_FAN_PCT_HOLD) + ",\n";
+  out += "      \"reg_heat_pct_hold\": " + String((int)FLEXIT_REG_HEAT_PCT_HOLD) + ",\n";
+  out += "      \"reg_mode_in\": " + String((int)FLEXIT_REG_MODE_IN) + ",\n";
+  out += "      \"reg_setpoint_home_hold\": " + String((int)FLEXIT_REG_SETPOINT_HOME_HOLD) + ",\n";
+  out += "      \"reg_setpoint_away_hold\": " + String((int)FLEXIT_REG_SETPOINT_AWAY_HOLD) + "\n";
+  out += "    }\n";
   out += "  },\n";
   out += "  \"network\": {\n";
   out += "    \"wifi\": " + quoted(wifi) + ",\n";
@@ -854,6 +1200,7 @@ static String buildStatusJson(bool pretty)
   out += "    \"tilluft\": " + ti + ",\n";
   out += "    \"avtrekk\": " + av + ",\n";
   out += "    \"avkast\": " + ak + ",\n";
+  out += "    \"set_temp\": " + st + ",\n";
   out += "    \"fan\": " + String(g_data.fan_percent) + ",\n";
   out += "    \"heat\": " + String(g_data.heat_element_percent) + ",\n";
   out += "    \"efficiency\": " + String(g_data.efficiency_percent) + "\n";
@@ -864,14 +1211,17 @@ static String buildStatusJson(bool pretty)
   out += "    \"data_time\": \"Last successful datasource update (HH:MM)\",\n";
   out += "    \"source_status\": \"Datasource status string (MB/BACNET + state)\",\n";
   out += "    \"modbus\": \"Alias for source_status (legacy compatibility)\",\n";
+  out += "    \"known_source_points\": \"Configured BACnet objects and Modbus register map used by this firmware\",\n";
   out += "    \"display_enabled\": \"True when physical display rendering is enabled\",\n";
   out += "    \"headless\": \"True when running without display rendering\",\n";
   out += "    \"bacnet_write_enabled\": \"True when experimental BACnet writes are enabled\",\n";
+  out += "    \"api_panic_stop\": \"True when emergency stop blocks all token-protected API endpoints\",\n";
   out += "    \"mode\": \"Ventilation mode\",\n";
   out += "    \"uteluft\": \"Outdoor temperature (C)\",\n";
   out += "    \"tilluft\": \"Supply temperature (C)\",\n";
   out += "    \"avtrekk\": \"Extract temperature (C)\",\n";
   out += "    \"avkast\": \"Exhaust temperature (C)\",\n";
+  out += "    \"set_temp\": \"Active setpoint (C)\",\n";
   out += "    \"fan\": \"Fan control/speed percent\",\n";
   out += "    \"heat\": \"Heater percent\",\n";
   out += "    \"efficiency\": \"Heat recovery efficiency percent\"\n";
@@ -895,7 +1245,7 @@ static String currentBaseUrl()
 static String buildHomeyExportJson()
 {
   const String base = currentBaseUrl();
-  const String statusUrl = base + "/status?token=" + g_cfg->homey_api_token;
+  const String statusUrl = base + "/status";
   const String activeSrc = normDataSource(g_cfg->data_source);
   const bool controlActive =
       (activeSrc == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
@@ -903,15 +1253,15 @@ static String buildHomeyExportJson()
   const uint64_t ts = nowEpochMs();
   const String tsIso = isoFromEpochMs(ts);
   const String tsStr = u64ToString(ts);
-  const String ctrlModeUrl = base + "/api/control/mode?token=" + g_cfg->api_token + "&mode=HOME";
-  const String ctrlSetpointUrl = base + "/api/control/setpoint?token=" + g_cfg->api_token + "&profile=home&value=20.5";
+  const String ctrlModeUrl = base + "/api/control/mode";
+  const String ctrlSetpointUrl = base + "/api/control/setpoint";
 
   String script;
   script.reserve(2600);
   script += "// VentReader -> Homey virtual devices\n";
-  script += "const VENTREADER_URL = '";
-  script += statusUrl;
-  script += "';\n\n";
+  script += "const VENTREADER_BASE = '" + base + "';\n";
+  script += "const VENTREADER_TOKEN = '" + g_cfg->homey_api_token + "';\n";
+  script += "const VENTREADER_URL = VENTREADER_BASE + '/status';\n\n";
   script += "const MAP = {\n";
   script += "  'VentReader - Uteluft': { field: 'uteluft', cap: 'measure_temperature' },\n";
   script += "  'VentReader - Tilluft': { field: 'tilluft', cap: 'measure_temperature' },\n";
@@ -931,7 +1281,7 @@ static String buildHomeyExportJson()
   script += "  if(!d||!d.capabilitiesObj||!d.capabilitiesObj[capability]) return;\n";
   script += "  await d.setCapabilityValue(capability,value);\n";
   script += "}\n\n";
-  script += "const res = await fetch(VENTREADER_URL);\n";
+  script += "const res = await fetch(VENTREADER_URL,{headers:{Authorization:`Bearer ${VENTREADER_TOKEN}`}});\n";
   script += "if(!res.ok) throw new Error(`HTTP ${res.status}`);\n";
   script += "const s = await res.json();\n";
   script += "const devices = await Homey.devices.getDevices();\n\n";
@@ -964,7 +1314,8 @@ static String buildHomeyExportJson()
   out += "\"model\":\"" + jsonEscape(g_cfg->model) + "\",";
   out += "\"fw\":\"" + jsonEscape(String(FW_VERSION)) + "\",";
   out += "\"base_url\":\"" + jsonEscape(base) + "\",";
-  out += "\"api_token\":\"" + jsonEscape(g_cfg->homey_api_token) + "\"";
+  out += "\"api_token\":\"" + jsonEscape(g_cfg->homey_api_token) + "\",";
+  out += "\"bearer_token\":\"" + jsonEscape(g_cfg->homey_api_token) + "\"";
   out += "},";
   out += "\"modules\":{";
   out += "\"homey_api\":" + String(g_cfg->homey_enabled ? "true" : "false") + ",";
@@ -979,7 +1330,8 @@ static String buildHomeyExportJson()
   out += "\"endpoints\":{";
   out += "\"status\":\"" + jsonEscape(statusUrl) + "\",";
   out += "\"mode_write_example\":\"" + jsonEscape(ctrlModeUrl) + "\",";
-  out += "\"setpoint_write_example\":\"" + jsonEscape(ctrlSetpointUrl) + "\"";
+  out += "\"setpoint_write_example\":\"" + jsonEscape(ctrlSetpointUrl) + "\",";
+  out += "\"auth_header_example\":\"Authorization: Bearer <TOKEN>\"";
   out += "},";
   out += "\"recommended_poll_interval_seconds\":60,";
   out += "\"flow_notes\":[";
@@ -1012,7 +1364,7 @@ static String buildHomeyExportText()
 {
   const String base = currentBaseUrl();
   const String token = g_cfg->homey_api_token;
-  const String statusUrl = base + "/status?token=" + token;
+  const String statusUrl = base + "/status";
   const String src = normDataSource(g_cfg->data_source);
   const bool controlActive =
       (src == "MODBUS" && g_cfg->modbus_enabled && g_cfg->control_enabled) ||
@@ -1026,13 +1378,14 @@ static String buildHomeyExportText()
   out += "Model: " + g_cfg->model + "\n";
   out += "Firmware: " + String(FW_VERSION) + "\n";
   out += "Base URL: " + base + "\n";
-  out += "Token: " + token + "\n\n";
+  out += "Bearer token: " + token + "\n\n";
   out += "Enable in VentReader admin\n";
   out += "- Homey/API: " + String(g_cfg->homey_enabled ? "ON" : "OFF") + "\n";
   out += "- Modbus: " + String(g_cfg->modbus_enabled ? "ON" : "OFF") + "\n";
   out += "- Control writes: " + String(controlActive ? "ON" : "OFF") + " (optional)\n\n";
   out += "Status endpoint\n";
-  out += "- " + statusUrl + "\n\n";
+  out += "- " + statusUrl + "\n";
+  out += "- Header: Authorization: Bearer " + token + "\n\n";
   out += "Recommended virtual devices\n";
   out += "- VentReader - Uteluft (measure_temperature)\n";
   out += "- VentReader - Tilluft (measure_temperature)\n";
@@ -1043,7 +1396,9 @@ static String buildHomeyExportText()
   out += "- VentReader - Gjenvinning % (measure_percentage)\n\n";
   out += "HomeyScript (VentReader Poll)\n";
   out += "-----------------------------\n";
-  out += "const VENTREADER_URL = '" + statusUrl + "';\n";
+  out += "const VENTREADER_BASE = '" + base + "';\n";
+  out += "const VENTREADER_TOKEN = '" + token + "';\n";
+  out += "const VENTREADER_URL = VENTREADER_BASE + '/status';\n";
   out += "const MAP = {\n";
   out += "  'VentReader - Uteluft': { field: 'uteluft', cap: 'measure_temperature' },\n";
   out += "  'VentReader - Tilluft': { field: 'tilluft', cap: 'measure_temperature' },\n";
@@ -1059,7 +1414,7 @@ static String buildHomeyExportText()
   out += "  if(!d||!d.capabilitiesObj||!d.capabilitiesObj[capability]) return;\n";
   out += "  await d.setCapabilityValue(capability,value);\n";
   out += "}\n";
-  out += "const res = await fetch(VENTREADER_URL); if(!res.ok) throw new Error(`HTTP ${res.status}`);\n";
+  out += "const res = await fetch(VENTREADER_URL,{headers:{Authorization:`Bearer ${VENTREADER_TOKEN}`}}); if(!res.ok) throw new Error(`HTTP ${res.status}`);\n";
   out += "const s = await res.json(); const devices = await Homey.devices.getDevices();\n";
   out += "for (const [name,cfg] of Object.entries(MAP)) { const v=num(s[cfg.field]); if(v===null) continue; await setByName(devices,name,cfg.cap,v); }\n";
   out += "return `VentReader OK: ${s.time||'--:--'} ${s.modbus||''}`;\n";
@@ -1096,6 +1451,94 @@ static void handleAdminHomeyExport()
   server.send(200, "application/json", out);
 }
 
+static void handleAdminConfigExport()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed) { redirectTo("/admin/setup?step=1"); return; }
+  String out = buildConfigExportJson();
+  server.sendHeader("Cache-Control", "no-store");
+  server.sendHeader("Content-Disposition", "attachment; filename=ventreader_config_backup.json");
+  server.send(200, "application/json", out);
+}
+
+static void handleAdminConfigImport()
+{
+  if (!checkAdminAuth()) return;
+  if (!g_cfg->setup_completed) { redirectTo("/admin/setup?step=1"); return; }
+  if (!server.hasArg("cfgjson"))
+  {
+    server.send(400, "text/plain", "missing cfgjson");
+    return;
+  }
+  const String j = server.arg("cfgjson");
+  if (j.length() < 2)
+  {
+    server.send(400, "text/plain", "invalid json");
+    return;
+  }
+
+  String s;
+  bool b;
+  int n;
+
+  if (jsonGetString(j, "wifi_ssid", s)) g_cfg->wifi_ssid = s;
+  if (jsonGetString(j, "wifi_pass", s)) g_cfg->wifi_pass = s;
+  if (jsonGetString(j, "api_token", s) && s.length() >= 16) g_cfg->api_token = s;
+  if (jsonGetString(j, "homey_api_token", s) && s.length() >= 16) g_cfg->homey_api_token = s;
+  if (jsonGetString(j, "ha_api_token", s) && s.length() >= 16) g_cfg->ha_api_token = s;
+  if (jsonGetString(j, "model", s)) g_cfg->model = normModel(s);
+  if (jsonGetBool(j, "modbus_enabled", b)) g_cfg->modbus_enabled = b;
+  if (jsonGetBool(j, "homey_enabled", b)) g_cfg->homey_enabled = b;
+  if (jsonGetBool(j, "ha_enabled", b)) g_cfg->ha_enabled = b;
+  if (jsonGetBool(j, "display_enabled", b)) g_cfg->display_enabled = b;
+  if (jsonGetBool(j, "ha_mqtt_enabled", b)) g_cfg->ha_mqtt_enabled = b;
+  if (jsonGetBool(j, "control_enabled", b)) g_cfg->control_enabled = b;
+  if (jsonGetString(j, "data_source", s)) g_cfg->data_source = normDataSource(s);
+  if (jsonGetString(j, "ha_mqtt_host", s)) g_cfg->ha_mqtt_host = s;
+  if (jsonGetInt(j, "ha_mqtt_port", n) && n > 0 && n <= 65535) g_cfg->ha_mqtt_port = (uint16_t)n;
+  if (jsonGetString(j, "ha_mqtt_user", s)) g_cfg->ha_mqtt_user = s;
+  if (jsonGetString(j, "ha_mqtt_pass", s)) g_cfg->ha_mqtt_pass = s;
+  if (jsonGetString(j, "ha_mqtt_prefix", s)) g_cfg->ha_mqtt_prefix = s;
+  if (jsonGetString(j, "ha_mqtt_topic_base", s)) g_cfg->ha_mqtt_topic_base = s;
+  if (jsonGetInt(j, "ha_mqtt_interval_s", n) && n >= 10 && n <= 3600) g_cfg->ha_mqtt_interval_s = (uint16_t)n;
+  if (jsonGetString(j, "bacnet_ip", s)) g_cfg->bacnet_ip = s;
+  if (jsonGetInt(j, "bacnet_port", n) && n > 0 && n <= 65535) g_cfg->bacnet_port = (uint16_t)n;
+  if (jsonGetInt(j, "bacnet_device_id", n) && n > 0) g_cfg->bacnet_device_id = (uint32_t)n;
+  if (jsonGetInt(j, "bacnet_poll_minutes", n) && n >= 5 && n <= 60) g_cfg->bacnet_poll_minutes = (uint8_t)n;
+  if (jsonGetInt(j, "bacnet_timeout_ms", n) && n >= 300 && n <= 8000) g_cfg->bacnet_timeout_ms = (uint16_t)n;
+  if (jsonGetBool(j, "bacnet_write_enabled", b)) g_cfg->bacnet_write_enabled = b;
+  if (jsonGetString(j, "bacnet_obj_outdoor", s)) g_cfg->bacnet_obj_outdoor = s;
+  if (jsonGetString(j, "bacnet_obj_supply", s)) g_cfg->bacnet_obj_supply = s;
+  if (jsonGetString(j, "bacnet_obj_extract", s)) g_cfg->bacnet_obj_extract = s;
+  if (jsonGetString(j, "bacnet_obj_exhaust", s)) g_cfg->bacnet_obj_exhaust = s;
+  if (jsonGetString(j, "bacnet_obj_fan", s)) g_cfg->bacnet_obj_fan = s;
+  if (jsonGetString(j, "bacnet_obj_heat", s)) g_cfg->bacnet_obj_heat = s;
+  if (jsonGetString(j, "bacnet_obj_mode", s)) g_cfg->bacnet_obj_mode = s;
+  if (jsonGetString(j, "bacnet_obj_setpoint_home", s)) g_cfg->bacnet_obj_setpoint_home = s;
+  if (jsonGetString(j, "bacnet_obj_setpoint_away", s)) g_cfg->bacnet_obj_setpoint_away = s;
+  if (jsonGetString(j, "bacnet_mode_map", s)) g_cfg->bacnet_mode_map = s;
+  if (jsonGetString(j, "ui_language", s)) g_cfg->ui_language = normLang(s);
+  if (jsonGetString(j, "modbus_transport_mode", s)) g_cfg->modbus_transport_mode = s;
+  if (jsonGetString(j, "modbus_serial_format", s)) g_cfg->modbus_serial_format = s;
+  if (jsonGetInt(j, "modbus_baud", n) && n >= 1200 && n <= 115200) g_cfg->modbus_baud = (uint32_t)n;
+  if (jsonGetInt(j, "modbus_slave_id", n) && n >= 1 && n <= 247) g_cfg->modbus_slave_id = (uint8_t)n;
+  if (jsonGetInt(j, "modbus_addr_offset", n) && n >= -5 && n <= 5) g_cfg->modbus_addr_offset = (int8_t)n;
+  if (jsonGetInt(j, "poll_interval_ms", n) && n >= 30000 && n <= 3600000) g_cfg->poll_interval_ms = (uint32_t)n;
+
+  if (g_cfg->homey_api_token.length() < 16) g_cfg->homey_api_token = g_cfg->api_token;
+  if (g_cfg->ha_api_token.length() < 16) g_cfg->ha_api_token = g_cfg->api_token;
+  if (!g_cfg->ha_enabled) g_cfg->ha_mqtt_enabled = false;
+  if (g_cfg->ha_mqtt_enabled && g_cfg->ha_mqtt_host.length() == 0)
+  {
+    server.send(400, "text/plain", "HA MQTT host/IP must be set when HA MQTT is enabled");
+    return;
+  }
+  config_apply_model_modbus_defaults(*g_cfg, false);
+  config_save(*g_cfg);
+  g_refresh_requested = true;
+  redirectTo("/admin");
+}
+
 static String buildAdminManualText(bool noLang)
 {
   String out;
@@ -1107,19 +1550,19 @@ static String buildAdminManualText(bool noLang)
     out += "Quick start\n";
     out += "1) Logg inn pa /admin.\n";
     out += "2) Fullfor setup wizard.\n";
-    out += "3) Verifiser /status?token=<HOMEY_TOKEN> svar.\n";
+    out += "3) Verifiser /status med header Authorization: Bearer <HOMEY_TOKEN>.\n";
     out += "4) For Homey: bruk Eksporter Homey-oppsett.\n";
     out += "5) For HA: aktiver HA MQTT Discovery (native) i admin (anbefalt).\n";
-    out += "   REST fallback: /ha/status?token=<HA_TOKEN>.\n";
+    out += "   REST fallback: /ha/status med header Authorization: Bearer <HA_TOKEN>.\n";
     out += "6) Datakilde: velg Modbus (eksperimentell, lokal) eller BACnet (lokal).\n";
     out += "7) Uten skjerm: aktiver headless-modus i setup/admin og bruk /admin via IP.\n\n";
     out += "Skriving (valgfritt)\n";
     out += "- Modbus: Aktiver Modbus + Enable remote control writes (experimental)\n";
     out += "- BACnet: Aktiver Enable BACnet writes (experimental)\n";
-    out += "- API mode: POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE\n";
-    out += "- API setpoint: POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5\n\n";
+    out += "- API mode: POST /api/control/mode + header Authorization: Bearer <MAIN_TOKEN> + body/query mode=AWAY|HOME|HIGH|FIRE\n";
+    out += "- API setpoint: POST /api/control/setpoint + header Authorization: Bearer <MAIN_TOKEN> + body/query profile=home|away&value=18.5\n\n";
     out += "Feilsoking\n";
-    out += "- 401: ugyldig eller manglende token\n";
+    out += "- 401: ugyldig eller manglende Bearer-token\n";
     out += "- 403 api disabled: modul er av\n";
     out += "- 403 control disabled: control writes er av\n";
     out += "- 409 modbus disabled: Modbus er av ved skrivekall\n";
@@ -1137,19 +1580,19 @@ static String buildAdminManualText(bool noLang)
     out += "Quick start\n";
     out += "1) Log in at /admin.\n";
     out += "2) Complete setup wizard.\n";
-    out += "3) Verify /status?token=<HOMEY_TOKEN> returns data.\n";
+    out += "3) Verify /status with header Authorization: Bearer <HOMEY_TOKEN> returns data.\n";
     out += "4) For Homey: use Export Homey setup.\n";
     out += "5) For HA: enable HA MQTT Discovery (native) in admin (recommended).\n";
-    out += "   REST fallback: /ha/status?token=<HA_TOKEN>.\n";
+    out += "   REST fallback: /ha/status with header Authorization: Bearer <HA_TOKEN>.\n";
     out += "6) Data source: choose Modbus (experimental, local) or BACnet (local).\n";
     out += "7) No display mounted: enable headless mode in setup/admin and use /admin via device IP.\n\n";
     out += "Writes (optional)\n";
     out += "- Modbus: enable Modbus + Enable remote control writes (experimental)\n";
     out += "- BACnet: enable Enable BACnet writes (experimental)\n";
-    out += "- API mode: POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE\n";
-    out += "- API setpoint: POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5\n\n";
+    out += "- API mode: POST /api/control/mode + header Authorization: Bearer <MAIN_TOKEN> + body/query mode=AWAY|HOME|HIGH|FIRE\n";
+    out += "- API setpoint: POST /api/control/setpoint + header Authorization: Bearer <MAIN_TOKEN> + body/query profile=home|away&value=18.5\n\n";
     out += "Troubleshooting\n";
-    out += "- 401: invalid/missing token\n";
+    out += "- 401: invalid/missing bearer token\n";
     out += "- 403 api disabled: module is disabled\n";
     out += "- 403 control disabled: control writes disabled\n";
     out += "- 409 modbus disabled: Modbus disabled for write call\n";
@@ -1175,11 +1618,7 @@ static void handleAdminManualText()
 
 static void handleStatus()
 {
-  if (!tokenOKHomey())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HOMEY_READ)) return;
 
   bool pretty = false;
   if (server.hasArg("pretty"))
@@ -1198,11 +1637,7 @@ static void handleStatusHistory()
     server.send(403, "text/plain", "api disabled");
     return;
   }
-  if (!tokenOKHomey())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HOMEY_READ)) return;
 
   int limit = 120;
   if (server.hasArg("limit")) limit = server.arg("limit").toInt();
@@ -1270,11 +1705,7 @@ static void handleStatusDiag()
     server.send(403, "text/plain", "api disabled");
     return;
   }
-  if (!tokenOKHomey())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HOMEY_READ)) return;
 
   String out;
   out.reserve(420);
@@ -1298,11 +1729,7 @@ static void handleStatusStorage()
     server.send(403, "text/plain", "api disabled");
     return;
   }
-  if (!tokenOKHomey())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HOMEY_READ)) return;
 
   String out;
   out.reserve(360);
@@ -1325,11 +1752,7 @@ static void handleStatusHistoryCsv()
     server.send(403, "text/plain", "api disabled");
     return;
   }
-  if (!tokenOKHomey())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HOMEY_READ)) return;
 
   int limit = 240;
   if (server.hasArg("limit")) limit = server.arg("limit").toInt();
@@ -1506,11 +1929,7 @@ static void handleHaStatus()
     server.send(403, "text/plain", "home assistant/api disabled");
     return;
   }
-  if (!tokenOKHA())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HA_READ)) return;
 
   bool pretty = false;
   if (server.hasArg("pretty"))
@@ -1528,11 +1947,7 @@ static void handleHaHistory()
     server.send(403, "text/plain", "home assistant/api disabled");
     return;
   }
-  if (!tokenOKHA())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HA_READ)) return;
 
   int limit = 120;
   if (server.hasArg("limit")) limit = server.arg("limit").toInt();
@@ -1600,11 +2015,7 @@ static void handleHaHistoryCsv()
     server.send(403, "text/plain", "home assistant/api disabled");
     return;
   }
-  if (!tokenOKHA())
-  {
-    server.send(401, "text/plain", "missing/invalid token");
-    return;
-  }
+  if (!requireApiScope(API_SCOPE_HA_READ)) return;
 
   int limit = 240;
   if (server.hasArg("limit")) limit = server.arg("limit").toInt();
@@ -1651,7 +2062,7 @@ static void handleHaHistoryCsv()
 
 static void handleControlMode()
 {
-  if (!tokenOKControl()) { server.send(401, "text/plain", "missing/invalid token"); return; }
+  if (!requireApiScope(API_SCOPE_CONTROL_WRITE)) return;
   if (!server.hasArg("mode")) { server.send(400, "text/plain", "missing mode"); return; }
   String err;
   int statusCode = 500;
@@ -1666,7 +2077,7 @@ static void handleControlMode()
 
 static void handleControlSetpoint()
 {
-  if (!tokenOKControl()) { server.send(401, "text/plain", "missing/invalid token"); return; }
+  if (!requireApiScope(API_SCOPE_CONTROL_WRITE)) return;
   if (!server.hasArg("profile") || !server.hasArg("value"))
   {
     server.send(400, "text/plain", "missing profile/value");
@@ -1756,6 +2167,8 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += "@media(min-width:980px){.admin-grid{column-count:2;column-gap:14px;}.admin-grid .card{display:inline-block;width:100%;margin:0 0 14px;break-inside:avoid;page-break-inside:avoid;vertical-align:top;}}";
       s += ".card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow);}";
       s += ".card h2{font-size:14px;margin:0 0 10px 0;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}";
+      s += "details{border:1px dashed var(--border);border-radius:12px;padding:8px 10px;margin-top:10px;}";
+      s += "summary{cursor:pointer;font-weight:700;color:var(--text);outline:none;}";
       s += "label{display:block;font-size:12px;color:var(--muted);margin-top:10px;}";
       s += "input,select{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:var(--input);color:var(--text);outline:none;}";
       s += "input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(194,161,126,.22);}";
@@ -1786,6 +2199,8 @@ static String pageHeader(const String& title, const String& subtitle = "")
       s += "<script>";
       s += "(function(){var t=localStorage.getItem('theme');if(t){document.documentElement.setAttribute('data-theme',t);}else{var prefers=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',prefers?'dark':'light');}})();";
       s += "function toggleTheme(){var cur=document.documentElement.getAttribute('data-theme')||'light';var nxt=(cur==='dark')?'light':'dark';document.documentElement.setAttribute('data-theme',nxt);localStorage.setItem('theme',nxt);}";
+      s += "function toggleSecret(id){var el=document.getElementById(id);if(!el)return;el.type=(el.type==='password')?'text':'password';}";
+      s += "async function copySecret(id){var el=document.getElementById(id);if(!el)return;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(el.value);}else{el.select();document.execCommand('copy');}alert('Kopiert');}catch(e){alert('Kopiering feilet');}}";
       s += "</script>";
 
       s += "</head><body><div class='wrap'>";
@@ -1819,7 +2234,7 @@ static String pageFooter(){ return "</div></body></html>"; }
 
 static void handleRoot()
 {
-  String s = pageHeader("Flexit-reader", tr("admin_portal"));
+  String s = pageHeader("VentReader", tr("admin_portal"));
 
   bool apOn  = (WiFi.getMode() & WIFI_AP);
   bool staOn = (WiFi.status() == WL_CONNECTED);
@@ -1832,7 +2247,7 @@ static void handleRoot()
   s += "<div class='kv'><div class='k'>mDNS</div><div class='v'>ventreader.local</div></div>";
   s += "<div class='kv'><div class='k'>Firmware</div><div class='v'>" + String(FW_VERSION) + "</div></div>";
   s += "</div>";
-  s += "<div class='help'>API: <code>/status?token=...</code> (Homey polling). Debug: <code>&pretty=1</code></div>";
+  s += "<div class='help'>API: <code>/status</code> med <code>Authorization: Bearer ...</code> (Homey polling). Debug: <code>?pretty=1</code></div>";
   s += "</div>";
 
   appendQuickControlCard(s, true);
@@ -1850,6 +2265,7 @@ static void handleRoot()
   s += "<div class='kv'><div class='k'>Homey/API</div><div class='v'>" + boolLabel(g_cfg->homey_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>Home Assistant/API</div><div class='v'>" + boolLabel(g_cfg->ha_enabled) + "</div></div>";
   s += "<div class='kv'><div class='k'>Display</div><div class='v'>" + String(g_cfg->display_enabled ? "ON" : "HEADLESS") + "</div></div>";
+  s += "<div class='kv'><div class='k'>API nødstopp</div><div class='v'>" + String(g_cfg->api_panic_stop ? "ON" : "OFF") + "</div></div>";
   s += "<div class='kv'><div class='k'>HA MQTT Discovery</div><div class='v'>" + boolLabel(g_cfg->ha_mqtt_enabled) + "</div></div>";
   if (g_cfg->ha_mqtt_enabled)
     s += "<div class='kv'><div class='k'>" + tr("ha_mqtt_status") + "</div><div class='v'>" + (ha_mqtt_is_active() ? "CONNECTED" : (ha_mqtt_last_error().length() ? ha_mqtt_last_error() : "CONNECTING")) + "</div></div>";
@@ -1868,7 +2284,7 @@ static void handleRoot()
   s += "<div class='kv'><div class='k'>Source status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
   s += "<div class='kv'><div class='k'>Ute / Tilluft</div><div class='v'>" + fOrDash(g_data.uteluft) + " / " + fOrDash(g_data.tilluft) + " C</div></div>";
   s += "</div>";
-  s += "<div class='help'>Siste sample fra enheten. Full JSON krever token.</div>";
+  s += "<div class='help'>Siste sample fra enheten. Full JSON krever Bearer-token i Authorization-header.</div>";
   s += "</div>";
 
   s += "<div class='card'><h2>" + tr("actions") + "</h2>";
@@ -1961,29 +2377,32 @@ static void handleAdminSetup()
     s += "<option value='CL4_EXP'" + String(g_cfg->model == "CL4_EXP" ? " selected" : "") + ">Nordic CL4 (Experimental)</option>";
     s += "</select>";
     s += "<div class='sep-gold'></div>";
-    s += "<label>API-token (main/control)</label><input class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
-    s += "<label>Homey token (/status)</label><input class='mono' name='homey_token' value='" + jsonEscape(g_cfg->homey_api_token) + "' required>";
-    s += "<label>Home Assistant token (/ha/*)</label><input class='mono' name='ha_token' value='" + jsonEscape(g_cfg->ha_api_token) + "' required>";
+    s += "<label>API Bearer-token (main/control)</label><input id='setup_token_main' class='mono' type='password' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
+    s += "<div class='actions'><button class='btn secondary' type='button' onclick='toggleSecret(\"setup_token_main\")'>Vis/skjul</button><button class='btn secondary' type='button' onclick='copySecret(\"setup_token_main\")'>Kopier</button></div>";
+    s += "<label>Homey Bearer-token (/status)</label><input id='setup_token_homey' class='mono' type='password' name='homey_token' value='" + jsonEscape(g_cfg->homey_api_token) + "' required>";
+    s += "<div class='actions'><button class='btn secondary' type='button' onclick='toggleSecret(\"setup_token_homey\")'>Vis/skjul</button><button class='btn secondary' type='button' onclick='copySecret(\"setup_token_homey\")'>Kopier</button></div>";
+    s += "<label>Home Assistant Bearer-token (/ha/*)</label><input id='setup_token_ha' class='mono' type='password' name='ha_token' value='" + jsonEscape(g_cfg->ha_api_token) + "' required>";
+    s += "<div class='actions'><button class='btn secondary' type='button' onclick='toggleSecret(\"setup_token_ha\")'>Vis/skjul</button><button class='btn secondary' type='button' onclick='copySecret(\"setup_token_ha\")'>Kopier</button></div>";
     s += "<div class='sep-gold'></div>";
-    s += "<div class='help'>Velg eksplisitt om Homey/API og Home Assistant/API skal v&aelig;re aktivert eller deaktivert.</div>";
+    s += "<div class='help'>Velg eksplisitt om Homey/API og Home Assistant/API skal v&aelig;re aktivert eller deaktivert. Du kan deaktivere begge for ren monitor-modus.</div>";
     if (apiChoiceError)
       s += "<div class='help' style='color:#b91c1c'>Du m&aring; velge enten Aktiver eller Deaktiver for b&aring;de Homey/API og Home Assistant/API.</div>";
     s += "<div><strong>" + tr("homey_api") + "</strong></div>";
     s += "<label><input type='radio' name='homey_mode' value='enable'"
-         + String((!forceApiDecision && g_cfg->homey_enabled) ? " checked" : "")
+         + String(g_cfg->homey_enabled ? " checked" : "")
          + String(forceApiDecision ? " required" : "")
          + "> Aktiver</label>";
     s += "<label><input type='radio' name='homey_mode' value='disable'"
-         + String((!forceApiDecision && !g_cfg->homey_enabled) ? " checked" : "")
+         + String(!g_cfg->homey_enabled ? " checked" : "")
          + "> Deaktiver</label>";
     s += "<div class='sep-gold'></div>";
     s += "<div><strong>" + tr("ha_api") + "</strong></div>";
     s += "<label><input type='radio' name='ha_mode' value='enable'"
-         + String((!forceApiDecision && g_cfg->ha_enabled) ? " checked" : "")
+         + String(g_cfg->ha_enabled ? " checked" : "")
          + String(forceApiDecision ? " required" : "")
          + "> Aktiver</label>";
     s += "<label><input type='radio' name='ha_mode' value='disable'"
-         + String((!forceApiDecision && !g_cfg->ha_enabled) ? " checked" : "")
+         + String(!g_cfg->ha_enabled ? " checked" : "")
          + "> Deaktiver</label>";
     s += "<div class='sep-gold'></div>";
     s += "<label><input id='hamqtt_setup' type='checkbox' name='hamqtt' " + String(g_cfg->ha_mqtt_enabled ? "checked" : "") + "> " + tr("ha_mqtt") + "</label>";
@@ -2039,6 +2458,7 @@ static void handleAdminSetup()
     s += "<div class='sep-gold-dashed'></div>";
     s += "<div id='fw_adv_setup' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
     s += "<div class='help'>" + tr("source_bacnet_help") + "</div>";
+    s += "<div class='help'>" + tr("source_bacnet_default_map_hint") + "</div>";
     s += "<div class='row'>";
     s += "<div><label>" + tr("bac_ip") + "</label><input name='bacip' value='" + jsonEscape(g_cfg->bacnet_ip) + "' required></div>";
     s += "<div><label>" + tr("bac_device_id") + "</label><input name='bacid' type='number' min='1' max='4194303' value='" + String(g_cfg->bacnet_device_id) + "' required></div>";
@@ -2057,7 +2477,7 @@ static void handleAdminSetup()
     s += "<div class='row'><div><label>" + tr("bac_setpoint_home_obj") + "</label><input name='bashome' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_home) + "'></div><div><label>" + tr("bac_setpoint_away_obj") + "</label><input name='basaway' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_away) + "'></div></div>";
     s += "<div class='row'><div><label>Mode object</label><input name='bamode' value='" + jsonEscape(g_cfg->bacnet_obj_mode) + "'></div><div><label>" + tr("bac_mode_map") + "</label><input name='bamap' value='" + jsonEscape(g_cfg->bacnet_mode_map) + "'></div></div>";
     s += "</details>";
-  s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"setup_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"setup_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"setup_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"setup_form\")'>Object scan</button></div>";
+  s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"setup_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"setup_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"setup_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"setup_form\")'>Object scan</button><button class='btn secondary' type='button' onclick='probeBACnetWrite(\"setup_form\")'>Write probe (exp)</button></div>";
     s += "<div id='fw_test_result_setup' class='help'></div>";
     s += "<pre id='probe_values_setup' style='display:none;white-space:pre-wrap;max-height:240px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:12px;line-height:1.35;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
     s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"setup\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"setup\")'>Tøm debuglogg</button></div>";
@@ -2167,6 +2587,23 @@ static void handleAdminSetup()
          "var shown=[]; for(var i=0;i<items.length&&i<16;i++){var it=items[i]||{};shown.push((it.obj||'?')+'='+(it.value!==undefined?it.value:'?'));}"
          "if(target){target.style.color='#166534';target.textContent='Object scan fant '+items.length+' lesbare objekter. Eksempler: '+shown.join(', ');}"
          "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='Object scan feilet: '+e.message;}}"
+         "};"
+         "window.probeBACnetWrite=async function(formId){"
+         "var form=document.getElementById(formId);if(!form)return;"
+         "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
+         "var dbg=document.getElementById('bacnet_debug_setup')||document.getElementById('bacnet_debug_admin');"
+         "if(target){target.style.color='var(--muted)';target.textContent='Kjører eksperimentell BACnet write-probe...';}"
+         "try{"
+         "var fd=new FormData(form);"
+         "var body=new URLSearchParams();"
+         "fd.forEach(function(v,k){if(typeof v==='string')body.append(k,v);});"
+         "var r=await fetch('/admin/probe_bacnet_write',{method:'POST',credentials:'same-origin',body:body});"
+         "var j=await r.json();"
+         "if(dbg&&dbg.dataset.on==='1'){dbg.style.display='block';dbg.textContent=j.debug||'';}"
+         "var rr=j.results||{};"
+         "var msg='Mode: '+(rr.mode&&rr.mode.ok?'OK':(rr.mode&&rr.mode.error?rr.mode.error:'-'))+' | Home setpoint: '+(rr.setpoint_home&&rr.setpoint_home.ok?'OK':(rr.setpoint_home&&rr.setpoint_home.error?rr.setpoint_home.error:'-'))+' | Away setpoint: '+(rr.setpoint_away&&rr.setpoint_away.ok?'OK':(rr.setpoint_away&&rr.setpoint_away.error?rr.setpoint_away.error:'-'));"
+         "if(target){target.style.color=(j.ok?'#166534':'#b91c1c');target.textContent='Write probe (eksperimentell): '+msg;}"
+         "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='Write probe feilet: '+e.message;}}"
          "};"
          "window.showBACnetDebug=async function(scope){"
          "var dbg=document.getElementById(scope==='admin'?'bacnet_debug_admin':'bacnet_debug_setup');"
@@ -2293,15 +2730,7 @@ static void handleAdminSetupSave()
   }
   if (g_cfg->data_source == "BACNET")
   {
-    String why;
-    FlexitData verified;
-    if (!runBACnetPreflight(*g_cfg, &verified, &why))
-    {
-      server.send(400, "text/plain", String("BACnet test must pass before save: ") + why);
-      return;
-    }
-    g_data = verified;
-    g_mb = "BACNET OK (verified)";
+    g_mb = "BACNET configured (not verified)";
   }
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
@@ -2330,6 +2759,10 @@ static void handleAdminSetupSave()
   s += "<div class='card'><h2>Oppsett fullført</h2>";
   s += "<p>Innstillinger er lagret. Enheten restarter nå for å aktivere WiFi og sikkerhetsinnstillinger.</p>";
   s += "<div class='help'>Hvis siden ikke oppdaterer seg automatisk innen 10 sekunder, koble deg til enhetens nye IP/hostname og prøv igjen.</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div class='help'>" + tr("mdns_return_hint") + "</div>";
+  s += "<div class='actions'><a class='btn secondary' href='http://ventreader.local/admin'>" + tr("mdns_open_device") + "</a></div>";
+  s += "<div class='help'>mDNS: <code>http://ventreader.local/admin</code></div>";
   s += "</div>";
   s += "<div class='card'><h2>Handling</h2>";
   s += "<form method='POST' action='/admin/reboot'><button class='btn' type='submit'>Restart enheten nå</button></form>";
@@ -2366,8 +2799,8 @@ static void handleAdmin()
   // Admin status + one-click API links
   const bool staOnAdmin  = (WiFi.status() == WL_CONNECTED);
   const bool apOnAdmin   = (WiFi.getMode() & WIFI_AP);
-  const String statusApiUrl = "/status?token=" + g_cfg->homey_api_token;
-  const String statusApiPrettyUrl = statusApiUrl + "&pretty=1";
+  const String statusApiUrl = "/admin/api/preview";
+  const String statusApiPrettyUrl = "/admin/api/preview?pretty=1";
   s += "<div class='card'><h2>Status + API</h2>";
   s += "<div class='kpi'>";
   s += "<div class='kv'><div class='k'>STA WiFi</div><div class='v'>" + String(staOnAdmin ? "Connected" : "Offline") + "</div></div>";
@@ -2375,6 +2808,7 @@ static void handleAdmin()
   s += "<div class='kv'><div class='k'>Datakilde</div><div class='v'>" + dataSourceLabel(g_cfg->data_source) + "</div></div>";
   s += "<div class='kv'><div class='k'>Kilde-status</div><div class='v'>" + jsonEscape(g_mb) + "</div></div>";
   s += "<div class='kv'><div class='k'>Display</div><div class='v'>" + String(g_cfg->display_enabled ? "ON" : "HEADLESS") + "</div></div>";
+  s += "<div class='kv'><div class='k'>API nødstopp</div><div class='v'>" + String(g_cfg->api_panic_stop ? "ON" : "OFF") + "</div></div>";
   s += "<div class='kv'><div class='k'>Ute / Tilluft</div><div class='v'>" + fOrDash(g_data.uteluft) + " / " + fOrDash(g_data.tilluft) + " C</div></div>";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
@@ -2382,7 +2816,7 @@ static void handleAdmin()
   s += "<a class='btn secondary' target='_blank' rel='noopener' href='" + statusApiUrl + "'>Vanlig API</a>";
   s += "<a class='btn secondary' target='_blank' rel='noopener' href='" + statusApiPrettyUrl + "'>Pretty API</a>";
   s += "</div>";
-  s += "<div class='help'>Lenkene bruker aktiv Homey-token automatisk.</div>";
+  s += "<div class='help'>Lenkene er sikre admin-forhandsvisninger. Ekstern API bruker Bearer-token i Authorization-header.</div>";
   s += "</div>";
 
   appendQuickControlCard(s, false);
@@ -2407,14 +2841,27 @@ static void handleAdmin()
   s += "<option value='CL4_EXP'" + String(g_cfg->model == "CL4_EXP" ? " selected" : "") + ">Nordic CL4 (Experimental)</option>";
   s += "</select>";
   s += "<div class='sep-gold'></div>";
-  s += "<p class='muted-title'>API-tokens</p>";
-  s += "<label>API-token (main/control)</label><input id='api_token_main' class='mono' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
-  s += "<div class='actions'><button class='btn secondary' type='button' onclick='rotateToken(\"main\",\"api_token_main\")'>Roter main-token</button></div>";
-  s += "<label>Homey token (/status)</label><input id='api_token_homey' class='mono' name='homey_token' value='" + jsonEscape(g_cfg->homey_api_token) + "' required>";
-  s += "<div class='actions'><button class='btn secondary' type='button' onclick='rotateToken(\"homey\",\"api_token_homey\")'>Roter Homey-token</button></div>";
-  s += "<label>Home Assistant token (/ha/*)</label><input id='api_token_ha' class='mono' name='ha_token' value='" + jsonEscape(g_cfg->ha_api_token) + "' required>";
-  s += "<div class='actions'><button class='btn secondary' type='button' onclick='rotateToken(\"ha\",\"api_token_ha\")'>Roter HA-token</button></div>";
+  s += "<p class='muted-title'>API Bearer-tokens</p>";
+  s += "<details><summary>API Bearer-tokens</summary>";
+  s += "<label>API Bearer-token (main/control)</label><input id='api_token_main' class='mono' type='password' name='token' value='" + jsonEscape(g_cfg->api_token) + "' required>";
+  s += "<div class='actions'><button class='btn secondary' type='button' onclick='toggleSecret(\"api_token_main\")'>Vis/skjul</button><button class='btn secondary' type='button' onclick='copySecret(\"api_token_main\")'>Kopier</button><button class='btn secondary' type='button' onclick='rotateToken(\"main\",\"api_token_main\")'>Roter main-token</button></div>";
+  s += "<label>Homey Bearer-token (/status)</label><input id='api_token_homey' class='mono' type='password' name='homey_token' value='" + jsonEscape(g_cfg->homey_api_token) + "' required>";
+  s += "<div class='actions'><button class='btn secondary' type='button' onclick='toggleSecret(\"api_token_homey\")'>Vis/skjul</button><button class='btn secondary' type='button' onclick='copySecret(\"api_token_homey\")'>Kopier</button><button class='btn secondary' type='button' onclick='rotateToken(\"homey\",\"api_token_homey\")'>Roter Homey-token</button></div>";
+  s += "<label>Home Assistant Bearer-token (/ha/*)</label><input id='api_token_ha' class='mono' type='password' name='ha_token' value='" + jsonEscape(g_cfg->ha_api_token) + "' required>";
+  s += "<div class='actions'><button class='btn secondary' type='button' onclick='toggleSecret(\"api_token_ha\")'>Vis/skjul</button><button class='btn secondary' type='button' onclick='copySecret(\"api_token_ha\")'>Kopier</button><button class='btn secondary' type='button' onclick='rotateToken(\"ha\",\"api_token_ha\")'>Roter HA-token</button></div>";
+  s += "</details>";
   s += "<div class='sep-gold'></div>";
+  s += "<p class='muted-title'>API nødstopp</p>";
+  s += "<div class='help'>Nødstopp blokkerer alle token-beskyttede API-kall umiddelbart (status, historikk, control).</div>";
+  s += "<div class='actions'>";
+  if (g_cfg->api_panic_stop)
+    s += "<form method='POST' action='/admin/api_emergency_stop' style='margin:0'><input type='hidden' name='enable' value='0'><button class='btn secondary' type='submit'>Deaktiver nødstopp</button></form>";
+  else
+    s += "<form method='POST' action='/admin/api_emergency_stop' style='margin:0'><input type='hidden' name='enable' value='1'><button class='btn danger' type='submit'>Aktiver nødstopp</button></form>";
+  s += "</div>";
+  s += "<div class='help'>Status: <strong>" + String(g_cfg->api_panic_stop ? "AKTIV" : "INAKTIV") + "</strong></div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<details><summary>Integrasjoner og moduler</summary>";
   s += "<p class='muted-title'>Integrasjoner</p>";
   s += "<div class='actions'>";
   s += "<a class='btn secondary' href='/admin/export/homey.txt'>Eksporter Homey-oppsett (.txt)</a>";
@@ -2443,6 +2890,7 @@ static void handleAdmin()
   s += "</div>";
   s += "<label>" + tr("ha_mqtt_base") + "</label><input name='hambase' value='" + jsonEscape(g_cfg->ha_mqtt_topic_base) + "'>";
   s += "</div>";
+  s += "</details>";
   s += "</div>";
   s += "<div class='card'><h2>Inndata-moduler</h2>";
   s += "<div class='help'>Velg aktiv datakilde. Kun innstillinger for valgt kilde vises.</div>";
@@ -2482,6 +2930,7 @@ static void handleAdmin()
   s += "<div id='fw_adv_admin' style='display:" + String(srcWeb ? "block" : "none") + ";'>";
   s += "<p class='muted-title'>BACnet</p>";
   s += "<div class='help'>" + tr("source_bacnet_help") + "</div>";
+  s += "<div class='help'>" + tr("source_bacnet_default_map_hint") + "</div>";
   s += "<div class='row'>";
   s += "<div><label>" + tr("bac_ip") + "</label><input name='bacip' value='" + jsonEscape(g_cfg->bacnet_ip) + "' required></div>";
   s += "<div><label>" + tr("bac_device_id") + "</label><input name='bacid' type='number' min='1' max='4194303' value='" + String(g_cfg->bacnet_device_id) + "' required></div>";
@@ -2500,7 +2949,7 @@ static void handleAdmin()
   s += "<div class='row'><div><label>" + tr("bac_setpoint_home_obj") + "</label><input name='bashome' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_home) + "'></div><div><label>" + tr("bac_setpoint_away_obj") + "</label><input name='basaway' value='" + jsonEscape(g_cfg->bacnet_obj_setpoint_away) + "'></div></div>";
   s += "<div class='row'><div><label>Mode object</label><input name='bamode' value='" + jsonEscape(g_cfg->bacnet_obj_mode) + "'></div><div><label>" + tr("bac_mode_map") + "</label><input name='bamap' value='" + jsonEscape(g_cfg->bacnet_mode_map) + "'></div></div>";
   s += "</details>";
-  s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"admin_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"admin_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"admin_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"admin_form\")'>Object scan</button></div>";
+  s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"admin_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"admin_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"admin_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"admin_form\")'>Object scan</button><button class='btn secondary' type='button' onclick='probeBACnetWrite(\"admin_form\")'>Write probe (exp)</button></div>";
   s += "<div id='fw_test_result_admin' class='help'></div>";
   s += "<pre id='probe_values_admin' style='display:none;white-space:pre-wrap;max-height:240px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:12px;line-height:1.35;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
   s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"admin\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"admin\")'>Tøm debuglogg</button></div>";
@@ -2607,6 +3056,23 @@ static void handleAdmin()
        "var shown=[]; for(var i=0;i<items.length&&i<16;i++){var it=items[i]||{};shown.push((it.obj||'?')+'='+(it.value!==undefined?it.value:'?'));}"
        "if(target){target.style.color='#166534';target.textContent='Object scan fant '+items.length+' lesbare objekter. Eksempler: '+shown.join(', ');}"
        "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='Object scan feilet: '+e.message;}}"
+       "};"
+       "window.probeBACnetWrite=async function(formId){"
+       "var form=document.getElementById(formId);if(!form)return;"
+       "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
+       "var dbg=document.getElementById('bacnet_debug_admin')||document.getElementById('bacnet_debug_setup');"
+       "if(target){target.style.color='var(--muted)';target.textContent='Kjører eksperimentell BACnet write-probe...';}"
+       "try{"
+       "var fd=new FormData(form);"
+       "var body=new URLSearchParams();"
+       "fd.forEach(function(v,k){if(typeof v==='string')body.append(k,v);});"
+       "var r=await fetch('/admin/probe_bacnet_write',{method:'POST',credentials:'same-origin',body:body});"
+       "var j=await r.json();"
+       "if(dbg&&dbg.dataset.on==='1'){dbg.style.display='block';dbg.textContent=j.debug||'';}"
+       "var rr=j.results||{};"
+       "var msg='Mode: '+(rr.mode&&rr.mode.ok?'OK':(rr.mode&&rr.mode.error?rr.mode.error:'-'))+' | Home setpoint: '+(rr.setpoint_home&&rr.setpoint_home.ok?'OK':(rr.setpoint_home&&rr.setpoint_home.error?rr.setpoint_home.error:'-'))+' | Away setpoint: '+(rr.setpoint_away&&rr.setpoint_away.ok?'OK':(rr.setpoint_away&&rr.setpoint_away.error?rr.setpoint_away.error:'-'));"
+       "if(target){target.style.color=(j.ok?'#166534':'#b91c1c');target.textContent='Write probe (eksperimentell): '+msg;}"
+       "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='Write probe feilet: '+e.message;}}"
        "};"
        "window.showBACnetDebug=async function(scope){"
        "var dbg=document.getElementById(scope==='setup'?'bacnet_debug_setup':'bacnet_debug_admin');"
@@ -2720,6 +3186,22 @@ static void handleAdminManual()
   s += "<div class='grid'>";
 
   s += "<div class='card'><h2>" + tr("changelog_short") + "</h2>";
+  s += "<div><strong>v4.2.4</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "Bugfix onboarding/admin: BACnet-konfigurasjon kan n&aring; lagres uten tvungen test OK. Test/verifisering kj&oslash;res separat via BACnet test-knapp.";
+  else
+    s += "Bugfix onboarding/admin: BACnet configuration can now be saved without mandatory test OK. Verification is done separately via the BACnet test button.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
+  s += "<div><strong>v4.2.3</strong></div>";
+  s += "<div class='help'>";
+  if (noLang)
+    s += "API bruker n&aring; Authorization: Bearer-token (ikke token i URL). Ny API nødstopp-knapp i admin kan blokkere alle token-beskyttede API-kall umiddelbart.";
+  else
+    s += "API now uses Authorization Bearer tokens (no token in URL). New API emergency-stop button in admin can block all token-protected API calls immediately.";
+  s += "</div>";
+  s += "<div class='sep-gold'></div>";
   s += "<div><strong>v4.2.2</strong></div>";
   s += "<div class='help'>";
   if (noLang)
@@ -2821,9 +3303,9 @@ static void handleAdminManual()
   s += "<div><strong>2) " + String(noLang ? "Daglig bruk" : "Daily use") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Skjermen viser live verdier. API-status leses fra <code>/status?token=...</code> (eller <code>/ha/status?token=...</code>).";
+    s += "Skjermen viser live verdier. API-status leses fra <code>/status</code> (eller <code>/ha/status</code>) med <code>Authorization: Bearer ...</code>.";
   else
-    s += "Display shows live values. Read API status from <code>/status?token=...</code> (or <code>/ha/status?token=...</code>).";
+    s += "Display shows live values. Read API status from <code>/status</code> (or <code>/ha/status</code>) with <code>Authorization: Bearer ...</code>.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>3) " + String(noLang ? "Datakilde" : "Data source") + "</strong></div>";
@@ -2870,9 +3352,9 @@ static void handleAdminManual()
   s += "<div><strong>8) " + String(noLang ? "Feilsoking" : "Troubleshooting") + "</strong></div>";
   s += "<div class='help'>";
   if (noLang)
-    s += "Sjekk <code>/health</code> og <code>/status?token=...&pretty=1</code>. Ved Modbus-feil brukes siste gyldige data.";
+    s += "Sjekk <code>/health</code> og <code>/status?pretty=1</code> med Bearer-header. Ved Modbus-feil brukes siste gyldige data.";
   else
-    s += "Check <code>/health</code> and <code>/status?token=...&pretty=1</code>. On Modbus errors, last good data is used.";
+    s += "Check <code>/health</code> and <code>/status?pretty=1</code> with Bearer header. On Modbus errors, last good data is used.";
   s += "</div>";
   s += "<div class='sep-gold'></div>";
   s += "<div><strong>" + String(noLang ? "Del manual" : "Share manual") + "</strong></div>";
@@ -2949,6 +3431,7 @@ static void handleAdminGraphs()
   const String token = jsonEscape(g_cfg->homey_api_token);
   s += "<script>";
   s += "const API_TOKEN='" + token + "';";
+  s += "const API_HEADERS={Authorization:'Bearer '+API_TOKEN};";
   s += "const SERIES=["
        "{k:'uteluft',c:'#0ea5e9',g:'temp',n:'UTELUFT',on:true},"
        "{k:'tilluft',c:'#22c55e',g:'temp',n:'TILLUFT',on:true},"
@@ -2966,9 +3449,9 @@ static void handleAdminGraphs()
   s += "function renderLegend(){const host=document.getElementById('legend');host.innerHTML='';for(const s of SERIES){const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.borderColor=s.c;b.style.color=s.on?s.c:'#6b7280';b.style.background=s.on?'rgba(194,161,126,.12)':'transparent';b.style.padding='7px 10px';b.style.fontSize='12px';b.textContent=s.n;b.onclick=()=>{s.on=!s.on;renderLegend();renderCharts();};host.appendChild(b);}}";
   s += "function renderCharts(){drawSeries('temp',LAST,SERIES.filter(s=>s.g==='temp'));drawSeries('perf',LAST,SERIES.filter(s=>s.g==='perf'));}";
   s += "function fmtBytes(v){if(!Number.isFinite(v))return '-'; if(v>1024*1024)return (v/1048576).toFixed(2)+' MB'; if(v>1024)return (v/1024).toFixed(1)+' KB'; return v+' B';}";
-  s += "async function loadStorage(){try{const r=await fetch('/status/storage?token='+encodeURIComponent(API_TOKEN));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();document.getElementById('st_points').textContent=(j.history_count||0)+' / '+(j.history_cap||0);document.getElementById('st_mem').textContent=fmtBytes(j.history_memory_bytes||0);document.getElementById('st_heap').textContent=fmtBytes(j.free_heap_bytes||0);document.getElementById('st_heap_min').textContent=fmtBytes(j.min_free_heap_bytes||0);}catch(e){document.getElementById('st_points').textContent='ERR';}}";
-  s += "function downloadCsv(){const lim=document.getElementById('limit').value||240;window.location='/status/history.csv?token='+encodeURIComponent(API_TOKEN)+'&limit='+encodeURIComponent(lim);}";
-  s += "async function loadHist(){const state=document.getElementById('state');const lim=document.getElementById('limit').value||240;state.textContent='" + tr("loading") + "';try{const r=await fetch('/status/history?token='+encodeURIComponent(API_TOKEN)+'&limit='+encodeURIComponent(lim));if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();LAST=j.items||[];renderCharts();state.textContent='OK: '+LAST.length+' pts';}catch(e){state.textContent='ERR: '+e.message;}}";
+  s += "async function loadStorage(){try{const r=await fetch('/status/storage',{headers:API_HEADERS});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();document.getElementById('st_points').textContent=(j.history_count||0)+' / '+(j.history_cap||0);document.getElementById('st_mem').textContent=fmtBytes(j.history_memory_bytes||0);document.getElementById('st_heap').textContent=fmtBytes(j.free_heap_bytes||0);document.getElementById('st_heap_min').textContent=fmtBytes(j.min_free_heap_bytes||0);}catch(e){document.getElementById('st_points').textContent='ERR';}}";
+  s += "async function downloadCsv(){const lim=document.getElementById('limit').value||240;try{const r=await fetch('/status/history.csv?limit='+encodeURIComponent(lim),{headers:API_HEADERS});if(!r.ok)throw new Error('HTTP '+r.status);const txt=await r.text();const blob=new Blob([txt],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='ventreader_history.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);}catch(e){alert('CSV feilet: '+e.message);}}";
+  s += "async function loadHist(){const state=document.getElementById('state');const lim=document.getElementById('limit').value||240;state.textContent='" + tr("loading") + "';try{const r=await fetch('/status/history?limit='+encodeURIComponent(lim),{headers:API_HEADERS});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();LAST=j.items||[];renderCharts();state.textContent='OK: '+LAST.length+' pts';}catch(e){state.textContent='ERR: '+e.message;}}";
   s += "renderLegend();";
   s += "loadStorage();";
   s += "loadHist();";
@@ -3029,15 +3512,7 @@ static void handleAdminSave()
   }
   if (g_cfg->data_source == "BACNET")
   {
-    String why;
-    FlexitData verified;
-    if (!runBACnetPreflight(*g_cfg, &verified, &why))
-    {
-      server.send(400, "text/plain", String("BACnet test must pass before save: ") + why);
-      return;
-    }
-    g_data = verified;
-    g_mb = "BACNET OK (verified)";
+    g_mb = "BACNET configured (not verified)";
   }
 
   // Poll interval
@@ -3229,6 +3704,8 @@ bool webportal_ap_active() { return (WiFi.getMode() & WIFI_AP); }
 void webportal_begin(DeviceConfig& cfg)
 {
   g_cfg = &cfg;
+  const char* headerKeys[] = {"Authorization"};
+  server.collectHeaders(headerKeys, 1);
 
   // mDNS (STA mode only)
   if (WiFi.status() == WL_CONNECTED)
@@ -3268,11 +3745,14 @@ void webportal_begin(DeviceConfig& cfg)
   server.on("/admin/export/homey", HTTP_GET, handleAdminHomeyExport);
   server.on("/admin/export/homey.txt", HTTP_GET, handleAdminHomeyExportText);
   server.on("/admin/new_token", HTTP_POST, handleAdminNewToken);
+  server.on("/admin/api_emergency_stop", HTTP_POST, handleAdminApiEmergencyStop);
+  server.on("/admin/api/preview", HTTP_GET, handleAdminApiPreview);
   server.on("/admin/lang", HTTP_POST, handleAdminLang);
   server.on("/admin/test_bacnet", HTTP_POST, handleAdminBACnetTest);
   server.on("/admin/discover_bacnet", HTTP_POST, handleAdminBACnetDiscover);
   server.on("/admin/probe_bacnet_objects", HTTP_POST, handleAdminBACnetObjectProbe);
   server.on("/admin/scan_bacnet_objects", HTTP_POST, handleAdminBACnetObjectScan);
+  server.on("/admin/probe_bacnet_write", HTTP_POST, handleAdminBACnetWriteProbe);
   server.on("/admin/bacnet_debug.txt", HTTP_GET, handleAdminBACnetDebug);
   server.on("/admin/clear_bacnet_debug", HTTP_POST, handleAdminBACnetDebugClear);
   server.on("/admin/bacnet_debug_mode", HTTP_POST, handleAdminBACnetDebugMode);

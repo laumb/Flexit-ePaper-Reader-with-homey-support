@@ -22,7 +22,7 @@ Goal of this guide:
 
 ### Required
 1. `Homey/API` enabled.
-2. Correct token in endpoint/script.
+2. Correct Bearer token in endpoint/script.
 3. Required virtual devices with correct capability IDs.
 4. Polling flow that executes script periodically.
 
@@ -37,7 +37,7 @@ Use **Export Homey setup** in VentReader admin.
 
 Export contains:
 1. Base URL (`http://<ip>`)
-2. API token
+2. API Bearer token
 3. Ready HomeyScript template
 4. Recommended virtual device/capability mapping
 5. Polling flow notes
@@ -57,7 +57,7 @@ In VentReader admin (`/admin`):
 3. Confirm local IP/hostname.
 
 Quick test:
-- `http://<VENTREADER_IP>/status?token=<HOMEY_TOKEN>&pretty=1`
+- `GET http://<VENTREADER_IP>/status?pretty=1` with header `Authorization: Bearer <HOMEY_TOKEN>`
 
 ## 2) Export Homey setup file
 
@@ -118,12 +118,12 @@ Requires in VentReader (one of):
 2. Data source = `BACnet` + `Enable BACnet writes (experimental)`
 
 Endpoints:
-1. `POST /api/control/mode?token=<TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-2. `POST /api/control/setpoint?token=<TOKEN>&profile=home|away&value=18.5`
+1. `POST /api/control/mode` + header `Authorization: Bearer <TOKEN>` + `mode=AWAY|HOME|HIGH|FIRE`
+2. `POST /api/control/setpoint` + header `Authorization: Bearer <TOKEN>` + `profile=home|away&value=18.5`
 
 ## 9) Troubleshooting
 
-- `401 missing/invalid token`: wrong token in URL/script.
+- `401 missing/invalid bearer token`: wrong/missing `Authorization: Bearer ...`.
 - `403 api disabled`: `Homey/API` disabled.
 - `403 control disabled`: write control disabled.
 - `403 bacnet write disabled`: BACnet write not enabled.

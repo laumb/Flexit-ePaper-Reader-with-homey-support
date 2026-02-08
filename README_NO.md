@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v4.2.2)
+# VentReader – Brukerveiledning (v4.2.6)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -6,6 +6,25 @@ VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv kan aktiveres i admin.
 
 ## Changelog (kort)
+
+### v4.2.6
+
+- Toppfelt på skjermen er komprimert: viser nå `NORDIC <modell>` og aktiv set-temp (`SET xx.xC`) mellom modellnavn og klokke.
+- `set_temp` er lagt til i `/status` og `pretty` JSON (aktivt settpunkt fra datakilde, best-effort).
+- Oppsetts-SSID bruker nå prefiks `Ventreader` (uten bindestrek i navneprefiks).
+- Ny eksperimentell BACnet-knapp `Write probe` i setup/admin for å teste skrivekapasitet (modus/settpunkt) uten å lagre innstillinger.
+
+### v4.2.4
+
+- Bugfix onboarding/admin: BACnet-innstillinger kan nå lagres uten at `Test BACnet` må være vellykket først.
+- BACnet-verifisering er fortsatt tilgjengelig som separat test etter lagring.
+
+### v4.2.3
+
+- API-autentisering bruker nå `Authorization: Bearer <token>` (token i URL er fjernet fra API-endepunktene).
+- Ny API-nødstopp i admin som blokkerer alle token-beskyttede API-kall umiddelbart.
+- Ny sikker API-forhåndsvisning i admin (`/admin/api/preview` + `?pretty=1`).
+- Status-JSON inkluderer nå `api_panic_stop`.
 
 ### v4.2.2
 
@@ -31,7 +50,7 @@ Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv 
 
 - Nytt valg `Headless-modus (skjerm ikke montert)` i setupguide og admin.
 - Firmware hopper nå over all ePaper-init/render i headless-modus, slik at enheten kjører stabilt uten fysisk skjerm.
-- Ny statusblokk i innlogget admin med ett-klikk `Vanlig API` og `Pretty API` (token ferdig utfylt i URL).
+- Ny statusblokk i innlogget admin med ett-klikk `Vanlig API` og `Pretty API`.
 - Status-JSON inkluderer nå `display_enabled` og `headless`.
 
 ### v4.0.4
@@ -112,7 +131,7 @@ Når enheten startes første gang:
 ## Headless hurtigstart (uten skjerm)
 
 1. Start enheten.
-2. Koble til AP `VentReader-Setup-XXXX` (passord `ventreader`).
+2. Koble til AP `Ventreader-XXXXXX` (passord `ventreader`).
 3. Åpne `http://192.168.4.1/admin/setup`.
 4. I steg 3: aktiver `Headless-modus (skjerm ikke montert)`.
 5. Fullfør oppsett og restart.
@@ -196,23 +215,23 @@ Anbefalt metode er nå native MQTT Discovery i Home Assistant (ingen custom komp
 - Helse:
   - `GET /health`
 - Status:
-  - `GET /status?token=<HOMEY_TOKEN>`
-  - `GET /ha/status?token=<HA_TOKEN>` (krever `Home Assistant/API` aktivert)
+  - `GET /status` med header `Authorization: Bearer <HOMEY_TOKEN>`
+  - `GET /ha/status` med header `Authorization: Bearer <HA_TOKEN>` (krever `Home Assistant/API` aktivert)
   - Inkluderer `ts_epoch_ms` og `ts_iso` i hver datapakke for tidsserier/grafer
-  - Inkluderer `stale`-felt, `ha_mqtt_enabled`, `display_enabled` og `headless` per datapakke
+  - Inkluderer `stale`-felt, `ha_mqtt_enabled`, `display_enabled`, `headless` og `api_panic_stop` per datapakke
 - Historikk:
-  - `GET /status/history?token=<HOMEY_TOKEN>&limit=120`
-  - `GET /ha/history?token=<HA_TOKEN>&limit=120`
-  - `GET /status/history.csv?token=<HOMEY_TOKEN>&limit=120`
-  - `GET /ha/history.csv?token=<HA_TOKEN>&limit=120`
+  - `GET /status/history?limit=120` med Bearer-header
+  - `GET /ha/history?limit=120` med Bearer-header
+  - `GET /status/history.csv?limit=120` med Bearer-header
+  - `GET /ha/history.csv?limit=120` med Bearer-header
 - Diagnostikk:
-  - `GET /status/diag?token=<HOMEY_TOKEN>`
-  - `GET /status/storage?token=<HOMEY_TOKEN>`
+  - `GET /status/diag` med Bearer-header
+  - `GET /status/storage` med Bearer-header
 - Styring (eksperimentelt, via aktiv datakilde):
   - Modbus: krever datakilde=`Modbus`, `Modbus` + `Control writes`
   - BACnet: krever datakilde=`BACNET` + `Enable BACnet writes`
-  - `POST /api/control/mode?token=<MAIN_TOKEN>&mode=AWAY|HOME|HIGH|FIRE`
-  - `POST /api/control/setpoint?token=<MAIN_TOKEN>&profile=home|away&value=18.5`
+  - `POST /api/control/mode` med Bearer-header + `mode=AWAY|HOME|HIGH|FIRE`
+  - `POST /api/control/setpoint` med Bearer-header + `profile=home|away&value=18.5`
 
 ---
 
