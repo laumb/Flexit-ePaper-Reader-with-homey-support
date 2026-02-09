@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.10)
+# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.11)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -6,6 +6,10 @@ It provides local ePaper display, local web admin, and Homey/Home Assistant inte
 Default behavior is read-focused monitoring. Write control is optional and disabled by default.
 
 ## Changelog (short)
+
+### v4.2.11
+- Improved dashboard chip sizing so mode text (e.g. `BORTE`) fits reliably without clipping.
+- Reworked footer layout into three clear centered zones (heat, source status, WiFi), with safe text fitting/truncation.
 
 ### v4.2.10
 - Rotated the ePaper UI orientation by 180° relative to previous firmware orientation.

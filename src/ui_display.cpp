@@ -113,6 +113,15 @@ static int textPixelWidth(const String& txt)
   return (int)w;
 }
 
+static String fitTextToWidth(const String& txt, int maxW)
+{
+  if (textPixelWidth(txt) <= maxW) return txt;
+  String t = txt;
+  while (t.length() > 3 && textPixelWidth(t + "...") > maxW)
+    t.remove(t.length() - 1);
+  return t + "...";
+}
+
 static int textPixelWidthMono(const String& txt)
 {
   int16_t x1 = 0, y1 = 0;
@@ -230,10 +239,12 @@ static void drawHeader(const FlexitData& d)
   if (wFan < minFan) wFan = minFan;
   if (wEff < minEff) wEff = minEff;
 
+  int dynamicModeMin = textPixelWidth(modeTxt) + 24;
+  if (dynamicModeMin < minMode) dynamicModeMin = minMode;
   int wMode = avail - wFan - wEff;
-  if (wMode < minMode)
+  if (wMode < dynamicModeMin)
   {
-    int need = minMode - wMode;
+    int need = dynamicModeMin - wMode;
     int fanHeadroom = wFan - minFan;
     int effHeadroom = wEff - minEff;
     int totalHeadroom = fanHeadroom + effHeadroom;
@@ -249,7 +260,7 @@ static void drawHeader(const FlexitData& d)
     if (wFan < minFan) wFan = minFan;
     if (wEff < minEff) wEff = minEff;
     wMode = avail - wFan - wEff;
-    if (wMode < minMode) wMode = minMode;
+    if (wMode < dynamicModeMin) wMode = dynamicModeMin;
   }
 
   const int x1 = startX;
@@ -298,24 +309,36 @@ static void drawFooter(const FlexitData& d, const String& mbStatus)
 {
   const int h = 30;
   const int y = display.height() - h;
-  const int col1X = 10;
-  const int col2X = 132;
-  const int col3X = 258;
+  const int colW = display.width() / 3;
+  const int innerPad = 6;
 
   display.fillRect(-2, y, display.width()+4, h, GxEPD_BLACK);
-  display.drawFastVLine(124, y + 5, h - 10, GxEPD_WHITE);
-  display.drawFastVLine(248, y + 5, h - 10, GxEPD_WHITE);
+  display.drawFastVLine(colW, y + 5, h - 10, GxEPD_WHITE);
+  display.drawFastVLine(colW * 2, y + 5, h - 10, GxEPD_WHITE);
   setTextWhite();
   display.setFont(&FreeSans9pt7b);
 
-  display.setCursor(col1X, y + 20);
-  display.print(tr("heat") + String(" ") + d.heat_element_percent + "%");
+  String leftTxt = tr("heat") + String(" ") + d.heat_element_percent + "%";
+  String midTxt = mbStatus;
+  String rightTxt = String("WiFi ") + d.wifi_status + d.ip;
 
-  display.setCursor(col2X, y + 20);
-  display.print(mbStatus);
+  leftTxt = fitTextToWidth(leftTxt, colW - (innerPad * 2));
+  midTxt = fitTextToWidth(midTxt, colW - (innerPad * 2));
+  rightTxt = fitTextToWidth(rightTxt, colW - (innerPad * 2));
 
-  display.setCursor(col3X, y + 20);
-  display.print(String("WiFi ") + d.wifi_status + d.ip);
+  int leftX = (colW - textPixelWidth(leftTxt)) / 2;
+  if (leftX < innerPad) leftX = innerPad;
+  int midX = colW + ((colW - textPixelWidth(midTxt)) / 2);
+  if (midX < colW + innerPad) midX = colW + innerPad;
+  int rightX = (colW * 2) + ((colW - textPixelWidth(rightTxt)) / 2);
+  if (rightX < (colW * 2) + innerPad) rightX = (colW * 2) + innerPad;
+
+  display.setCursor(leftX, y + 20);
+  display.print(leftTxt);
+  display.setCursor(midX, y + 20);
+  display.print(midTxt);
+  display.setCursor(rightX, y + 20);
+  display.print(rightTxt);
 
   setTextBlack();
 }
