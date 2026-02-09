@@ -1,4 +1,4 @@
-# VentReader – Brukerveiledning (v4.2.11)
+# VentReader – Brukerveiledning (v4.3.0)
 
 VentReader er en liten enhet som leser data fra Flexit ventilasjonsanlegg
 (Nordic S3 / S4 + utvalgte eksperimentelle modeller) og viser informasjon på skjerm og i nettleser.
@@ -7,14 +7,20 @@ Standardoppsett er lesefokusert. Eksperimentell styring via Modbus/BACnet-skriv 
 
 ## Changelog (kort)
 
-### v4.2.11
+### v4.3.0
 
-- Forbedret chip-størrelse i dashboard slik at modus-tekst (f.eks. `BORTE`) får plass uten avklipping.
-- Ryddet bunnlinjen i dashboard til tre tydelige, sentrerte soner (varme, datakildestatus, WiFi), med trygg teksttilpasning.
-
-### v4.2.10
-
-- Roterte ePaper-visningen 180° i forhold til forrige firmware-orientering.
+- Samlet og stabilisert hele 4.2.10-4.2.20-løpet i én release.
+- BACnet-lesing er gjort merkbart mer robust:
+  - Fikset parserkanttilfelle for `ReadProperty-ACK` med REAL-verdi (bl.a. `ai:11`/avkast).
+  - Forenklet avkast-fallback til deterministiske kandidater (`ai:11`, `ai:60`, `ai:61`, `av:130`).
+  - Bedre feilsøkingslogg for invoke-svar som ikke parse’es (APDU/service + hexdump når debug er aktiv).
+- UI/admin-forbedringer fra 4.2.x beholdes:
+  - Modernisert grafside med hover/crosshair og tidsfiltre.
+  - Bedre lesbarhet i dashboard (chips/footer) og ryddigere handlinger i admin.
+- Herdet ePaper-levetid (i tråd med anbefalt praksis for Waveshare/GDEY):
+  - Skjermen settes i lavstrøm av-modus (`powerOff`) etter hver render/onboarding-visning.
+  - Minste effektive skjermoppdateringsintervall er 180 sek når display er aktivert.
+  - Oppdateringsintervall i runtime følger nå endringer uten reboot.
 
 ### v4.2.9
 

@@ -1,4 +1,4 @@
-# VentReader – Flexit Modbus Reader with ePaper UI (v4.2.11)
+# VentReader – Flexit reader with ePaper UI (v4.3.0)
 
 VentReader is an ESP32-based local gateway for Flexit ventilation systems (Nordic S3 / S4 + selected experimental models).
 It provides local ePaper display, local web admin, and Homey/Home Assistant integrations over local APIs.
@@ -7,12 +7,20 @@ Default behavior is read-focused monitoring. Write control is optional and disab
 
 ## Changelog (short)
 
-### v4.2.11
-- Improved dashboard chip sizing so mode text (e.g. `BORTE`) fits reliably without clipping.
-- Reworked footer layout into three clear centered zones (heat, source status, WiFi), with safe text fitting/truncation.
-
-### v4.2.10
-- Rotated the ePaper UI orientation by 180° relative to previous firmware orientation.
+### v4.3.0
+- Consolidated and stabilized the 4.2.10-4.2.20 cycle into one release.
+- BACnet read path is now significantly more robust:
+  - Fixed `ReadProperty-ACK` parsing edge-case for REAL payloads (`ai:11` exhaust no longer dropped by parser).
+  - Simplified exhaust fallback strategy to deterministic candidates (`ai:11`, `ai:60`, `ai:61`, `av:130`).
+  - Improved diagnostics for unmatched BACnet invoke replies (APDU/service + hex dump when debug is enabled).
+- Admin/UI quality improvements from the 4.2.x cycle are retained:
+  - Modernized graph page with hover tooltip/crosshair and range filters.
+  - Better dashboard chip/footer readability and clearer layout.
+  - Top-bar/admin quality-of-life actions (refresh-now, home button, clearer status flow).
+- ePaper longevity hardening (Waveshare/GDEY best-practice aligned):
+  - Display is put in low-power off mode (`powerOff`) after each render/onboarding refresh.
+  - Minimum display refresh interval is effectively clamped to 180s when display is enabled.
+  - Runtime refresh interval now tracks updated config without reboot.
 
 ### v4.2.9
 - Fixed BACnet mode interpretation for MSV mode objects when older enum-map was still stored (`HIGH` no longer shown as `FIREPLACE` after switching to `msv:41` defaults).

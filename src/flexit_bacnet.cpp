@@ -637,6 +637,95 @@ static bool parseApplicationValue(const uint8_t* p, size_t n, ValueResult& out, 
   return false;
 }
 
+static bool parseContextNumericValue(const uint8_t* p, size_t n, ValueResult& out, size_t* consumed = nullptr)
+{
+  if (!p || n < 2) return false;
+  uint8_t tag = p[0];
+  if (!(tag & 0x08)) return false; // context-specific only
+  uint8_t lvt = (uint8_t)(tag & 0x07);
+  if (lvt == 6 || lvt == 7) return false; // opening/closing tag
+
+  size_t len = lvt;
+  size_t pos = 1;
+  if (lvt == 5)
+  {
+    if (n < 2) return false;
+    len = p[pos++];
+  }
+  if (len < 1 || len > 4) return false;
+  if (pos + len > n) return false;
+  if (consumed) *consumed = pos + len;
+
+  // Some BACnet devices encode numeric propertyValue using context-primitive tags.
+  // Treat len=4 as REAL first, otherwise unsigned integer fallback.
+  if (len == 4)
+  {
+    uint32_t raw = u32BE(p + pos);
+    float f = NAN;
+    memcpy(&f, &raw, sizeof(float));
+    if (!isnan(f) && isfinite(f) && fabsf(f) < 1000000.0f)
+    {
+      out.ok = true;
+      out.number = f;
+      return true;
+    }
+  }
+
+  uint32_t v = 0;
+  for (size_t i = 0; i < len; i++) v = (v << 8) | p[pos + i];
+  out.ok = true;
+  out.number = (float)v;
+  out.enum_value = v;
+  out.is_enum = false;
+  return true;
+}
+
+static bool packetInvokeInfo(const uint8_t* p, size_t n, uint8_t invoke, uint8_t* apduOut = nullptr, uint8_t* serviceOut = nullptr)
+{
+  size_t apduPos = 0, blen = 0;
+  if (!locateApdu(p, n, apduPos, blen)) return false;
+  size_t i = apduPos;
+  if (i >= blen) return false;
+  uint8_t apdu = p[i++];
+  if (apduOut) *apduOut = apdu;
+
+  auto setSvc = [&](uint8_t s) {
+    if (serviceOut) *serviceOut = s;
+  };
+
+  // Simple-ACK / Error / Reject / Abort share invoke as first byte after APDU.
+  if ((apdu & 0xF0) == 0x20 || (apdu & 0xF0) == 0x50 || (apdu & 0xF0) == 0x60 || (apdu & 0xF0) == 0x70)
+  {
+    if (i + 2 > blen) return false;
+    uint8_t gotInvoke = p[i++];
+    uint8_t serviceOrReason = p[i++];
+    setSvc(serviceOrReason);
+    return gotInvoke == invoke;
+  }
+
+  // Complex-ACK: segmented variant includes seq+window before service.
+  if ((apdu & 0xF0) == 0x30)
+  {
+    if (apdu & 0x08)
+    {
+      if (i + 4 > blen) return false;
+      uint8_t gotInvoke = p[i++];
+      (void)p[i++]; // seq
+      (void)p[i++]; // window
+      uint8_t service = p[i++];
+      setSvc(service);
+      return gotInvoke == invoke;
+    }
+    if (i + 2 > blen) return false;
+    uint8_t gotInvoke = p[i++];
+    uint8_t service = p[i++];
+    setSvc(service);
+    return gotInvoke == invoke;
+  }
+
+  return false;
+}
+
 static bool parseReadPropertyAckValue(const uint8_t* p, size_t n, uint8_t invoke, ValueResult& out)
 {
   if (!p || n < 12) return false;
@@ -690,21 +779,15 @@ static bool parseReadPropertyAckValue(const uint8_t* p, size_t n, uint8_t invoke
   }
   if (open3 != (size_t)-1)
   {
-    size_t close3 = (size_t)-1;
-    for (size_t j = open3 + 1; j < blen; j++)
-    {
-      if (p[j] == 0x3F) { close3 = j; break; }
-    }
-    if (close3 == (size_t)-1 || close3 <= open3 + 1) return false;
-
-    size_t j = open3 + 1;
-    while (j < close3)
+    // Do NOT scan for first raw 0x3F byte as closing-tag; 0x3F can appear inside REAL payload bytes.
+    // Instead, parse value directly after opening tag and accept first valid numeric token.
+    if (open3 + 1 < blen)
     {
       size_t used = 0;
-      if (parseApplicationValue(p + j, close3 - j, out, &used) && out.ok)
+      if (parseApplicationValue(p + open3 + 1, blen - (open3 + 1), out, &used) && out.ok)
         return true;
-      if (used == 0) used = 1;
-      j += used;
+      if (parseContextNumericValue(p + open3 + 1, blen - (open3 + 1), out, &used) && out.ok)
+        return true;
     }
     return false;
   }
@@ -715,6 +798,8 @@ static bool parseReadPropertyAckValue(const uint8_t* p, size_t n, uint8_t invoke
   {
     size_t used = 0;
     if (parseApplicationValue(p + j, blen - j, out, &used) && out.ok)
+      return true;
+    if (parseContextNumericValue(p + j, blen - j, out, &used) && out.ok)
       return true;
     if (used == 0) used = 1;
     j += used;
@@ -922,10 +1007,22 @@ static bool readOneNumeric(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
       out = vr.number;
       return true;
     }
+    uint8_t apdu = 0, svc = 0;
+    if (packetInvokeInfo(buf, (size_t)rd, invoke, &apdu, &svc))
+    {
+      gotMatchingInvoke = true;
+      dbg(String("RX(num) invoke-match not parsed apdu=0x") + String(apdu, HEX) + " svc=" + String(svc));
+      if (g_debug_enabled) dbg(String("RX(num) hex: ") + hexDump(buf, (size_t)rd));
+    }
     if (g_last_error.startsWith("DATA: BACnet Error-PDU"))
       return false;
   }
 
+  if (gotMatchingInvoke)
+  {
+    setErr("DATA", "reply for invoke not understood");
+    return false;
+  }
   if (gotFromTarget)
   {
     setErr("DATA", "reply received but not understood (object/property mismatch)");
@@ -973,10 +1070,22 @@ static bool readOneEnum(WiFiUDP& udp, const IPAddress& ip, uint16_t port,
       outEnum = vr.is_enum ? vr.enum_value : (uint32_t)lroundf(vr.number);
       return true;
     }
+    uint8_t apdu = 0, svc = 0;
+    if (packetInvokeInfo(buf, (size_t)rd, invoke, &apdu, &svc))
+    {
+      gotMatchingInvoke = true;
+      dbg(String("RX(enum) invoke-match not parsed apdu=0x") + String(apdu, HEX) + " svc=" + String(svc));
+      if (g_debug_enabled) dbg(String("RX(enum) hex: ") + hexDump(buf, (size_t)rd));
+    }
     if (g_last_error.startsWith("DATA: BACnet Error-PDU"))
       return false;
   }
 
+  if (gotMatchingInvoke)
+  {
+    setErr("DATA", "mode reply for invoke not understood");
+    return false;
+  }
   if (gotFromTarget)
   {
     setErr("DATA", "mode reply received but not understood (object/property mismatch)");
@@ -1167,6 +1276,25 @@ bool flexit_bacnet_test(FlexitData* outData, String* reason)
   bool gotSup = readOneNumeric(udp, ip, g_cfg.bacnet_port, oSup, t.tilluft);
   bool gotExt = readOneNumeric(udp, ip, g_cfg.bacnet_port, oExt, t.avtrekk);
   bool gotExh = readOneNumeric(udp, ip, g_cfg.bacnet_port, oExh, t.avkast);
+  if (!gotExh)
+  {
+    // Keep exhaust fallback intentionally small and predictable.
+    const char* exFallback[] = {"ai:11", "ai:60", "ai:61", "av:130"};
+    for (size_t i = 0; i < (sizeof(exFallback) / sizeof(exFallback[0])); i++)
+    {
+      if (String(exFallback[i]) == g_cfg.bacnet_obj_exhaust) continue;
+      ObjRef alt = parseObjRef(String(exFallback[i]));
+      if (!alt.valid) continue;
+      if (readOneNumeric(udp, ip, g_cfg.bacnet_port, alt, t.avkast))
+      {
+        gotExh = true;
+        dbg(String("EXHAUST fallback hit: ") + exFallback[i]);
+        break;
+      }
+      // keep trying candidates even if one gave parse/protocol error
+      g_last_error = "OK";
+    }
+  }
   float fan = 0.0f;
   float heat = 0.0f;
   bool gotFan = readOneNumeric(udp, ip, g_cfg.bacnet_port, oFan, fan);
@@ -1670,7 +1798,7 @@ String flexit_bacnet_probe_configured_objects_json()
       static const char* C_OUTDOOR[] = {"ai:1", "av:102", "av:104"};
       static const char* C_SUPPLY[]  = {"ai:4", "av:5", "ai:75", "av:100"};
       static const char* C_EXTRACT[] = {"ai:59", "av:131"};
-      static const char* C_EXHAUST[] = {"ai:60", "ai:61", "av:132", "av:130", "av:127", "av:58"};
+      static const char* C_EXHAUST[] = {"ai:11", "ai:60", "ai:61", "av:130"};
       static const char* C_FAN[]     = {"ao:3", "ao:4", "av:56", "av:57"};
       static const char* C_HEAT[]    = {"ao:29", "ao:28", "av:58"};
       static const char* C_MODE[]    = {"msv:41", "msv:42", "msv:14", "msv:19", "av:0", "msv:60", "msv:61", "msv:62", "msv:63", "msv:64", "msv:65"};

@@ -340,6 +340,7 @@ static String tr(const char* key)
   if (strcmp(key, "next") == 0) return en ? "Next" : no ? "Neste" : da ? "Næste" : sv ? "Nästa" : fi ? "Seuraava" : "Далі";
   if (strcmp(key, "complete_restart") == 0) return en ? "Complete & restart" : no ? "Fullfør & restart" : da ? "Fuldfør & genstart" : sv ? "Slutför & starta om" : fi ? "Valmis & käynnistä uudelleen" : "Завершити та перезапустити";
   if (strcmp(key, "poll_sec") == 0) return en ? "Update interval (sec)" : no ? "Oppdateringsintervall (sek)" : da ? "Opdateringsinterval (sek)" : sv ? "Uppdateringsintervall (sek)" : fi ? "Päivitysväli (s)" : "Інтервал оновлення (с)";
+  if (strcmp(key, "poll_help") == 0) return en ? "Display refresh interval. Minimum 180s when display is enabled; headless can use shorter intervals." : no ? "Oppdateringsintervall for display. Minimum 180 sek når display er aktivert; headless kan bruke kortere intervall." : da ? "Opdateringsinterval for display. Minimum 180 sek nar display er aktiveret; headless kan bruge kortere intervaller." : sv ? "Uppdateringsintervall for display. Minimum 180 sek nar display ar aktiverad; headless kan anvanda kortare intervall." : fi ? "Nayton paivitysvali. Vahintaan 180 s kun naytto on kaytossa; headless voi kayttaa lyhyempaa valia." : "Інтервал оновлення екрана. Мінімум 180 с, коли дисплей увімкнено; у headless можна менше.";
   if (strcmp(key, "data_source") == 0) return en ? "Data source" : no ? "Datakilde" : da ? "Datakilde" : sv ? "Datakälla" : fi ? "Tietolähde" : "Джерело даних";
   if (strcmp(key, "source_modbus") == 0) return en ? "Modbus (experimental, local)" : no ? "Modbus (eksperimentell, lokal)" : da ? "Modbus (eksperimentel, lokal)" : sv ? "Modbus (experimentell, lokal)" : fi ? "Modbus (kokeellinen, paikallinen)" : "Modbus (експериментально, локально)";
   if (strcmp(key, "source_bacnet") == 0) return en ? "BACnet (local)" : no ? "BACnet (lokal)" : da ? "BACnet (lokal)" : sv ? "BACnet (lokal)" : fi ? "BACnet (paikallinen)" : "BACnet (локально)";
@@ -1335,9 +1336,9 @@ static String buildHomeyExportJson()
   out += "\"setpoint_write_example\":\"" + jsonEscape(ctrlSetpointUrl) + "\",";
   out += "\"auth_header_example\":\"Authorization: Bearer <TOKEN>\"";
   out += "},";
-  out += "\"recommended_poll_interval_seconds\":60,";
+  out += "\"recommended_poll_interval_seconds\":180,";
   out += "\"flow_notes\":[";
-  out += "\"Trigger: every 1-2 minutes\",";
+  out += "\"Trigger: every 3-5 minutes\",";
   out += "\"Action: run HomeyScript VentReader Poll\",";
   out += "\"Optional: alarm/push notification on script failure\"";
   out += "],";
@@ -1526,6 +1527,7 @@ static void handleAdminConfigImport()
   if (jsonGetInt(j, "modbus_slave_id", n) && n >= 1 && n <= 247) g_cfg->modbus_slave_id = (uint8_t)n;
   if (jsonGetInt(j, "modbus_addr_offset", n) && n >= -5 && n <= 5) g_cfg->modbus_addr_offset = (int8_t)n;
   if (jsonGetInt(j, "poll_interval_ms", n) && n >= 30000 && n <= 3600000) g_cfg->poll_interval_ms = (uint32_t)n;
+  if (g_cfg->display_enabled && g_cfg->poll_interval_ms < 180000) g_cfg->poll_interval_ms = 180000;
 
   if (g_cfg->homey_api_token.length() < 16) g_cfg->homey_api_token = g_cfg->api_token;
   if (g_cfg->ha_api_token.length() < 16) g_cfg->ha_api_token = g_cfg->api_token;
@@ -2550,7 +2552,7 @@ static void handleAdminSetup()
   s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"setup_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"setup_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"setup_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"setup_form\")'>Object scan</button><button class='btn secondary' type='button' onclick='probeBACnetWrite(\"setup_form\")'>Write probe (exp)</button></div>";
     s += "<div id='fw_test_result_setup' class='help'></div>";
     s += "<pre id='probe_values_setup' style='display:none;white-space:pre-wrap;max-height:240px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:12px;line-height:1.35;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
-    s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"setup\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"setup\")'>Tøm debuglogg</button></div>";
+    s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"setup\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='copyBACnetDebug(\"setup\")'>Kopier logg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"setup\")'>Tøm debuglogg</button></div>";
     s += "<pre id='bacnet_debug_setup' data-on='0' style='display:none;white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:11px;line-height:1.45;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
     s += "</div>";
     s += "</div>";
@@ -2574,8 +2576,15 @@ static void handleAdminSetup()
          "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
          "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
          "u();"
+         "async function prepBACnetDebug(scope){"
+         "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});}catch(e){}"
+         "try{var en1=new URLSearchParams(); en1.append('enable','1'); await fetch('/admin/bacnet_debug_mode',{method:'POST',credentials:'same-origin',body:en1});}catch(e){}"
+         "var dbg=document.getElementById(scope==='admin'?'bacnet_debug_admin':'bacnet_debug_setup');"
+         "if(dbg && dbg.dataset.on==='1'){dbg.style.display='block';dbg.textContent='(samler ny logg...)';}"
+         "}"
          "window.testBACnet=async function(formId){"
          "var form=document.getElementById(formId);if(!form)return;"
+         "await prepBACnetDebug('setup');"
          "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
          "var dbg=document.getElementById('bacnet_debug_setup')||document.getElementById('bacnet_debug_admin');"
          "if(target){target.style.color='var(--muted)';target.textContent='Tester BACnet...';}"
@@ -2592,6 +2601,7 @@ static void handleAdminSetup()
          "};"
          "window.discoverBACnet=async function(formId){"
          "var form=document.getElementById(formId);if(!form)return;"
+         "await prepBACnetDebug('setup');"
          "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
          "var dbg=document.getElementById('bacnet_debug_setup')||document.getElementById('bacnet_debug_admin');"
          "if(target){target.style.color='var(--muted)';target.textContent='Soker etter BACnet-enheter...';}"
@@ -2608,6 +2618,7 @@ static void handleAdminSetup()
          "};"
          "window.probeBACnetObjects=async function(formId){"
          "var form=document.getElementById(formId);if(!form)return;"
+         "await prepBACnetDebug('setup');"
          "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
          "var dbg=document.getElementById('bacnet_debug_setup')||document.getElementById('bacnet_debug_admin');"
          "var listEl=document.getElementById('probe_values_setup')||document.getElementById('probe_values_admin');"
@@ -2634,6 +2645,7 @@ static void handleAdminSetup()
          "};"
          "window.scanBACnetObjects=async function(formId){"
          "var form=document.getElementById(formId);if(!form)return;"
+         "await prepBACnetDebug('setup');"
          "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
          "var dbg=document.getElementById('bacnet_debug_setup')||document.getElementById('bacnet_debug_admin');"
          "var from=prompt('Start instance', '0'); if(from===null)return;"
@@ -2660,6 +2672,7 @@ static void handleAdminSetup()
          "};"
          "window.probeBACnetWrite=async function(formId){"
          "var form=document.getElementById(formId);if(!form)return;"
+         "await prepBACnetDebug('setup');"
          "var target=document.getElementById('fw_test_result_setup')||document.getElementById('fw_test_result_admin');"
          "var dbg=document.getElementById('bacnet_debug_setup')||document.getElementById('bacnet_debug_admin');"
          "if(target){target.style.color='var(--muted)';target.textContent='Kjører eksperimentell BACnet write-probe...';}"
@@ -2691,13 +2704,24 @@ static void handleAdminSetup()
          "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});}catch(e){}"
          "if(dbg){dbg.style.display='block';dbg.textContent='(tom logg)';}"
          "};"
+         "window.copyBACnetDebug=async function(scope){"
+         "var target=document.getElementById(scope==='admin'?'fw_test_result_admin':'fw_test_result_setup');"
+         "try{"
+         "var r=await fetch('/admin/bacnet_debug.txt',{credentials:'same-origin'});"
+         "var t=await r.text();"
+         "if(!t || !t.length) t='(tom logg)';"
+         "if(navigator.clipboard && navigator.clipboard.writeText){await navigator.clipboard.writeText(t);}"
+         "else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);}"
+         "if(target){target.style.color='#166534';target.textContent='Debuglogg kopiert til utklippstavlen.';}"
+         "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='Kopiering av logg feilet: '+e.message;}}"
+         "};"
          "})();</script>";
     s += "</div>";
 
     s += "<div class='card'><h2>Display</h2>";
     s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
     s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
-    s += "<div class='help'>Skjerminnstillinger samles her. BACnet-polling styres av eget minuttfelt.</div>";
+    s += "<div class='help'>" + tr("poll_help") + "</div>";
     s += "<div class='actions'><a class='btn secondary' href='/admin/setup?step=2'>Tilbake</a><button class='btn' type='submit'>Fullfør &amp; restart</button></div>";
     s += "</form>";
     s += "<div class='help'>Når du fullfører, blir oppsettet lagret og du kan gå til admin.</div>";
@@ -2805,6 +2829,7 @@ static void handleAdminSetupSave()
 
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
   if (pollSec < 30) pollSec = 30;
+  if (g_cfg->display_enabled && pollSec < 180) pollSec = 180;
   if (pollSec > 3600) pollSec = 3600;
   g_cfg->poll_interval_ms = pollSec * 1000UL;
 
@@ -3024,7 +3049,7 @@ static void handleAdmin()
   s += "<div class='actions' style='margin-top:10px'><button class='btn secondary' type='button' onclick='testBACnet(\"admin_form\")'>Test BACnet</button><button class='btn secondary' type='button' onclick='discoverBACnet(\"admin_form\")'>Autodiscover</button><button class='btn secondary' type='button' onclick='probeBACnetObjects(\"admin_form\")'>Object probe</button><button class='btn secondary' type='button' onclick='scanBACnetObjects(\"admin_form\")'>Object scan</button><button class='btn secondary' type='button' onclick='probeBACnetWrite(\"admin_form\")'>Write probe (exp)</button></div>";
   s += "<div id='fw_test_result_admin' class='help'></div>";
   s += "<pre id='probe_values_admin' style='display:none;white-space:pre-wrap;max-height:240px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:12px;line-height:1.35;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
-  s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"admin\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"admin\")'>Tøm debuglogg</button></div>";
+  s += "<div class='actions' style='margin-top:8px'><button class='btn secondary' type='button' onclick='showBACnetDebug(\"admin\")'>Vis debuglogg</button><button class='btn secondary' type='button' onclick='copyBACnetDebug(\"admin\")'>Kopier logg</button><button class='btn secondary' type='button' onclick='clearBACnetDebug(\"admin\")'>Tøm debuglogg</button></div>";
   s += "<pre id='bacnet_debug_admin' data-on='0' style='display:none;white-space:pre-wrap;max-height:220px;overflow:auto;border:1px solid #2a3344;border-radius:10px;padding:10px;font-size:11px;line-height:1.45;background:#0b1220;color:#dbeafe;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace'></pre>";
   s += "</div>";
   s += "</div>";
@@ -3045,8 +3070,15 @@ static void handleAdmin()
        "for(var i=0;i<src.length;i++){src[i].addEventListener('change',u);}"
        "if(m){m.addEventListener('change',function(){if(t.checked){p(m.value);}});}"
        "u();"
+       "async function prepBACnetDebug(scope){"
+       "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});}catch(e){}"
+       "try{var en1=new URLSearchParams(); en1.append('enable','1'); await fetch('/admin/bacnet_debug_mode',{method:'POST',credentials:'same-origin',body:en1});}catch(e){}"
+       "var dbg=document.getElementById(scope==='setup'?'bacnet_debug_setup':'bacnet_debug_admin');"
+       "if(dbg && dbg.dataset.on==='1'){dbg.style.display='block';dbg.textContent='(samler ny logg...)';}"
+       "}"
        "window.testBACnet=async function(formId){"
        "var form=document.getElementById(formId);if(!form)return;"
+       "await prepBACnetDebug('admin');"
        "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
        "var dbg=document.getElementById('bacnet_debug_admin')||document.getElementById('bacnet_debug_setup');"
        "if(target){target.style.color='var(--muted)';target.textContent='Tester BACnet...';}"
@@ -3063,6 +3095,7 @@ static void handleAdmin()
        "};"
        "window.discoverBACnet=async function(formId){"
        "var form=document.getElementById(formId);if(!form)return;"
+       "await prepBACnetDebug('admin');"
        "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
        "var dbg=document.getElementById('bacnet_debug_admin')||document.getElementById('bacnet_debug_setup');"
        "if(target){target.style.color='var(--muted)';target.textContent='Soker etter BACnet-enheter...';}"
@@ -3079,6 +3112,7 @@ static void handleAdmin()
        "};"
        "window.probeBACnetObjects=async function(formId){"
        "var form=document.getElementById(formId);if(!form)return;"
+       "await prepBACnetDebug('admin');"
        "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
        "var dbg=document.getElementById('bacnet_debug_admin')||document.getElementById('bacnet_debug_setup');"
        "var listEl=document.getElementById('probe_values_admin')||document.getElementById('probe_values_setup');"
@@ -3105,6 +3139,7 @@ static void handleAdmin()
        "};"
        "window.scanBACnetObjects=async function(formId){"
        "var form=document.getElementById(formId);if(!form)return;"
+       "await prepBACnetDebug('admin');"
        "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
        "var dbg=document.getElementById('bacnet_debug_admin')||document.getElementById('bacnet_debug_setup');"
        "var from=prompt('Start instance', '0'); if(from===null)return;"
@@ -3131,6 +3166,7 @@ static void handleAdmin()
        "};"
        "window.probeBACnetWrite=async function(formId){"
        "var form=document.getElementById(formId);if(!form)return;"
+       "await prepBACnetDebug('admin');"
        "var target=document.getElementById('fw_test_result_admin')||document.getElementById('fw_test_result_setup');"
        "var dbg=document.getElementById('bacnet_debug_admin')||document.getElementById('bacnet_debug_setup');"
        "if(target){target.style.color='var(--muted)';target.textContent='Kjører eksperimentell BACnet write-probe...';}"
@@ -3162,6 +3198,17 @@ static void handleAdmin()
        "try{await fetch('/admin/clear_bacnet_debug',{method:'POST',credentials:'same-origin'});}catch(e){}"
        "if(dbg){dbg.style.display='block';dbg.textContent='(tom logg)';}"
        "};"
+       "window.copyBACnetDebug=async function(scope){"
+       "var target=document.getElementById(scope==='setup'?'fw_test_result_setup':'fw_test_result_admin');"
+       "try{"
+       "var r=await fetch('/admin/bacnet_debug.txt',{credentials:'same-origin'});"
+       "var t=await r.text();"
+       "if(!t || !t.length) t='(tom logg)';"
+       "if(navigator.clipboard && navigator.clipboard.writeText){await navigator.clipboard.writeText(t);}"
+       "else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);}"
+       "if(target){target.style.color='#166534';target.textContent='Debuglogg kopiert til utklippstavlen.';}"
+       "}catch(e){if(target){target.style.color='#b91c1c';target.textContent='Kopiering av logg feilet: '+e.message;}}"
+       "};"
        "})();</script>";
   s += "</div>";
 
@@ -3169,7 +3216,7 @@ static void handleAdmin()
   s += "<div class='card'><h2>Display</h2>";
   s += "<label><input type='checkbox' name='disp' " + String(!g_cfg->display_enabled ? "checked" : "") + "> " + tr("headless") + "</label>";
   s += "<label>" + tr("poll_sec") + "</label><input name='poll' type='number' min='30' max='3600' value='" + String(g_cfg->poll_interval_ms/1000) + "'>";
-  s += "<div class='help'>Skjerminnstillinger: headless og oppdateringsintervall er samlet her.</div>";
+  s += "<div class='help'>" + tr("poll_help") + "</div>";
   s += "</div>";
 
   // Homey export helper
@@ -3481,62 +3528,234 @@ static void handleAdminGraphs()
   }
 
   String s = pageHeader(tr("graphs"), tr("history_graphs_subtitle"));
+  s += "<style>"
+       ".graph-card{background:linear-gradient(180deg,#141922,#10141c);border:1px solid #2a3446;border-radius:16px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}"
+       ".graph-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}"
+       ".range-wrap{display:flex;gap:6px;flex-wrap:wrap}"
+       ".range-btn{border:1px solid #2d3850;background:#101825;color:#9fb0cb;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}"
+       ".range-btn.active{border-color:#c2a17e;color:#f4debf;background:rgba(194,161,126,.14)}"
+       ".legend{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}"
+       ".legend-chip{display:flex;align-items:center;gap:7px;border:1px solid #2d3850;background:#0f1622;color:#cdd7ea;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer}"
+       ".legend-chip.off{opacity:.45}"
+       ".dot{width:8px;height:8px;border-radius:50%}"
+       ".chart-wrap{position:relative}"
+       ".chart-canvas{width:100%;display:block;border:1px solid #2a3446;border-radius:14px;background:linear-gradient(180deg,#0e1420,#0c1119)}"
+       ".chart-title{font-weight:700;color:#d8e2f6;font-size:13px;margin:0 0 8px}"
+       ".stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}"
+       ".stat-pill{border:1px solid #2a3446;background:#0f1622;border-radius:12px;padding:10px}"
+       ".stat-pill .k{font-size:11px;color:#8da0bf;text-transform:uppercase;letter-spacing:.08em}"
+       ".stat-pill .v{font-size:16px;color:#e5ecf8;font-weight:700;margin-top:4px}"
+       "@media (max-width:720px){.stat-grid{grid-template-columns:1fr}}"
+       "</style>";
+
   s += "<div class='grid'>";
-  s += "<div class='card'><h2>" + tr("history_graphs_title") + "</h2>";
-  s += "<div class='row'>";
+  s += "<div class='card graph-card'><h2>" + tr("history_graphs_title") + "</h2>";
+  s += "<div class='graph-toolbar'>";
   s += "<div><label>" + tr("history_limit") + "</label><input id='limit' type='number' min='20' max='720' value='240'></div>";
-  s += "<div style='display:flex;align-items:end'><button class='btn secondary' type='button' onclick='loadHist()'>" + tr("refresh") + "</button></div>";
-  s += "<div style='display:flex;align-items:end'><button class='btn secondary' type='button' onclick='downloadCsv()'>" + tr("export_csv") + "</button></div>";
+  s += "<div class='range-wrap'>"
+       "<button class='range-btn active' data-range='2h'>2h</button>"
+       "<button class='range-btn' data-range='6h'>6h</button>"
+       "<button class='range-btn' data-range='24h'>24h</button>"
+       "<button class='range-btn' data-range='all'>All</button>"
+       "</div>";
+  s += "<div style='display:flex;align-items:end;gap:8px'>"
+       "<button class='btn secondary' type='button' onclick='loadHist()'>" + tr("refresh") + "</button>"
+       "<button class='btn secondary' type='button' onclick='downloadCsv()'>" + tr("export_csv") + "</button>"
+       "</div>";
   s += "</div>";
   s += "<div class='help' id='state'>" + tr("loading") + "</div>";
+  s += "<div class='legend' id='legend'></div>";
+  s += "<p class='chart-title'>" + tr("temp_graph") + "</p>";
+  s += "<div class='chart-wrap'><canvas id='temp' class='chart-canvas' width='940' height='280'></canvas></div>";
   s += "<div class='sep-gold'></div>";
-  s += "<div class='help'><strong>" + tr("legend") + "</strong></div>";
-  s += "<div id='legend' class='actions' style='margin-top:8px'></div>";
-  s += "<div class='sep-gold'></div>";
-  s += "<div><div class='help'><strong>" + tr("temp_graph") + "</strong></div><canvas id='temp' width='860' height='260' style='width:100%;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(194,161,126,.10), rgba(194,161,126,.02));box-shadow:inset 0 0 0 1px rgba(194,161,126,.18)'></canvas></div>";
-  s += "<div class='sep-gold'></div>";
-  s += "<div><div class='help'><strong>" + tr("perf_graph") + "</strong></div><canvas id='perf' width='860' height='220' style='width:100%;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(194,161,126,.10), rgba(194,161,126,.02));box-shadow:inset 0 0 0 1px rgba(194,161,126,.18)'></canvas></div>";
+  s += "<p class='chart-title'>" + tr("perf_graph") + "</p>";
+  s += "<div class='chart-wrap'><canvas id='perf' class='chart-canvas' width='940' height='240'></canvas></div>";
   s += "</div>";
 
-  s += "<div class='card'><h2>" + tr("storage_status") + "</h2>";
-  s += "<div class='kpi'>";
-  s += "<div class='kv'><div class='k'>" + tr("history_points") + "</div><div id='st_points' class='v'>-</div></div>";
-  s += "<div class='kv'><div class='k'>" + tr("history_mem") + "</div><div id='st_mem' class='v'>-</div></div>";
-  s += "<div class='kv'><div class='k'>" + tr("heap_free") + "</div><div id='st_heap' class='v'>-</div></div>";
-  s += "<div class='kv'><div class='k'>" + tr("heap_min") + "</div><div id='st_heap_min' class='v'>-</div></div>";
+  s += "<div class='card graph-card'><h2>" + tr("storage_status") + "</h2>";
+  s += "<div class='stat-grid'>";
+  s += "<div class='stat-pill'><div class='k'>" + tr("history_points") + "</div><div id='st_points' class='v'>-</div></div>";
+  s += "<div class='stat-pill'><div class='k'>" + tr("history_mem") + "</div><div id='st_mem' class='v'>-</div></div>";
+  s += "<div class='stat-pill'><div class='k'>" + tr("heap_free") + "</div><div id='st_heap' class='v'>-</div></div>";
+  s += "<div class='stat-pill'><div class='k'>" + tr("heap_min") + "</div><div id='st_heap_min' class='v'>-</div></div>";
   s += "</div>";
-  s += "<div class='help'>" + tr("history_ram_only") + "</div>";
+  s += "<div class='help' style='margin-top:10px'>" + tr("history_ram_only") + "</div>";
   s += "<div class='actions'><a class='btn' href='/admin'>" + tr("to_admin_page") + "</a></div>";
-  s += "</div>";
-  s += "</div>";
+  s += "</div></div>";
 
   const String token = jsonEscape(g_cfg->homey_api_token);
+  const String loadingTxt = jsonEscape(tr("loading"));
   s += "<script>";
   s += "const API_TOKEN='" + token + "';";
   s += "const API_HEADERS={Authorization:'Bearer '+API_TOKEN};";
-  s += "const SERIES=["
-       "{k:'uteluft',c:'#0ea5e9',g:'temp',n:'UTELUFT',on:true},"
-       "{k:'tilluft',c:'#22c55e',g:'temp',n:'TILLUFT',on:true},"
-       "{k:'avtrekk',c:'#f59e0b',g:'temp',n:'AVTREKK',on:true},"
-       "{k:'avkast',c:'#6366f1',g:'temp',n:'AVKAST',on:true},"
-       "{k:'fan',c:'#111827',g:'perf',n:'FAN %',on:true},"
-       "{k:'heat',c:'#ef4444',g:'perf',n:'HEAT %',on:true},"
-       "{k:'efficiency',c:'#16a34a',g:'perf',n:'EFF %',on:true}"
-       "];";
-  s += "let LAST=[];";
-  s += "function drawLine(ctx,pts,color){if(pts.length<2)return;ctx.strokeStyle=color;ctx.lineWidth=2.25;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();}";
-  s += "function scale(v,min,max,h,pad){if(v===null||isNaN(v))return null; if(max<=min) return h/2; return pad + (h-pad*2) * (1 - ((v-min)/(max-min)));}";
-  s += "function paintGrid(ctx,w,h,p){ctx.strokeStyle='rgba(107,114,128,.35)';ctx.lineWidth=1;for(let i=0;i<5;i++){const y=p + (h-p*2)*i/4;ctx.beginPath();ctx.moveTo(p,y);ctx.lineTo(w-p,y);ctx.stroke();}}";
-  s += "function drawSeries(canvasId,items,series){const c=document.getElementById(canvasId);const ctx=c.getContext('2d');const w=c.width,h=c.height,p=20;ctx.clearRect(0,0,w,h);ctx.fillStyle='rgba(255,255,255,0.86)';ctx.fillRect(0,0,w,h);paintGrid(ctx,w,h,p);const active=series.filter(s=>s.on);if(!items.length||!active.length)return;let mn=Infinity,mx=-Infinity;for(const it of items){for(const s of active){const v=it[s.k];if(v!==null&&Number.isFinite(v)){mn=Math.min(mn,v);mx=Math.max(mx,v);}}}if(!Number.isFinite(mn)||!Number.isFinite(mx)){mn=0;mx=1;}if(mx-mn<1)mx=mn+1;for(const s of active){const pts=[];for(let n=0;n<items.length;n++){const x=p + (items.length===1?0:((w-p*2)*n/(items.length-1)));const y=scale(items[n][s.k],mn,mx,h,p);if(y!==null)pts.push([x,y]);}drawLine(ctx,pts,s.c);}ctx.fillStyle='#52525b';ctx.font='12px sans-serif';ctx.fillText(mn.toFixed(1),4,h-6);ctx.fillText(mx.toFixed(1),4,14);}";
-  s += "function renderLegend(){const host=document.getElementById('legend');host.innerHTML='';for(const s of SERIES){const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.borderColor=s.c;b.style.color=s.on?s.c:'#6b7280';b.style.background=s.on?'rgba(194,161,126,.12)':'transparent';b.style.padding='7px 10px';b.style.fontSize='12px';b.textContent=s.n;b.onclick=()=>{s.on=!s.on;renderLegend();renderCharts();};host.appendChild(b);}}";
-  s += "function renderCharts(){drawSeries('temp',LAST,SERIES.filter(s=>s.g==='temp'));drawSeries('perf',LAST,SERIES.filter(s=>s.g==='perf'));}";
-  s += "function fmtBytes(v){if(!Number.isFinite(v))return '-'; if(v>1024*1024)return (v/1048576).toFixed(2)+' MB'; if(v>1024)return (v/1024).toFixed(1)+' KB'; return v+' B';}";
-  s += "async function loadStorage(){try{const r=await fetch('/status/storage',{headers:API_HEADERS});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();document.getElementById('st_points').textContent=(j.history_count||0)+' / '+(j.history_cap||0);document.getElementById('st_mem').textContent=fmtBytes(j.history_memory_bytes||0);document.getElementById('st_heap').textContent=fmtBytes(j.free_heap_bytes||0);document.getElementById('st_heap_min').textContent=fmtBytes(j.min_free_heap_bytes||0);}catch(e){document.getElementById('st_points').textContent='ERR';}}";
-  s += "async function downloadCsv(){const lim=document.getElementById('limit').value||240;try{const r=await fetch('/status/history.csv?limit='+encodeURIComponent(lim),{headers:API_HEADERS});if(!r.ok)throw new Error('HTTP '+r.status);const txt=await r.text();const blob=new Blob([txt],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='ventreader_history.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);a.remove();},800);}catch(e){alert('CSV feilet: '+e.message);}}";
-  s += "async function loadHist(){const state=document.getElementById('state');const lim=document.getElementById('limit').value||240;state.textContent='" + tr("loading") + "';try{const r=await fetch('/status/history?limit='+encodeURIComponent(lim),{headers:API_HEADERS});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();LAST=j.items||[];renderCharts();state.textContent='OK: '+LAST.length+' pts';}catch(e){state.textContent='ERR: '+e.message;}}";
-  s += "renderLegend();";
-  s += "loadStorage();";
-  s += "loadHist();";
+  s += "const TXT_LOADING='" + loadingTxt + "';";
+  s += R"JS(
+const SERIES=[
+  {k:'uteluft',c:'#38bdf8',g:'temp',n:'UTELUFT',on:true},
+  {k:'tilluft',c:'#34d399',g:'temp',n:'TILLUFT',on:true},
+  {k:'avtrekk',c:'#f59e0b',g:'temp',n:'AVTREKK',on:true},
+  {k:'avkast',c:'#a78bfa',g:'temp',n:'AVKAST',on:true},
+  {k:'fan',c:'#60a5fa',g:'perf',n:'FAN %',on:true},
+  {k:'heat',c:'#ef4444',g:'perf',n:'HEAT %',on:true},
+  {k:'efficiency',c:'#22c55e',g:'perf',n:'EFF %',on:true}
+];
+let LAST=[];
+let RANGE='24h';
+let HOVER={temp:-1,perf:-1};
+
+function tsMs(it,idx){ if(it&&it.ts_epoch_ms) return Number(it.ts_epoch_ms); if(it&&it.ts_iso){const d=Date.parse(it.ts_iso); if(Number.isFinite(d)) return d;} return idx*60000; }
+function num(v){ const n=Number(v); return Number.isFinite(n)?n:null; }
+function fmt(v){ return (v===null||!Number.isFinite(v))?'--':(Math.round(v*10)/10).toFixed(1); }
+function fmtBytes(v){ if(!Number.isFinite(v)) return '-'; if(v>1048576) return (v/1048576).toFixed(2)+' MB'; if(v>1024) return (v/1024).toFixed(1)+' KB'; return v+' B';}
+function timeFmt(it,idx){ const t=tsMs(it,idx); const d=new Date(t); return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+
+function filteredItems(){
+  if(!LAST.length) return [];
+  if(RANGE==='all') return LAST;
+  const dur=RANGE==='2h'?2*3600e3:RANGE==='6h'?6*3600e3:24*3600e3;
+  const now=tsMs(LAST[LAST.length-1],LAST.length-1);
+  return LAST.filter((it,i)=> now-tsMs(it,i)<=dur);
+}
+
+function drawChart(canvasId, group){
+  const c=document.getElementById(canvasId), ctx=c.getContext('2d');
+  const w=c.width, h=c.height, p={l:56,r:18,t:16,b:28};
+  const iw=w-p.l-p.r, ih=h-p.t-p.b;
+  ctx.clearRect(0,0,w,h);
+  const bg=ctx.createLinearGradient(0,0,0,h); bg.addColorStop(0,'#0f1727'); bg.addColorStop(1,'#0b1220');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+  const items=filteredItems();
+  const active=SERIES.filter(s=>s.g===group&&s.on);
+  if(!items.length||!active.length){ ctx.fillStyle='#8aa0c5'; ctx.font='12px sans-serif'; ctx.fillText('No data', p.l, p.t+14); return; }
+
+  let mn=Infinity,mx=-Infinity;
+  for(const it of items){
+    for(const s of active){
+      const v=num(it[s.k]); if(v===null) continue;
+      if(v<mn) mn=v; if(v>mx) mx=v;
+    }
+  }
+  if(!Number.isFinite(mn)||!Number.isFinite(mx)){ mn=0; mx=1; }
+  if(mx-mn<1){ mx=mn+1; mn=mn-0.5; }
+
+  const yFor=v=>p.t + (1-((v-mn)/(mx-mn)))*ih;
+  const xFor=i=>p.l + (items.length<=1?0:(iw*i/(items.length-1)));
+
+  ctx.strokeStyle='rgba(111,138,180,.20)'; ctx.lineWidth=1;
+  for(let i=0;i<5;i++){ const y=p.t + ih*(i/4); ctx.beginPath(); ctx.moveTo(p.l,y); ctx.lineTo(w-p.r,y); ctx.stroke(); }
+  for(let i=0;i<6;i++){ const x=p.l + iw*(i/5); ctx.beginPath(); ctx.moveTo(x,p.t); ctx.lineTo(x,h-p.b); ctx.stroke(); }
+
+  ctx.fillStyle='#91a5c8'; ctx.font='11px sans-serif';
+  ctx.fillText(mx.toFixed(1),6,p.t+4);
+  ctx.fillText(mn.toFixed(1),6,h-p.b+4);
+
+  for(const s of active){
+    let first=true;
+    ctx.beginPath();
+    for(let i=0;i<items.length;i++){
+      const v=num(items[i][s.k]); if(v===null) continue;
+      const x=xFor(i), y=yFor(v);
+      if(first){ ctx.moveTo(x,y); first=false; } else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle=s.c; ctx.lineWidth=2.2; ctx.shadowBlur=8; ctx.shadowColor=s.c+'66'; ctx.stroke(); ctx.shadowBlur=0;
+  }
+
+  const hi=Math.max(0,Math.min(items.length-1,HOVER[group]||0));
+  if(items.length && HOVER[group]>=0){
+    const x=xFor(hi);
+    ctx.strokeStyle='rgba(245,222,191,.45)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,p.t); ctx.lineTo(x,h-p.b); ctx.stroke();
+    const lines=[timeFmt(items[hi],hi)];
+    for(const s of active){ lines.push(`${s.n}: ${fmt(num(items[hi][s.k]))}`); }
+    ctx.font='11px sans-serif';
+    let tw=0; for(const l of lines) tw=Math.max(tw,ctx.measureText(l).width);
+    const boxW=tw+16, boxH=lines.length*14+10;
+    let bx=x+10; if(bx+boxW>w-4) bx=x-boxW-10;
+    let by=p.t+6; if(by+boxH>h-p.b) by=h-p.b-boxH;
+    ctx.fillStyle='rgba(8,14,24,.92)'; ctx.strokeStyle='rgba(245,222,191,.45)';
+    ctx.fillRect(bx,by,boxW,boxH); ctx.strokeRect(bx,by,boxW,boxH);
+    ctx.fillStyle='#e7eefb';
+    for(let i=0;i<lines.length;i++) ctx.fillText(lines[i], bx+8, by+16+i*14);
+  }
+}
+
+function renderLegend(){
+  const host=document.getElementById('legend'); host.innerHTML='';
+  for(const s of SERIES){
+    const b=document.createElement('button');
+    b.className='legend-chip'+(s.on?'':' off'); b.type='button';
+    b.innerHTML=`<span class="dot" style="background:${s.c}"></span>${s.n}`;
+    b.onclick=()=>{ s.on=!s.on; renderLegend(); renderAll(); };
+    host.appendChild(b);
+  }
+}
+
+function renderAll(){ drawChart('temp','temp'); drawChart('perf','perf'); }
+
+function attachHover(id,key){
+  const c=document.getElementById(id);
+  c.addEventListener('mousemove',(e)=>{
+    const items=filteredItems(); if(!items.length){ HOVER[key]=-1; renderAll(); return; }
+    const r=c.getBoundingClientRect(); const x=e.clientX-r.left;
+    const pL=56, pR=18; const iw=c.width-pL-pR;
+    const ratio=Math.max(0,Math.min(1,(x-pL)/iw));
+    HOVER[key]=Math.round(ratio*(items.length-1)); renderAll();
+  });
+  c.addEventListener('mouseleave',()=>{ HOVER[key]=-1; renderAll(); });
+}
+
+async function loadStorage(){
+  try{
+    const r=await fetch('/status/storage',{headers:API_HEADERS}); if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    document.getElementById('st_points').textContent=(j.history_count||0)+' / '+(j.history_cap||0);
+    document.getElementById('st_mem').textContent=fmtBytes(j.history_memory_bytes||0);
+    document.getElementById('st_heap').textContent=fmtBytes(j.free_heap_bytes||0);
+    document.getElementById('st_heap_min').textContent=fmtBytes(j.min_free_heap_bytes||0);
+  }catch(e){ document.getElementById('st_points').textContent='ERR'; }
+}
+
+async function downloadCsv(){
+  const lim=document.getElementById('limit').value||240;
+  try{
+    const r=await fetch('/status/history.csv?limit='+encodeURIComponent(lim),{headers:API_HEADERS});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const txt=await r.text();
+    const blob=new Blob([txt],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='ventreader_history.csv'; document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},800);
+  }catch(e){ alert('CSV feilet: '+e.message); }
+}
+
+async function loadHist(){
+  const state=document.getElementById('state');
+  const lim=document.getElementById('limit').value||240;
+  state.textContent=TXT_LOADING;
+  try{
+    const r=await fetch('/status/history?limit='+encodeURIComponent(lim),{headers:API_HEADERS});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); LAST=j.items||[];
+    renderAll();
+    state.textContent='OK: '+LAST.length+' pts | range '+RANGE;
+  }catch(e){ state.textContent='ERR: '+e.message; }
+}
+
+document.querySelectorAll('.range-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    RANGE=btn.dataset.range;
+    document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAll();
+  });
+});
+
+attachHover('temp','temp');
+attachHover('perf','perf');
+renderLegend();
+loadStorage();
+loadHist();
+setInterval(loadStorage, 30000);
+)JS";
   s += "</script>";
   s += pageFooter();
   server.send(200, "text/html", s);
@@ -3600,6 +3819,7 @@ static void handleAdminSave()
   // Poll interval
   uint32_t pollSec = (uint32_t) server.arg("poll").toInt();
   if (pollSec < 30) pollSec = 30;
+  if (g_cfg->display_enabled && pollSec < 180) pollSec = 180;
   if (pollSec > 3600) pollSec = 3600;
   g_cfg->poll_interval_ms = pollSec * 1000UL;
 

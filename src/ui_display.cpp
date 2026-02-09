@@ -349,6 +349,8 @@ void ui_init()
   display.init(115200);
   // User preference: rotate display 180 degrees from previous orientation.
   display.setRotation(0);
+  // Keep panel in low-power state between refreshes for longevity.
+  display.powerOff();
 }
 
 void ui_set_language(const String& lang)
@@ -382,6 +384,9 @@ void ui_render(const FlexitData& d, const String& mbStatus)
     drawFooter(d, mbStatus);
 
   } while (display.nextPage());
+
+  // Put panel in low-power state when not actively refreshing.
+  display.powerOff();
 }
 
 static void drawOnboardingCard(int x, int y, int w, int h, const String& title, const String& body)
@@ -484,6 +489,9 @@ void ui_render_onboarding(const String& apSsid, const String& apPass, const Stri
 
     setTextBlack();
   } while (display.nextPage());
+
+  // Onboarding screen is static for long periods; keep panel powered down.
+  display.powerOff();
 }
 
 void ui_epaper_hard_clear()

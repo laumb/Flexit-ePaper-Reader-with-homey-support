@@ -350,6 +350,7 @@ void setup()
 
   // Apply poll interval from config
   UI_REFRESH_MS = cfg.poll_interval_ms;
+  if (displayActive() && UI_REFRESH_MS < 180000UL) UI_REFRESH_MS = 180000UL;
 
 
   // ---- WiFi connect (STA) ----
@@ -426,6 +427,10 @@ void loop()
   // Handle incoming HTTP requests for /status
   webportal_loop();
   ha_mqtt_loop(cfg, data, mbStatus);
+
+  // Keep runtime refresh interval in sync with config changes from admin.
+  UI_REFRESH_MS = cfg.poll_interval_ms;
+  if (displayActive() && UI_REFRESH_MS < 180000UL) UI_REFRESH_MS = 180000UL;
 
   // Arduino OTA (enabled when on network)
   ArduinoOTA.handle();
